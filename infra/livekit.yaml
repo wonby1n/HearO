@@ -1,0 +1,21 @@
+# infra/livekit.yaml
+
+port: 7880
+bind_addresses:
+  - ""
+
+redis:
+  address: redis:6379
+  username: ""
+  db: 0
+
+rtc:
+  udp_port: 7882
+  tcp_port: 7881
+  port_range_start: 51000
+  port_range_end: 51100
+  use_external_ip: true
+
+logging:
+  json: false
+  level: info
