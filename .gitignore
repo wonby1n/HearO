@@ -1,0 +1,19 @@
+# 1. 보안 파일 (절대 커밋 금지!)
+.env
+.env.*
+! .env.template
+*.pem
+*.key
+
+# 2. OS 및 IDE 설정 파일 (팀원끼리 설정 꼬임 방지)
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.log
+
+# 3. 데이터 폴더 (Docker Volume 등)
+pg_data/
+redis_data/
+jenkins_home/
