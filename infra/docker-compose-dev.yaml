@@ -17,26 +17,8 @@ services:
       - ./pg_data:/var/lib/postgresql/data
     networks:
       - ssafy-network
-
-  # 2. Jenkins
-  jenkins:
-    image: jenkins/jenkins:lts-jdk17
-    container_name: jenkins-server
-    restart: always
-    user: root                       # 권한 문제 해결을 위해 root 사용
-    ports:
-      - "8501:8080"
-      - "50000:50000"
-    environment:
-      - TZ=Asia/Seoul                # 젠킨스 시간도 한국 시간으로 맞춤
-    volumes:
-      - ./jenkins_home:/var/jenkins_home
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /usr/bin/docker:/usr/bin/docker  # 호스트의 도커 실행파일 공유
-    networks:
-      - ssafy-network
   
-  # 3. redis
+  # 2. redis
   redis:
     image: redis:alpine
     container_name: redis-server
@@ -52,13 +34,13 @@ services:
       - ssafy-network
       
       
-  # 4. LiveKit
+  # 3. LiveKit
   livekit:
     image: livekit/livekit-server:latest
     container_name: livekit-server
     restart: always
     # 설정 파일 마운트해서 실행
-    command: --config /etc/livekit.yaml --node-ip 13.125.88.103
+    command: --config /etc/livekit.yaml --node-ip 127.0.0.1
     ports:
       - "8880:7880"             # Signaling (API 요청용, 8000번대 준수!)
       - "51000-51100:51000-51100/udp" # WebRTC Media (UDP 필수)
