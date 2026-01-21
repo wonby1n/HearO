@@ -40,7 +40,7 @@ services:
     container_name: livekit-server
     restart: always
     # 설정 파일 마운트해서 실행
-    command: --config /etc/livekit.yaml --node-ip 127.0.0.1
+    command: --config /etc/livekit.yaml --node-ip ${LIVEKIT_IP}
     ports:
       - "8880:7880"             # Signaling (API 요청용, 8000번대 준수!)
       - "51000-51100:51000-51100/udp" # WebRTC Media (UDP 필수)
