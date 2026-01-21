@@ -1,0 +1,9 @@
+.git
+.gitignore
+.idea
+.vscode
+build
+out
+*.class
+*.jar
+*.log
