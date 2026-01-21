@@ -23,7 +23,11 @@ services:
     image: jenkins/jenkins:lts-jdk17
     container_name: jenkins-server
     restart: always
-    user: root                       # 권한 문제 해결을 위해 root 사용
+    # user: root
+
+    group_add:
+      - "${DOCKER_GID}"  # Docker 그룹 ID
+
     ports:
       - "8501:8080"
       - "50000:50000"
@@ -58,7 +62,7 @@ services:
     container_name: livekit-server
     restart: always
     # 설정 파일 마운트해서 실행
-    command: --config /etc/livekit.yaml --node-ip 13.125.88.103
+    command: --config /etc/livekit.yaml --node-ip ${LIVEKIT_IP}
     ports:
       - "8880:7880"             # Signaling (API 요청용, 8000번대 준수!)
       - "51000-51100:51000-51100/udp" # WebRTC Media (UDP 필수)
