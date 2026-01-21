@@ -23,7 +23,11 @@ services:
     image: jenkins/jenkins:lts-jdk17
     container_name: jenkins-server
     restart: always
-    user: root                       # 권한 문제 해결을 위해 root 사용
+    # user: root
+
+    group_add:
+      - "113"  # Docker 그룹 ID
+
     ports:
       - "8501:8080"
       - "50000:50000"
