@@ -37,6 +37,7 @@ services:
       - ./jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
       - /usr/bin/docker:/usr/bin/docker  # 호스트의 도커 실행파일 공유
+      - /home/ubuntu/projects:/home/ubuntu/projects
     networks:
       - ssafy-network
   
