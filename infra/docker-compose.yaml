@@ -20,8 +20,9 @@ services:
 
   # 2. Jenkins
   jenkins:
-    context: ./jenkins  # Dockerfile이 들어있는 폴더 경로
-    dockerfile: Dockerfile
+    build:
+      context: ./jenkins  # Dockerfile이 들어있는 폴더 경로
+      dockerfile: Dockerfile
     container_name: jenkins-server
     restart: always
 
