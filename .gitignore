@@ -17,3 +17,7 @@ Thumbs.db
 pg_data/
 redis_data/
 jenkins_home/
+
+# 4. Claude Code 작업 파일 (세션별 handoff, ledger 등)
+thoughts/
+.claude
