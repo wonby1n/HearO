@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # 1. PostgreSQL 데이터베이스
   postgres:
@@ -7,10 +5,10 @@ services:
     container_name: postgres-db
     restart: always
     environment:
-      POSTGRES_USER: ${DB_USER}      # .env 파일에서 가져옴
+      POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
-      TZ: Asia/Seoul                 # 타임존 설정 (한국 시간)
+      TZ: Asia/Seoul
     ports:
       - "8432:5432"
     volumes:
@@ -21,65 +19,59 @@ services:
   # 2. Jenkins
   jenkins:
     build:
-      context: ./jenkins  # Dockerfile이 들어있는 폴더 경로
+      context: ./jenkins
       dockerfile: Dockerfile
     container_name: jenkins-server
     restart: always
-
     group_add:
-      - "${DOCKER_GID}"  # Docker 그룹 ID
-
+      - "${DOCKER_GID}"
     ports:
       - "8501:8080"
       - "50000:50000"
     environment:
-      - TZ=Asia/Seoul                # 젠킨스 시간도 한국 시간으로 맞춤
+      - TZ=Asia/Seoul
     volumes:
       - ./jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
-      - /usr/bin/docker:/usr/bin/docker  # 호스트의 도커 실행파일 공유
+      - /usr/bin/docker:/usr/bin/docker
       - /home/ubuntu/projects:/home/ubuntu/projects
     networks:
       - ssafy-network
   
-  # 3. redis
+  # 3. Redis
   redis:
     image: redis:alpine
     container_name: redis-server
     restart: always
-    # 비밀번호 설정 + 데이터 지속성(AOF) 켜기
     command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
     ports:
-      # 외부 8379 -> 내부 6379 (포트 제한 규칙 준수)
       - "8379:6379"
     volumes:
-      - ./redis_data:/data  # 데이터 저장소 마운트
+      - ./redis_data:/data
     networks:
       - ssafy-network
-      
       
   # 4. LiveKit
   livekit:
     image: livekit/livekit-server:latest
     container_name: livekit-server
     restart: always
-    # 설정 파일 마운트해서 실행
     command: --config /etc/livekit.yaml --node-ip ${LIVEKIT_IP}
     ports:
-      - "8880:7880"             # Signaling (API 요청용, 8000번대 준수!)
-      - "51000-51100:51000-51100/udp" # WebRTC Media (UDP 필수)
-      - "51000-51100:51000-51100/tcp" # WebRTC Fallback
+      - "8880:7880"
+      - "51000-51100:51000-51100/udp"
+      - "51000-51100:51000-51100/tcp"
     volumes:
-      - ./livekit.yaml:/etc/livekit.yaml # 설정 파일 연결
+      - ./livekit.yaml:/etc/livekit.yaml
     environment:
-      # 설정 파일 안의 변수들을 치환해줌
       LIVEKIT_KEYS: "${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
       REDIS_PASSWORD: ${REDIS_PASSWORD}
     depends_on:
-      - redis # 레디스가 켜져야 실행됨
+      - redis
     networks:
       - ssafy-network
 
 networks:
   ssafy-network:
+    name: ssafy-network
     driver: bridge

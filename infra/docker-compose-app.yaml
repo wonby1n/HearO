@@ -1,0 +1,28 @@
+services:
+  # 1. Spring Boot 백엔드 (예시)
+  backend:
+    build: 
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: spring-backend
+    restart: always
+    ports:
+      - "8080:8080"
+    networks:
+      - ssafy-network # infra에서 만든 네트워크에 무임승차!
+
+  # 2. Vue.js 프론트엔드 (예시)
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: vue-frontend
+    restart: always
+    ports:
+      - "3000:80"
+    networks:
+      - ssafy-network
+
+networks:
+  ssafy-network:
+    external: true
