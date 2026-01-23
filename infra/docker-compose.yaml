@@ -20,10 +20,10 @@ services:
 
   # 2. Jenkins
   jenkins:
-    image: jenkins/jenkins:lts-jdk17
+    context: ./jenkins  # Dockerfile이 들어있는 폴더 경로
+    dockerfile: Dockerfile
     container_name: jenkins-server
     restart: always
-    # user: root
 
     group_add:
       - "${DOCKER_GID}"  # Docker 그룹 ID
