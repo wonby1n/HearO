@@ -1,6 +1,11 @@
-<script setup></script>
+<script setup>
+import { RouterView } from 'vue-router'
+</script>
 
 <template>
+  <RouterView />
 </template>
 
-<style scoped></style>
+<style scoped>
+/* App 레벨 스타일 */
+</style>
