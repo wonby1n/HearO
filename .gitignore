@@ -17,3 +17,7 @@ Thumbs.db
 pg_data/
 redis_data/
 jenkins_home/
+
+# 4. claude 폴더
+.claude
+thoughts
