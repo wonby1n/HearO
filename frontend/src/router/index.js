@@ -5,17 +5,50 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/call'
+      redirect: '/client/call'
     },
+    // // 상담사 라우트
+    // {
+    //   path: '/counselor',
+    //   children: [
+    //     {
+    //       path: 'call',
+    //       name: 'counselor-call',
+    //       component: () => import('@/views/counselor/CounselorCallView.vue'),
+    //       meta: {
+    //         title: '상담사 - 통화 중',
+    //         role: 'counselor'
+    //       }
+    //     }
+    //   ]
+    // },
+    // 고객 라우트
+    {
+      path: '/client',
+      children: [
+        {
+          path: 'call',
+          name: 'client-call',
+          component: () => import('@/views/client/ClientCallView.vue'),
+          meta: {
+            title: '고객 상담',
+            role: 'client'
+          }
+        }
+      ]
+    },
+    // 기존 라우트 (하위 호환성)
     {
       path: '/call',
-      name: 'call',
-      component: () => import('@/views/call/CallView.vue'),
-      meta: {
-        title: '통화 중'
-      }
+      redirect: '/counselor/call'
     }
   ],
+})
+
+// 라우트 가드 - 페이지 타이틀 설정
+router.beforeEach((to, from, next) => {
+  document.title = to.meta.title || 'HearO'
+  next()
 })
 
 export default router
