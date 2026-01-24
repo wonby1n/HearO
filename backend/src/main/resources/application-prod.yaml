@@ -1,0 +1,71 @@
+spring:
+  datasource:
+    # 운영은 기본값 없이 env 강제(안전)
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+    hikari:
+      # 운영 트래픽 기준(무난한 시작값)
+      maximum-pool-size: ${DB_POOL_MAX:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
+      connection-timeout: ${DB_CONN_TIMEOUT_MS:30000}
+      idle-timeout: ${DB_IDLE_TIMEOUT_MS:600000}
+      max-lifetime: ${DB_MAX_LIFETIME_MS:1800000}
+      # 0이면 비활성. 누수 의심 때만 ms로 켜기(성능 영향 가능)
+      leak-detection-threshold: ${DB_LEAK_DETECT_MS:0}
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      # 운영은 보통 비밀번호/ACL 사용 -> env로 강제
+      password: ${REDIS_PASSWORD}
+      database: ${REDIS_DB:0}
+      timeout: ${REDIS_TIMEOUT_MS:2000}
+
+      lettuce:
+        pool:
+          max-active: ${REDIS_POOL_MAX:20}
+          max-idle: ${REDIS_POOL_MAX_IDLE:10}
+          min-idle: ${REDIS_POOL_MIN_IDLE:5}
+          max-wait: ${REDIS_POOL_MAX_WAIT_MS:3000}
+
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:validate}   # 운영 안전(스키마 자동 변경 금지)
+    show-sql: ${JPA_SHOW_SQL:false}
+    properties:
+      hibernate:
+        format_sql: ${JPA_FORMAT_SQL:false}
+
+        jdbc:
+          batch_size: ${JPA_BATCH_SIZE:100}
+        order_inserts: ${JPA_ORDER_INSERTS:true}
+        order_updates: ${JPA_ORDER_UPDATES:true}
+        jdbc.batch_versioned_data: ${JPA_BATCH_VERSIONED:true}
+
+        generate_statistics: ${HIBERNATE_STATS:false}
+
+# Swagger / OpenAPI - 운영 기본 OFF
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:false}
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:false}
+
+logging:
+  level:
+    root: ${LOG_LEVEL_ROOT:INFO}
+    # 운영에선 SQL 로그 보통 끔(비용/보안/성능)
+    org.hibernate.SQL: ${LOG_LEVEL_HIBERNATE_SQL:OFF}
+    org.hibernate.orm.jdbc.bind: ${LOG_LEVEL_HIBERNATE_BIND:OFF}
+
+jwt:
+  secret: ${JWT_SECRET}
+
+livekit:
+  url: ${LIVEKIT_URL}
+  api-key: ${LIVEKIT_API_KEY}
+  api-secret: ${LIVEKIT_API_SECRET}

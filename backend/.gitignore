@@ -1,0 +1,63 @@
+HELP.md
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### OS 관련 (개발 환경 간의 차이 방지) ###
+.DS_Store
+Thumbs.db
+
+### Spring Boot & 프로젝트 특정 ###
+# 1. 설정 파일 (중요: 보안 및 환경 차이 관리)
+application-*-local.yml
+application-*-local.yaml
+.env
+
+# 2. 로그 파일 (서버 저장 공간 관리)
+logs/
+*.log
+
+# 3. 인메모리 DB 또는 임시 파일
+/db/
+temp/
+
+
+*.hprof
+hs_err_pid*
+replay_pid*
+
+*.pem
+*.key
+*.crt
+*.p12
+*.jks

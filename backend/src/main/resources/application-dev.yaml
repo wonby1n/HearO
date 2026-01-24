@@ -1,0 +1,69 @@
+spring:
+  datasource:
+    # 로컬 기본값(fallback) 제공
+    # 데이터베이스 이름 기본값으로 test를 부여했으며 test 데이터베이스가 없다면 환경변수로 주입하거나 생성해야 함
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/test}
+    username: ${DB_USERNAME:postgres} #유저 네임도 설정한값과 다르면 환경변수로 주입
+    password: ${DB_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+
+    hikari:
+      # 로컬은 작은 풀로 충분
+      maximum-pool-size: ${DB_POOL_MAX:5}
+      minimum-idle: ${DB_POOL_MIN_IDLE:1}
+      connection-timeout: ${DB_CONN_TIMEOUT_MS:30000}
+      idle-timeout: ${DB_IDLE_TIMEOUT_MS:600000}
+      max-lifetime: ${DB_MAX_LIFETIME_MS:1800000}
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DB:0}
+      timeout: ${REDIS_TIMEOUT_MS:2000}
+
+      lettuce:
+        pool:
+          max-active: ${REDIS_POOL_MAX:8}
+          max-idle: ${REDIS_POOL_MAX_IDLE:8}
+          min-idle: ${REDIS_POOL_MIN_IDLE:0}
+          max-wait: ${REDIS_POOL_MAX_WAIT_MS:1000}
+
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}     # 개발 편의,**엔티티가 많이 변경될 거 같으면 환경변수로 create도 권장**
+    show-sql: ${JPA_SHOW_SQL:true}
+    properties:
+      hibernate:
+        format_sql: ${JPA_FORMAT_SQL:true}
+
+        # 배치 처리(대량 insert/update 시 성능 개선)
+        jdbc:
+          batch_size: ${JPA_BATCH_SIZE:50}
+        order_inserts: ${JPA_ORDER_INSERTS:true}
+        order_updates: ${JPA_ORDER_UPDATES:true}
+        jdbc.batch_versioned_data: ${JPA_BATCH_VERSIONED:true}
+
+# Swagger / OpenAPI (springdoc 사용 시) - 개발 기본 ON
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:true}
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:true}
+
+logging:
+  level:
+    root: ${LOG_LEVEL_ROOT:INFO}
+    org.hibernate.SQL: ${LOG_LEVEL_HIBERNATE_SQL:DEBUG}
+    # Hibernate 6 기준 바인딩 로그(너무 시끄러우면 INFO/OFF 권장)
+    org.hibernate.orm.jdbc.bind: ${LOG_LEVEL_HIBERNATE_BIND:TRACE}
+
+jwt:
+  # 로컬 테스트 편의용 기본값. (가능하면 env로 넣는 걸 권장)
+  secret: ${JWT_SECRET:dev-secret-change-me}
+
+livekit:
+  url: ${LIVEKIT_URL:ws://localhost:7880}
+  api-key: ${LIVEKIT_API_KEY:}
+  api-secret: ${LIVEKIT_API_SECRET:}
