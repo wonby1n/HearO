@@ -158,10 +158,10 @@ const loadCustomerData = async () => {
     isLoadingCustomerInfo.value = true
     customerInfoError.value = null
 
-    // TODO: 실제 customerId는 라우트 파라미터나 통화 세션에서 가져오기
-    const customerId = 'customer-123'
+    // TODO: 실제 registrationId는 라우트 파라미터나 통화 세션에서 가져오기
+    const registrationId = 1001
 
-    const data = await fetchCustomerData(customerId)
+    const data = await fetchCustomerData(registrationId)
     customerInfo.value = data
   } catch (error) {
     console.error('고객 정보 로드 실패:', error)
