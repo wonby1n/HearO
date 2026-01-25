@@ -200,7 +200,8 @@ const handlePauseChanged = (paused) => {
 }
 
 const handleEndCall = () => {
-  // TODO: 통화 종료 로직
+  isCallActive.value = false
+  // TODO: LiveKit 통화 종료 처리
   console.log('통화 종료')
 }
 </script>
