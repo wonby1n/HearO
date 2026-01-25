@@ -26,6 +26,21 @@ const router = createRouter({
         }
       ]
     },
+    // 상담원 라우트
+    {
+      path: '/counselor',
+      children: [
+        {
+          path: 'call',
+          name: 'counselor-call',
+          component: () => import('@/views/counselor/CounselorCallView.vue'),
+          meta: {
+            title: '상담원 통화',
+            role: 'counselor'
+          }
+        }
+      ]
+    },
     // 기존 라우트 (하위 호환성)
     {
       path: '/call',
