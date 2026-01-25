@@ -7,6 +7,7 @@ export const useCallStore = defineStore('call', () => {
     id: null,
     customerId: null,
     roomToken: null,
+    serverUrl: null,
     startTime: null,
     status: 'idle', // idle, connecting, active, ended
     profanityCount: 0
@@ -15,6 +16,7 @@ export const useCallStore = defineStore('call', () => {
   // 통화 세션
   const livekitRoom = ref(null)
   const audioTrack = ref(null)
+  const connectionError = ref(null)
 
   // 실시간 STT 텍스트
   const transcripts = ref([])
@@ -27,7 +29,32 @@ export const useCallStore = defineStore('call', () => {
     return currentCall.value.status === 'active'
   })
 
-  // 통화 시작
+  // 통화 연결 시작 (connecting 상태)
+  const initiateCall = (callData) => {
+    currentCall.value = {
+      ...callData,
+      startTime: null,
+      status: 'connecting',
+      profanityCount: 0
+    }
+    connectionError.value = null
+    transcripts.value = []
+    callMemo.value = ''
+  }
+
+  // 통화 연결 완료 (active 상태)
+  const activateCall = () => {
+    currentCall.value.startTime = new Date()
+    currentCall.value.status = 'active'
+  }
+
+  // 연결 실패
+  const setConnectionError = (error) => {
+    connectionError.value = error
+    currentCall.value.status = 'idle'
+  }
+
+  // 통화 시작 (레거시 - 기존 코드 호환용)
   const startCall = (callData) => {
     currentCall.value = {
       ...callData,
@@ -35,6 +62,7 @@ export const useCallStore = defineStore('call', () => {
       status: 'active',
       profanityCount: 0
     }
+    connectionError.value = null
     transcripts.value = []
     callMemo.value = ''
   }
@@ -62,6 +90,7 @@ export const useCallStore = defineStore('call', () => {
       id: null,
       customerId: null,
       roomToken: null,
+      serverUrl: null,
       startTime: null,
       status: 'idle',
       profanityCount: 0
@@ -70,7 +99,13 @@ export const useCallStore = defineStore('call', () => {
     callMemo.value = ''
     livekitRoom.value = null
     audioTrack.value = null
+    connectionError.value = null
   }
+
+  // 연결 중 여부
+  const isConnecting = computed(() => {
+    return currentCall.value.status === 'connecting'
+  })
 
   // STT 텍스트 추가
   const addTranscript = (transcript) => {
@@ -115,9 +150,14 @@ export const useCallStore = defineStore('call', () => {
     audioTrack,
     transcripts,
     callMemo,
+    connectionError,
     // Getters
     isInCall,
+    isConnecting,
     // Actions
+    initiateCall,
+    activateCall,
+    setConnectionError,
     startCall,
     endCall,
     resetCall,
