@@ -5,23 +5,12 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/client/call'
+      name: 'dashboard',
+      component: () => import('@/views/dashboard/DashboardView.vue'),
+      meta: {
+        title: 'Dashboard'
+      },
     },
-    // // 상담사 라우트
-    // {
-    //   path: '/counselor',
-    //   children: [
-    //     {
-    //       path: 'call',
-    //       name: 'counselor-call',
-    //       component: () => import('@/views/counselor/CounselorCallView.vue'),
-    //       meta: {
-    //         title: '상담사 - 통화 중',
-    //         role: 'counselor'
-    //       }
-    //     }
-    //   ]
-    // },
     // 고객 라우트
     {
       path: '/client',
