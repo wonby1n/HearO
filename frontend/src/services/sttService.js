@@ -3,12 +3,10 @@
  * 다양한 STT 엔진을 통합 관리
  */
 import { WebSpeechEngine } from './stt/webSpeechEngine'
-// import { ClovaEngine } from './stt/clovaEngine' // TODO: Clova 구현 시 추가
 
 const STT_ENGINES = {
   'web-speech': WebSpeechEngine,
-  // 'clova': ClovaEngine, // TODO: Clova 구현 시 추가
-  // 'whisper': WhisperEngine, // TODO: Whisper 구현 시 추가
+  // 추가 STT 엔진은 여기에 등록
 }
 
 class STTService {

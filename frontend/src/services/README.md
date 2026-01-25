@@ -31,11 +31,6 @@ src/
 - 실시간 음성 인식
 - 중간 결과 지원
 
-#### `clovaEngine.js` (TODO)
-- Naver Clova STT API 사용
-- WebSocket 기반 스트리밍
-- 높은 정확도
-
 ### 2. **서비스 레이어**
 
 #### `sttService.js` - STT 관리자
@@ -115,11 +110,6 @@ VITE_STT_ENGINE=web-speech
 
 # LiveKit 설정
 VITE_LIVEKIT_URL=wss://your-livekit-server.com
-
-# Clova STT (나중에 사용 시)
-# VITE_STT_ENGINE=clova
-# VITE_CLOVA_API_KEY=your_api_key
-# VITE_CLOVA_SECRET_KEY=your_secret_key
 ```
 
 ---
@@ -133,7 +123,6 @@ VITE_LIVEKIT_URL=wss://your-livekit-server.com
 - [ ] `useAudioStream.js` - 리샘플링 로직 구현 (16kHz)
 
 ### 우선순위 중간
-- [ ] `clovaEngine.js` - Clova STT 엔진 구현
 - [ ] TestRTC.vue의 오디오 파이프라인 코드 이식
 - [ ] ScriptProcessorNode → AudioWorklet 전환 (성능 개선)
 
