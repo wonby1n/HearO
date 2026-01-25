@@ -29,7 +29,11 @@
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-140px)]">
         <!-- 좌측: 고객 정보 패널 (3 columns) -->
         <div class="lg:col-span-3">
-          <CustomerInfoPanel :customerInfo="customerInfo" />
+          <CustomerInfoPanel
+            :customerInfo="customerInfo"
+            :isLoading="isLoadingCustomerInfo"
+            :error="customerInfoError"
+          />
         </div>
 
         <!-- 중앙: STT 자막 영역 (6 columns) -->
@@ -122,12 +126,13 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import CallTimer from '@/components/counselor/CallTimer.vue'
 import CustomerInfoPanel from '@/components/counselor/CustomerInfoPanel.vue'
 import STTChatPanel from '@/components/counselor/STTChatPanel.vue'
 import CounselorCallControls from '@/components/counselor/CounselorCallControls.vue'
 import { mockCustomerInfo, mockSttMessages } from '@/mocks/counselor'
+import { fetchCustomerData } from '@/services/customerService'
 
 // 통화 상태
 const isCallActive = ref(true)
@@ -135,8 +140,10 @@ const isMuted = ref(false)
 const isPaused = ref(false)
 const profanityCount = ref(1)
 
-// 고객 정보 (더미 데이터)
+// 고객 정보
 const customerInfo = ref(mockCustomerInfo)
+const isLoadingCustomerInfo = ref(false)
+const customerInfoError = ref(null)
 
 // STT 메시지 (더미 데이터)
 const sttMessages = ref(mockSttMessages)
@@ -144,6 +151,28 @@ const sttMessages = ref(mockSttMessages)
 // AI 가이드
 const searchQuery = ref('')
 const memo = ref('')
+
+// 고객 정보 로드
+const loadCustomerData = async () => {
+  try {
+    isLoadingCustomerInfo.value = true
+    customerInfoError.value = null
+
+    // TODO: 실제 customerId는 라우트 파라미터나 통화 세션에서 가져오기
+    const customerId = 'customer-123'
+
+    const data = await fetchCustomerData(customerId)
+    customerInfo.value = data
+  } catch (error) {
+    console.error('고객 정보 로드 실패:', error)
+    customerInfoError.value = '고객 정보를 불러오는데 실패했습니다.'
+    // 에러 발생 시 mock 데이터 사용
+    customerInfo.value = mockCustomerInfo
+    // TODO: 에러 토스트 표시
+  } finally {
+    isLoadingCustomerInfo.value = false
+  }
+}
 
 // 통화 컨트롤 핸들러
 const handleMuteChanged = (muted) => {
@@ -172,6 +201,11 @@ const handleEndCall = async () => {
 const handleToggleProfanity = (index) => {
   sttMessages.value[index].showOriginal = !sttMessages.value[index].showOriginal
 }
+
+// 컴포넌트 마운트 시 고객 정보 로드
+onMounted(() => {
+  loadCustomerData()
+})
 </script>
 
 <style scoped>
