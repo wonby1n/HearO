@@ -44,28 +44,46 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
   // Actions - API 연동 준비 (현재는 더미 데이터 사용)
   const fetchWeeklyPerformance = async () => {
-    // TODO: API 연동
-    // const response = await fetch('/api/dashboard/weekly-performance')
-    // const data = await response.json()
-    // weeklyPerformance.value = data
-    console.log('fetchWeeklyPerformance - API 연동 대기 중')
+    try {
+      // TODO: API 연동
+      // const response = await fetch('/api/dashboard/weekly-performance')
+      // if (!response.ok) throw new Error('데이터를 불러오지 못했습니다')
+      // const data = await response.json()
+      // weeklyPerformance.value = data
+      console.log('fetchWeeklyPerformance - API 연동 대기 중')
+    } catch (error) {
+      console.error('주간 실적 조회 실패:', error)
+      // TODO: 사용자에게 에러 메시지 표시 (Toast/Snackbar 등)
+    }
   }
 
   const fetchStats = async () => {
-    // TODO: API 연동
-    // const response = await fetch('/api/dashboard/stats')
-    // const data = await response.json()
-    // totalCallTime.value = data.totalCallTime
-    // customerSatisfaction.value = data.satisfaction
-    console.log('fetchStats - API 연동 대기 중')
+    try {
+      // TODO: API 연동
+      // const response = await fetch('/api/dashboard/stats')
+      // if (!response.ok) throw new Error('통계 데이터를 불러오지 못했습니다')
+      // const data = await response.json()
+      // totalCallTime.value = data.totalCallTime
+      // customerSatisfaction.value = data.satisfaction
+      console.log('fetchStats - API 연동 대기 중')
+    } catch (error) {
+      console.error('통계 조회 실패:', error)
+      // TODO: 사용자에게 에러 메시지 표시 (Toast/Snackbar 등)
+    }
   }
 
   const fetchWaitingCustomers = async () => {
-    // TODO: WebSocket 또는 폴링으로 실시간 업데이트
-    // const response = await fetch('/api/dashboard/waiting-customers')
-    // const data = await response.json()
-    // waitingCustomers.value = data.count
-    console.log('fetchWaitingCustomers - API 연동 대기 중')
+    try {
+      // TODO: WebSocket 또는 폴링으로 실시간 업데이트
+      // const response = await fetch('/api/dashboard/waiting-customers')
+      // if (!response.ok) throw new Error('대기 고객 수를 불러오지 못했습니다')
+      // const data = await response.json()
+      // waitingCustomers.value = data.count
+      console.log('fetchWaitingCustomers - API 연동 대기 중')
+    } catch (error) {
+      console.error('대기 고객 수 조회 실패:', error)
+      // TODO: 사용자에게 에러 메시지 표시 (Toast/Snackbar 등)
+    }
   }
 
   const toggleTodo = (id) => {
@@ -77,7 +95,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
   const addTodo = (text) => {
     const newTodo = {
-      id: Date.now(),
+      id: crypto.randomUUID(),
       text,
       completed: false
     }

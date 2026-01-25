@@ -15,8 +15,8 @@
       <button
         @click="toggleConsultationStatus"
         :class="[
-          'px-6 py-3 rounded-lg shadow-md transition-all duration-300 hover:shadow-lg active:scale-95',
-          dashboardStore.consultationStatus.isActive ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-600 hover:bg-gray-700',
+          'px-6 py-3 rounded-lg shadow-md transition-all duration-300 hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2',
+          dashboardStore.consultationStatus.isActive ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500' : 'bg-gray-600 hover:bg-gray-700 focus:ring-gray-500',
           dashboardStore.consultationStatus.isActive && 'animate-pulse'
         ]"
       >
@@ -66,8 +66,8 @@ const currentTime = ref(new Date())
 const formattedDateTime = computed(() => {
   const date = currentTime.value
   const year = date.getFullYear()
-  const month = date.getMonth() + 1
-  const day = date.getDate()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
   const weekdays = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일']
   const weekday = weekdays[date.getDay()]
   const hours = String(date.getHours()).padStart(2, '0')
