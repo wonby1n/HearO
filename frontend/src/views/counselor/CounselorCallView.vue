@@ -14,10 +14,11 @@
 
           <!-- 우측: 통화 컨트롤 버튼 -->
           <CounselorCallControls
-            :isCallActive="isCallActive"
             :isMuted="isMuted"
-            @toggleMute="handleToggleMute"
-            @endCall="handleEndCall"
+            :isPaused="isPaused"
+            @mute-changed="handleMuteChanged"
+            @pause-changed="handlePauseChanged"
+            @call-ended="handleEndCall"
           />
         </div>
       </div>
@@ -129,6 +130,7 @@ import CounselorCallControls from '@/components/counselor/CounselorCallControls.
 // 통화 상태
 const isCallActive = ref(true)
 const isMuted = ref(false)
+const isPaused = ref(false)
 const profanityCount = ref(1)
 
 // 고객 정보 (더미 데이터)
@@ -140,15 +142,13 @@ const customerInfo = ref({
   warrantyStatus: '이내',
   productImage: null,
   symptoms: [
-    '현관 플러그 문제입니다',
-    '냉장 작동',
-    '데시코판은 버퍼',
-    '단지 문은 애매하게 되요'
+    '냉장실이 덜 시원함',
+    '찬물이 안 얼음',
   ],
   consultationHistory: [
     {
       date: '2026.01.08',
-      agent: 'A조 춘석',
+      agent: '담당자: 나루토',
       summary: '냉장고 문제'
     }
   ]
@@ -156,12 +156,6 @@ const customerInfo = ref({
 
 // STT 메시지 (더미 데이터)
 const sttMessages = ref([
-  {
-    speaker: 'ai',
-    text: 'AI 기능을 받을 분영번 걸려를 설명을 주시면 됩니다',
-    timestamp: '12:05:44',
-    hasProfanity: false
-  },
   {
     speaker: 'customer',
     text: '안녕하십니까.',
@@ -175,17 +169,17 @@ const sttMessages = ref([
     hasProfanity: false
   },
   {
-    speaker: 'ai',
-    text: '나쁜놈시스템 버튼을 설명가',
+    speaker: 'customer',
+    text: '명령하지 마라',
     timestamp: '12:05:55',
     hasProfanity: false
   },
   {
     speaker: 'customer',
-    text: '미친놈이 망가놓은지 아니라 결렸다.',
+    text: '미친놈이',
     timestamp: '12:05:58',
     hasProfanity: true,
-    maskedText: '############',
+    maskedText: '####',
     showOriginal: false
   }
 ])
@@ -195,8 +189,14 @@ const searchQuery = ref('')
 const memo = ref('')
 
 // 통화 컨트롤 핸들러
-const handleToggleMute = () => {
-  isMuted.value = !isMuted.value
+const handleMuteChanged = (muted) => {
+  isMuted.value = muted
+  // TODO: LiveKit 음소거 처리
+}
+
+const handlePauseChanged = (paused) => {
+  isPaused.value = paused
+  // TODO: 일시정지 처리
 }
 
 const handleEndCall = () => {

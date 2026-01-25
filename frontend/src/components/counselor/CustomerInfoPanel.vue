@@ -1,8 +1,8 @@
 <template>
   <div class="bg-white rounded-lg shadow-sm border border-gray-200 h-full flex flex-col">
-    <!-- 사소개 섹션 -->
+    <!-- 고객 정보 섹션 -->
     <div class="bg-primary-600 text-white px-6 py-4 rounded-t-lg">
-      <h3 class="text-sm font-semibold mb-1">사소개</h3>
+      <h3 class="text-sm font-semibold mb-1">사스케</h3>
       <p class="text-lg font-medium">{{ maskedPhone }}</p>
     </div>
 

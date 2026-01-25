@@ -37,8 +37,6 @@
             'max-w-[70%] rounded-lg px-4 py-3 shadow-sm',
             message.speaker === 'agent'
               ? 'bg-primary-600 text-white'
-              : message.speaker === 'ai'
-              ? 'bg-blue-50 border border-blue-200 text-gray-900'
               : 'bg-gray-100 text-gray-900'
           ]"
         >
