@@ -31,8 +31,14 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
   // Todo 리스트 - localStorage에서 불러오기
   const loadTodosFromLocalStorage = () => {
-    const savedTodos = localStorage.getItem('todos')
-    return savedTodos ? JSON.parse(savedTodos) : []
+    try {
+      const savedTodos = localStorage.getItem('todos')
+      return savedTodos ? JSON.parse(savedTodos) : []
+    } catch (error) {
+      console.error('Todo 로드 실패:', error)
+      localStorage.removeItem('todos') // 손상된 데이터 제거
+      return []
+    }
   }
 
   const todos = ref(loadTodosFromLocalStorage())
@@ -185,13 +191,11 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
   // Todo 삭제
   const deleteTodo = async (id) => {
+    // 낙관적 업데이트를 위해 삭제 전 백업
+    const originalTodos = [...todos.value]
     todos.value = todos.value.filter(t => t.id !== id)
 
     // TODO: 백엔드 API 연동 시 주석 해제
-    // // 낙관적 업데이트를 위해 삭제 전 백업
-    // const originalTodos = [...todos.value]
-    // todos.value = todos.value.filter(t => t.id !== id)
-    //
     // try {
     //   const response = await fetch(`/api/v1/users/me/todos/${id}`, {
     //     method: 'DELETE',
