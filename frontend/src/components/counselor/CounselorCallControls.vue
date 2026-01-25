@@ -80,7 +80,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, toRef } from 'vue'
 
 // Props 정의
 const props = defineProps({
@@ -98,18 +98,12 @@ const props = defineProps({
   }
 })
 
-// 로컬 상태 (props와 동기화)
-const localMuted = ref(props.isMuted)
-const localPaused = ref(props.isPaused)
+// 이벤트 정의
+const emit = defineEmits(['mute-changed', 'pause-changed', 'call-ended'])
 
-// props 변경 시 로컬 상태 동기화
-watch(() => props.isMuted, (newVal) => {
-  localMuted.value = newVal
-})
-
-watch(() => props.isPaused, (newVal) => {
-  localPaused.value = newVal
-})
+// props를 ref로 변환 (반응성 유지)
+const localMuted = toRef(props, 'isMuted')
+const localPaused = toRef(props, 'isPaused')
 
 // 종료 확인 모달 상태
 const showConfirmModal = ref(false)
@@ -117,15 +111,13 @@ const showConfirmModal = ref(false)
 // 일시정지 토글
 const togglePause = () => {
   if (props.disabled) return
-  localPaused.value = !localPaused.value
-  emit('pause-changed', localPaused.value)
+  emit('pause-changed', !localPaused.value)
 }
 
 // 음소거 토글
 const toggleMute = () => {
   if (props.disabled) return
-  localMuted.value = !localMuted.value
-  emit('mute-changed', localMuted.value)
+  emit('mute-changed', !localMuted.value)
 }
 
 // 통화 종료 버튼 클릭
@@ -143,9 +135,6 @@ const confirmEndCall = () => {
   showConfirmModal.value = false
   emit('call-ended')
 }
-
-// 이벤트 정의
-const emit = defineEmits(['mute-changed', 'pause-changed', 'call-ended'])
 </script>
 
 <style scoped>

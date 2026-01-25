@@ -54,8 +54,9 @@ const props = defineProps({
 // 경과 시간 (초)
 const elapsedSeconds = ref(0)
 
-// 타이머 인터벌
+// 타이머 인터벌 및 시작 시간
 let timerInterval = null
+let startTime = null
 
 // 포맷된 시간 (MM:SS)
 const formattedTime = computed(() => {
@@ -69,15 +70,17 @@ const statusText = computed(() => {
   return props.isActive ? '통화 중' : '대기 중'
 })
 
-// 타이머 시작
+// 타이머 시작 (Date.now() 기준으로 정확한 시간 계산)
 const startTimer = () => {
   if (timerInterval) {
     clearInterval(timerInterval)
   }
 
+  startTime = Date.now()
+
   timerInterval = setInterval(() => {
-    elapsedSeconds.value++
-  }, 1000)
+    elapsedSeconds.value = Math.floor((Date.now() - startTime) / 1000)
+  }, 100)
 }
 
 // 타이머 중지
@@ -86,6 +89,7 @@ const stopTimer = () => {
     clearInterval(timerInterval)
     timerInterval = null
   }
+  startTime = null
 }
 
 // 타이머 리셋

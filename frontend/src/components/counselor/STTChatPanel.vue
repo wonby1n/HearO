@@ -76,7 +76,7 @@
                 </span>
                 <span v-else>{{ message.text }}</span>
                 <button
-                  @click="toggleProfanityVisibility(index)"
+                  @click="$emit('toggle-profanity', index)"
                   class="text-xs underline hover:no-underline"
                   :class="message.speaker === 'agent' ? 'text-white' : 'text-primary-600'"
                 >
@@ -141,6 +141,8 @@ const props = defineProps({
   }
 })
 
+const emit = defineEmits(['toggle-profanity'])
+
 const chatContainer = ref(null)
 
 // 화자 라벨 반환
@@ -151,11 +153,6 @@ const getSpeakerLabel = (speaker) => {
     ai: 'AI 제안'
   }
   return labels[speaker] || speaker
-}
-
-// 욕설 가시성 토글
-const toggleProfanityVisibility = (index) => {
-  props.messages[index].showOriginal = !props.messages[index].showOriginal
 }
 
 // 새 메시지가 추가되면 자동 스크롤
