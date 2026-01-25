@@ -5,6 +5,11 @@ const router = createRouter({
   routes: [
     {
       path: '/',
+      name: 'dashboard',
+      component: () => import('@/views/dashboard/DashboardView.vue'),
+      meta: {
+        title: 'Dashboard'
+      },
       redirect: '/client/call'
     },
     // // 상담사 라우트
