@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 export const useDashboardStore = defineStore('dashboard', () => {
   // 주간 실적 데이터 (월~금)
@@ -29,13 +29,28 @@ export const useDashboardStore = defineStore('dashboard', () => {
     lastCallTime: 59 // 마지막 통화 후 경과 시간 (초)
   })
 
-  // Todo 리스트
-  const todos = ref([
-    { id: 1, text: '통화 20통 채우기', completed: false },
-    { id: 2, text: '점심 먹고 스트레칭', completed: false },
-    { id: 3, text: '팀장님께 전화', completed: false },
-    { id: 4, text: '담타 ㄱㄱ', completed: false }
-  ])
+  // Todo 리스트 - localStorage에서 불러오기
+  const loadTodosFromLocalStorage = () => {
+    try {
+      const savedTodos = localStorage.getItem('todos')
+      return savedTodos ? JSON.parse(savedTodos) : []
+    } catch (error) {
+      console.error('Todo 로드 실패:', error)
+      localStorage.removeItem('todos') // 손상된 데이터 제거
+      return []
+    }
+  }
+
+  const todos = ref(loadTodosFromLocalStorage())
+
+  // todos 변경 시 localStorage에 자동 저장
+  watch(
+    todos,
+    (newTodos) => {
+      localStorage.setItem('todos', JSON.stringify(newTodos))
+    },
+    { deep: true }
+  )
 
   // Computed - 포맷된 통화 시간
   const formattedCallTime = computed(() => {
@@ -86,24 +101,114 @@ export const useDashboardStore = defineStore('dashboard', () => {
     }
   }
 
-  const toggleTodo = (id) => {
-    const todo = todos.value.find(t => t.id === id)
-    if (todo) {
-      todo.completed = !todo.completed
+  // Todo 목록 조회 (백엔드 연동 시 사용)
+  const fetchTodos = async () => {
+    try {
+      // TODO: 백엔드 API 연동 시 주석 해제
+      // const response = await fetch('/api/v1/users/me/todos', {
+      //   method: 'GET',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     // 'Authorization': `Bearer ${token}` // 인증 토큰이 필요한 경우
+      //   }
+      // })
+      // if (!response.ok) throw new Error('Todo 목록을 불러오지 못했습니다')
+      // const data = await response.json()
+      // todos.value = data
+
+      // 현재는 localStorage에서 로드
+      console.log('fetchTodos - localStorage 사용 중 (백엔드 연동 대기)')
+    } catch (error) {
+      console.error('Todo 목록 조회 실패:', error)
     }
   }
 
-  const addTodo = (text) => {
+  // Todo 완료 상태 토글
+  const toggleTodo = async (id) => {
+    const todo = todos.value.find(t => t.id === id)
+    if (todo) {
+      todo.completed = !todo.completed
+
+      // TODO: 백엔드 API 연동 시 주석 해제
+      // try {
+      //   const response = await fetch(`/api/v1/users/me/todos/${id}`, {
+      //     method: 'PUT',
+      //     headers: {
+      //       'Content-Type': 'application/json',
+      //       // 'Authorization': `Bearer ${token}` // 인증 토큰이 필요한 경우
+      //     },
+      //     body: JSON.stringify({
+      //       text: todo.text,
+      //       completed: todo.completed
+      //     })
+      //   })
+      //   if (!response.ok) throw new Error('Todo 업데이트 실패')
+      // } catch (error) {
+      //   console.error('Todo 상태 변경 실패:', error)
+      //   // 실패 시 원래 상태로 되돌리기
+      //   todo.completed = !todo.completed
+      // }
+    }
+  }
+
+  // Todo 추가
+  const addTodo = async (text) => {
     const newTodo = {
       id: crypto.randomUUID(),
       text,
       completed: false
     }
+
+    // 낙관적 업데이트 (UI 먼저 업데이트)
     todos.value.push(newTodo)
+
+    // TODO: 백엔드 API 연동 시 주석 해제
+    // try {
+    //   const response = await fetch('/api/v1/users/me/todos', {
+    //     method: 'POST',
+    //     headers: {
+    //       'Content-Type': 'application/json',
+    //       // 'Authorization': `Bearer ${token}` // 인증 토큰이 필요한 경우
+    //     },
+    //     body: JSON.stringify({
+    //       text,
+    //       completed: false
+    //     })
+    //   })
+    //   if (!response.ok) throw new Error('Todo 추가 실패')
+    //   const savedTodo = await response.json()
+    //   // 서버에서 받은 ID로 업데이트
+    //   const index = todos.value.findIndex(t => t.id === newTodo.id)
+    //   if (index !== -1) {
+    //     todos.value[index] = savedTodo
+    //   }
+    // } catch (error) {
+    //   console.error('Todo 추가 실패:', error)
+    //   // 실패 시 추가한 항목 제거
+    //   todos.value = todos.value.filter(t => t.id !== newTodo.id)
+    // }
   }
 
-  const deleteTodo = (id) => {
+  // Todo 삭제
+  const deleteTodo = async (id) => {
+    // 낙관적 업데이트를 위해 삭제 전 백업
+    const originalTodos = [...todos.value]
     todos.value = todos.value.filter(t => t.id !== id)
+
+    // TODO: 백엔드 API 연동 시 주석 해제
+    // try {
+    //   const response = await fetch(`/api/v1/users/me/todos/${id}`, {
+    //     method: 'DELETE',
+    //     headers: {
+    //       // 'Authorization': `Bearer ${token}` // 인증 토큰이 필요한 경우
+    //     }
+    //   })
+    //   if (!response.ok) throw new Error('Todo 삭제 실패')
+    // } catch (error) {
+    //   console.error('Todo 삭제 실패:', error)
+    //   // 실패 시 원래 상태로 되돌리기
+    //   todos.value = originalTodos
+    // }
   }
 
   return {
@@ -120,6 +225,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
     fetchWeeklyPerformance,
     fetchStats,
     fetchWaitingCustomers,
+    fetchTodos,
     toggleTodo,
     addTodo,
     deleteTodo
