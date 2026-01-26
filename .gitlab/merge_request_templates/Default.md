@@ -1,6 +1,6 @@
 ## 🎫 JIRA Issue
 
-- Issue: [S14P11E106-000](https://your-jira.atlassian.net/browse/S14P11E106-000)
+- Issue: [S14P11E106-000](https://ssafy.atlassian.net/browse/S14P11E106-000)
 - Type: Story / Task / Bug
 - Sprint: Sprint 1
 
