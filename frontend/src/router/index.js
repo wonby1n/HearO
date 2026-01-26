@@ -45,6 +45,15 @@ const router = createRouter({
     {
       path: '/call',
       redirect: '/counselor/call'
+    },
+    // 알림 테스트 페이지 (개발용)
+    {
+      path: '/notification-test',
+      name: 'notification-test',
+      component: () => import('@/components/notification/NotificationExample.vue'),
+      meta: {
+        title: '알림 테스트'
+      }
     }
   ],
 })
