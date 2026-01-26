@@ -263,11 +263,8 @@ const handleSubmit = () => {
   // 임시로 localStorage에 저장
   localStorage.setItem('clientVerification', JSON.stringify(formData.value))
 
-  // 다음 단계로 이동 (3/3 단계 - 추후 구현)
-  // TODO: 3단계 페이지 구현 후 주석 해제
-  // router.push('/client/consultation/final')
-
-  alert('본인 인증이 완료되었습니다!\n(3/3 단계 페이지는 추후 구현 예정)')
+  // 다음 단계로 이동 (3/3 단계 - 약관 동의)
+  router.push({ name: 'client-consultation-consent' })
 }
 </script>
 
