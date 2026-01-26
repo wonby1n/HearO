@@ -86,7 +86,7 @@ const currentTime = ref(new Date())
 const isCountAnimating = ref(false)
 const countChange = ref(0)
 let countChangeTimer = null
-let previousCount = dashboardStore.waitingCustomers
+let countAnimationTimer = null
 
 // 날짜/시간 포맷팅
 const formattedDateTime = computed(() => {
@@ -127,8 +127,10 @@ const toggleConsultationStatus = () => {
 let clockInterval = null
 
 // WebSocket 연결 (TODO: 백엔드 엔드포인트 확정 후 활성화)
+// 환경변수 설정: .env 파일에 VITE_WS_URL=ws://your-server/api/v1/dashboard/queue-updates 추가
+// const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8080/api/v1/dashboard/queue-updates'
 // const { connect: connectWS, disconnect: disconnectWS } = useWebSocket(
-//   'ws://localhost:8080/api/v1/dashboard/queue-updates',
+//   wsUrl,
 //   {
 //     onMessage: (data) => {
 //       if (data.type === 'waiting_customers_update') {
@@ -149,9 +151,14 @@ watch(
   () => dashboardStore.waitingCustomers,
   (newCount, oldCount) => {
     if (oldCount !== undefined && newCount !== oldCount) {
+      // 기존 애니메이션 타이머 취소
+      if (countAnimationTimer) {
+        clearTimeout(countAnimationTimer)
+      }
+
       // 애니메이션 트리거
       isCountAnimating.value = true
-      setTimeout(() => {
+      countAnimationTimer = setTimeout(() => {
         isCountAnimating.value = false
       }, 600)
 
@@ -192,6 +199,10 @@ onUnmounted(() => {
 
   if (countChangeTimer) {
     clearTimeout(countChangeTimer)
+  }
+
+  if (countAnimationTimer) {
+    clearTimeout(countAnimationTimer)
   }
 
   // TODO: WebSocket 연결 해제 (백엔드 준비 후 활성화)

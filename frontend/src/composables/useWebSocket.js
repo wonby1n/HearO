@@ -30,6 +30,12 @@ export function useWebSocket(url, options = {}) {
    * WebSocket 연결
    */
   const connect = () => {
+    // 기존 연결이 있으면 정리
+    if (ws.value) {
+      ws.value.close()
+      ws.value = null
+    }
+
     try {
       ws.value = new WebSocket(url)
 
