@@ -1,134 +1,119 @@
 <template>
-  <div class="client-call-view min-h-screen bg-gradient-to-b from-green-50 to-gray-50">
-    <!-- 통화 헤더 -->
-    <div class="call-header bg-white shadow-sm p-4">
-      <div class="container mx-auto flex items-center justify-between">
-        <div class="flex items-center gap-4">
-          <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+  <div class="client-call-view">
+
+    <!-- 메인 컨텐츠 -->
+    <div class="main-content">
+      <!-- 통화 시간 -->
+      <div class="call-timer">
+        <span class="timer-text">{{ formattedCallDuration }}</span>
+        <!-- 음성 인식 막대 -->
+        <div class="audio-visualizer">
+          <div
+            v-for="i in 5"
+            :key="i"
+            class="audio-bar"
+            :class="{ active: callStore.isInCall }"
+            :style="{ animationDelay: `${(i - 1) * 0.1}s` }"
+          ></div>
+        </div>
+      </div>
+
+      <!-- 상담원 아이콘 + 상태 -->
+      <div class="counselor-status">
+        <div class="counselor-icon">
+          <svg class="headset-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 1c-4.97 0-9 4.03-9 9v7c0 1.66 1.34 3 3 3h3v-8H5v-2c0-3.87 3.13-7 7-7s7 3.13 7 7v2h-4v8h3c1.66 0 3-1.34 3-3v-7c0-4.97-4.03-9-9-9z"/>
+          </svg>
+        </div>
+        <!-- 통화 상태 표시 (초록색 점) -->
+        <div
+          v-if="callStore.isInCall"
+          class="status-indicator online"
+        ></div>
+        <div
+          v-else-if="callStore.isConnecting"
+          class="status-indicator connecting"
+        ></div>
+      </div>
+
+      <!-- 상태 텍스트 -->
+      <div class="status-text">
+        <h2 class="status-title">
+          {{ callStore.isInCall ? '상담 진행 중' : callStore.isConnecting ? '연결 중...' : '대기 중' }}
+        </h2>
+        <p class="status-description">
+          {{ callStore.isInCall ? '실시간 음성 상담이 진행되고 있습니다.' : callStore.isConnecting ? '상담원을 연결하고 있습니다.' : '상담원 연결을 기다리고 있습니다.' }}
+        </p>
+      </div>
+
+      <!-- 통화 컨트롤 버튼 -->
+      <div class="call-controls">
+        <!-- 스피커 버튼 -->
+        <button
+          @click="toggleSpeaker"
+          :class="['control-btn', { active: isSpeakerOn }]"
+          title="스피커"
+        >
+          <div class="control-icon-wrapper">
+            <svg v-if="isSpeakerOn" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clip-rule="evenodd"/>
+            </svg>
+            <svg v-else class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
             </svg>
           </div>
-          <div>
-            <h2 class="text-lg font-semibold text-gray-900">고객 상담</h2>
-            <p class="text-sm text-gray-500">
-              {{ callStore.isInCall ? '상담원과 연결됨' : callStore.isConnecting ? '연결 중...' : '대기 중' }}
-            </p>
+        </button>
+
+        <!-- 통화 종료 버튼 -->
+        <button
+          @click="handleEndCall"
+          class="control-btn end-call"
+          title="통화 종료"
+        >
+          <div class="control-icon-wrapper end">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
+              <path d="M16.707 3.293a1 1 0 010 1.414L15.414 6l1.293 1.293a1 1 0 01-1.414 1.414L14 7.414l-1.293 1.293a1 1 0 11-1.414-1.414L12.586 6l-1.293-1.293a1 1 0 011.414-1.414L14 4.586l1.293-1.293a1 1 0 011.414 0z"/>
+            </svg>
           </div>
-        </div>
-        <div class="flex items-center gap-4">
-          <!-- 통화 시간 -->
-          <div class="text-right">
-            <p class="text-2xl font-mono font-semibold text-gray-900">
-              {{ formattedCallDuration }}
-            </p>
-            <p class="text-xs text-gray-500">통화 시간</p>
+        </button>
+
+        <!-- 음소거 버튼 -->
+        <button
+          @click="toggleMute"
+          :class="['control-btn', { active: isMuted }]"
+          title="음소거"
+        >
+          <div class="control-icon-wrapper">
+            <svg v-if="!isMuted" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clip-rule="evenodd"/>
+            </svg>
+            <svg v-else class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clip-rule="evenodd"/>
+              <path d="M3.293 3.293a1 1 0 011.414 0l12 12a1 1 0 01-1.414 1.414l-12-12a1 1 0 010-1.414z"/>
+            </svg>
           </div>
-          <!-- 통화 상태 표시 -->
-          <div class="flex items-center gap-2">
-            <div
-              :class="[
-                'w-3 h-3 rounded-full',
-                callStore.isInCall ? 'bg-green-500 animate-pulse' :
-                callStore.isConnecting ? 'bg-yellow-500 animate-pulse' :
-                'bg-gray-400'
-              ]"
-            ></div>
-            <span class="text-sm text-gray-600">
-              {{ callStore.isInCall ? '연결됨' : callStore.isConnecting ? '연결 중...' : '대기' }}
-            </span>
-          </div>
-        </div>
+        </button>
       </div>
     </div>
 
-    <!-- 메인 콘텐츠 영역 -->
-    <div class="container mx-auto py-6 px-4">
-      <div class="max-w-2xl mx-auto">
-        <!-- 대기 화면 -->
-        <div v-if="!callStore.isInCall && !callStore.isConnecting" class="card text-center py-12">
-          <div class="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg class="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-            </svg>
-          </div>
-          <h3 class="text-xl font-semibold text-gray-900 mb-2">상담원 연결 대기 중</h3>
-          <p class="text-gray-600 mb-6">잠시만 기다려 주세요. 곧 상담원이 연결됩니다.</p>
-
-          <!-- 대기 순번 표시 -->
-          <div v-if="queuePosition > 0" class="bg-blue-50 rounded-lg p-4 mb-6">
-            <p class="text-sm text-blue-600">현재 대기 순번</p>
-            <p class="text-3xl font-bold text-blue-700">{{ queuePosition }}번</p>
-          </div>
-
-          <button
-            @click="startCall"
-            class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
-          >
-            상담 시작
-          </button>
-        </div>
-
-        <!-- 연결 중 화면 -->
-        <div v-else-if="callStore.isConnecting" class="card text-center py-12">
-          <div class="w-24 h-24 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
-            <svg class="w-12 h-12 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <h3 class="text-xl font-semibold text-gray-900 mb-2">상담원 연결 중...</h3>
-          <p class="text-gray-600">잠시만 기다려 주세요.</p>
-        </div>
-
-        <!-- 통화 중 화면 -->
-        <div v-else class="space-y-6">
-          <!-- 상담원 정보 -->
-          <div class="card">
-            <div class="flex items-center gap-4">
-              <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
-              <div>
-                <h3 class="text-lg font-semibold text-gray-900">상담원</h3>
-                <p class="text-sm text-green-600">통화 중</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- 안내 메시지 -->
-          <div class="card bg-blue-50 border border-blue-200">
-            <p class="text-sm text-blue-800">
-              상담원과 연결되었습니다. 문의 사항을 말씀해 주세요.
-            </p>
-          </div>
-
-          <!-- 내 정보 확인 -->
-          <div class="card">
-            <h4 class="text-sm font-semibold text-gray-700 mb-3">접수 정보</h4>
-            <div class="space-y-2 text-sm">
-              <div class="flex justify-between">
-                <span class="text-gray-600">제품명</span>
-                <span class="font-medium">{{ productName }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-gray-600">증상</span>
-                <span class="font-medium">{{ symptom }}</span>
-              </div>
-            </div>
+    <!-- 통화 종료 확인 모달 -->
+    <Teleport to="body">
+      <div
+        v-if="showConfirmModal"
+        class="modal-overlay"
+        @click.self="closeConfirmModal"
+      >
+        <div class="modal-content">
+          <h3 class="modal-title">통화 종료</h3>
+          <p class="modal-message">상담을 종료하시겠습니까?</p>
+          <div class="modal-actions">
+            <button @click="closeConfirmModal" class="modal-btn cancel">취소</button>
+            <button @click="confirmEndCall" class="modal-btn confirm">종료</button>
           </div>
         </div>
       </div>
-    </div>
-
-    <!-- 통화 컨트롤 버튼 (통화 중일 때만 표시) -->
-    <ClientCallControls
-      v-if="callStore.isInCall"
-      :is-muted="isMuted"
-      @mute-changed="handleMuteChanged"
-      @call-ended="handleCallEnded"
-    />
+    </Teleport>
   </div>
 </template>
 
@@ -138,7 +123,6 @@ import { useRouter } from 'vue-router'
 import { useCallStore } from '@/stores/call'
 import { useCustomerStore } from '@/stores/customer'
 import { useLiveKit } from '@/composables/useLiveKit'
-import ClientCallControls from '@/components/client/ClientCallControls.vue'
 
 const router = useRouter()
 const callStore = useCallStore()
@@ -149,13 +133,13 @@ const {
   room,
   isConnected,
   isConnecting,
-  isMuted,
+  isMuted: livekitMuted,
   error: livekitError,
   connectionState,
   connect,
   disconnect,
   enableMicrophone,
-  toggleMute,
+  toggleMute: livekitToggleMute,
   startAudioPlayback
 } = useLiveKit({
   onTrackSubscribed: (track, publication, participant) => {
@@ -171,92 +155,64 @@ const {
   }
 })
 
-// 통화 시간 타이머
+// 상태 관리
 const callDuration = ref(0)
+const queuePosition = ref(3) // 테스트용 대기 순번
+const isMuted = ref(false)
+const isSpeakerOn = ref(true)
+const showConfirmModal = ref(false)
+
 let timerInterval = null
 
-// 대기 순번
-const queuePosition = ref(0)
-
-// 제품 정보 computed
-const productName = computed(() => customerStore.currentCustomer.productInfo?.productName || '-')
-const symptom = computed(() => customerStore.currentCustomer.issue?.symptom || '-')
-
-// 통화 시간 포맷팅
+// 통화 시간 포맷팅 (mm:ss)
 const formattedCallDuration = computed(() => {
-  const hours = Math.floor(callDuration.value / 3600)
-  const minutes = Math.floor((callDuration.value % 3600) / 60)
+  const minutes = Math.floor(callDuration.value / 60)
   const seconds = callDuration.value % 60
-
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 })
 
-/**
- * 상담 시작 (테스트용)
- */
-const startCall = async () => {
-  // TODO: 실제로는 백엔드 API를 통해 대기열에 등록하고 토큰을 받아야 함
-  callStore.startCall({
-    id: `client-call-${Date.now()}`,
-    customerId: customerStore.currentCustomer.id,
-    roomToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJBUElqZEVWR0NtQkZQSnUiLCJleHAiOjE3NjkyNTA2MDcsInN1YiI6InVzZXIxMjMiLCJ2aWRlbyI6eyJyb29tSm9pbiI6dHJ1ZSwicm9vbSI6InJvb21BIn0sInNpcCI6e319.NKJkwGUX-vnZx9gXPSZB-Pl16g3gKtz41d6qjrQdwQw'
-  })
+// 스피커 토글
+const toggleSpeaker = () => {
+  isSpeakerOn.value = !isSpeakerOn.value
+  console.log('[Client] 스피커 상태:', isSpeakerOn.value)
 }
 
-/**
- * LiveKit 룸 연결
- */
-const connectToRoom = async (serverUrl, token) => {
-  try {
-    callStore.initiateCall({
-      id: `call-${Date.now()}`,
-      customerId: customerStore.currentCustomer.id,
-      roomToken: token,
-      serverUrl: serverUrl
-    })
-
-    const connectedRoom = await connect(serverUrl, token)
-    callStore.setLivekitRoom(connectedRoom)
-
-    const audioTrack = await enableMicrophone()
-    callStore.setAudioTrack(audioTrack)
-
-    callStore.activateCall()
-
-    console.log('[Client] 통화 연결 완료')
-  } catch (err) {
-    console.error('[Client] 통화 연결 실패:', err)
-    callStore.setConnectionError(err.message)
-  }
+// 음소거 토글
+const toggleMute = async () => {
+  isMuted.value = !isMuted.value
+  await livekitToggleMute()
+  console.log('[Client] 음소거 상태:', isMuted.value)
 }
 
-/**
- * 연결 해제 핸들러
- */
-const handleDisconnected = (reason) => {
-  if (callStore.isInCall) {
-    console.warn('[Client] 예상치 못한 연결 해제:', reason)
-  }
+// 통화 종료 버튼 클릭
+const handleEndCall = () => {
+  showConfirmModal.value = true
 }
 
-// 음소거 변경 핸들러
-const handleMuteChanged = async (muted) => {
-  console.log('[Client] 음소거 상태:', muted)
-  await toggleMute()
+// 모달 닫기
+const closeConfirmModal = () => {
+  showConfirmModal.value = false
 }
 
-// 통화 종료 핸들러
-const handleCallEnded = async (callData) => {
-  console.log('[Client] 통화 종료:', callData)
+// 통화 종료 확인
+const confirmEndCall = async () => {
+  showConfirmModal.value = false
 
   if (timerInterval) {
     clearInterval(timerInterval)
   }
 
   await disconnect()
+  callStore.endCall()
 
-  // 만족도 조사 페이지로 이동 (나중에 구현)
   alert('통화가 종료되었습니다. 이용해 주셔서 감사합니다.')
+}
+
+// 연결 해제 핸들러
+const handleDisconnected = (reason) => {
+  if (callStore.isInCall) {
+    console.warn('[Client] 예상치 못한 연결 해제:', reason)
+  }
 }
 
 // 컴포넌트 마운트 시 초기화
@@ -280,6 +236,13 @@ onMounted(async () => {
     })
   }
 
+  // 테스트용: 바로 통화 중 상태로 설정
+  callStore.startCall({
+    id: `client-call-${Date.now()}`,
+    customerId: customerStore.currentCustomer.id,
+    roomToken: 'test-token'
+  })
+
   // 통화 시간 타이머
   timerInterval = setInterval(() => {
     if (callStore.isInCall) {
@@ -301,5 +264,268 @@ onUnmounted(async () => {
 </script>
 
 <style scoped>
-/* 추가 스타일이 필요하면 여기에 */
+.client-call-view {
+  min-height: 100vh;
+  max-width: 430px;
+  margin: 0 auto;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* 상단 대기 순번 */
+.queue-info {
+  padding: 16px 20px;
+  text-align: left;
+  font-size: 14px;
+  color: #64748b;
+}
+
+/* 메인 컨텐츠 */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  gap: 24px;
+}
+
+/* 통화 시간 */
+.call-timer {
+  text-align: center;
+}
+
+.timer-text {
+  font-size: 48px;
+  font-weight: 300;
+  color: #6366f1;
+  font-family: 'SF Mono', Monaco, monospace;
+  letter-spacing: 2px;
+}
+
+/* 음성 인식 막대 */
+.audio-visualizer {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 4px;
+  height: 24px;
+  margin-top: 12px;
+}
+
+.audio-bar {
+  width: 4px;
+  height: 8px;
+  background-color: #cbd5e1;
+  border-radius: 2px;
+  transition: height 0.1s ease;
+}
+
+.audio-bar.active {
+  background-color: #6366f1;
+  animation: audioWave 0.8s ease-in-out infinite;
+}
+
+@keyframes audioWave {
+  0%, 100% {
+    height: 8px;
+  }
+  50% {
+    height: 20px;
+  }
+}
+
+.audio-bar:nth-child(1).active { animation-delay: 0s; }
+.audio-bar:nth-child(2).active { animation-delay: 0.1s; }
+.audio-bar:nth-child(3).active { animation-delay: 0.2s; }
+.audio-bar:nth-child(4).active { animation-delay: 0.1s; }
+.audio-bar:nth-child(5).active { animation-delay: 0s; }
+
+/* 상담원 아이콘 + 상태 */
+.counselor-status {
+  position: relative;
+  display: inline-block;
+}
+
+.counselor-icon {
+  width: 80px;
+  height: 80px;
+  background-color: #e0e7ff;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.headset-icon {
+  width: 40px;
+  height: 40px;
+  color: #6366f1;
+}
+
+.status-indicator {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 3px solid #f8fafc;
+}
+
+.status-indicator.online {
+  background-color: #22c55e;
+}
+
+.status-indicator.connecting {
+  background-color: #eab308;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* 상태 텍스트 */
+.status-text {
+  text-align: center;
+}
+
+.status-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 8px;
+}
+
+.status-description {
+  font-size: 14px;
+  color: #64748b;
+}
+
+/* 통화 컨트롤 버튼 */
+.call-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 24px;
+  margin-top: 32px;
+}
+
+.control-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.2s ease;
+}
+
+.control-btn:active {
+  transform: scale(0.95);
+}
+
+.control-icon-wrapper {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f1f5f9;
+  border-radius: 50%;
+  color: #475569;
+  transition: all 0.2s ease;
+}
+
+.control-btn:hover .control-icon-wrapper {
+  background-color: #e2e8f0;
+}
+
+.control-btn.active .control-icon-wrapper {
+  background-color: #dbeafe;
+  color: #3b82f6;
+}
+
+.control-icon-wrapper.end {
+  background-color: #ef4444;
+  color: white;
+}
+
+.control-btn:hover .control-icon-wrapper.end {
+  background-color: #dc2626;
+}
+
+/* 모달 */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 320px;
+  width: 100%;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 12px;
+}
+
+.modal-message {
+  font-size: 14px;
+  color: #64748b;
+  margin-bottom: 24px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.modal-btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.modal-btn.cancel {
+  background-color: #f1f5f9;
+  color: #475569;
+}
+
+.modal-btn.cancel:hover {
+  background-color: #e2e8f0;
+}
+
+.modal-btn.confirm {
+  background-color: #ef4444;
+  color: white;
+}
+
+.modal-btn.confirm:hover {
+  background-color: #dc2626;
+}
 </style>
