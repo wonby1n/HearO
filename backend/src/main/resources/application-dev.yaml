@@ -2,8 +2,8 @@ spring:
   datasource:
     # 로컬 기본값(fallback) 제공
     # 데이터베이스 이름 기본값으로 test를 부여했으며 test 데이터베이스가 없다면 환경변수로 주입하거나 생성해야 함
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/test}
-    username: ${DB_USERNAME:postgres} #유저 네임도 설정한값과 다르면 환경변수로 주입
+    url: ${DB_URL}
+    username: ${DB_USER:postgres} #유저 네임도 설정한값과 다르면 환경변수로 주입
     password: ${DB_PASSWORD:}
     driver-class-name: org.postgresql.Driver
 
