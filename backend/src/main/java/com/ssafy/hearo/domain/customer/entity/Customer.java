@@ -20,7 +20,7 @@ public class Customer extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Integer id;
 
     @Column(length = 20)
     private String name;
