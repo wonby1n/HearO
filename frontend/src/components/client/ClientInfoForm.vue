@@ -321,13 +321,8 @@ const handleSubmit = async () => {
 
     notificationStore.notifySuccess('정보가 저장되었습니다')
 
-    // 다음 단계로 이동 (추후 페이지 구현 필요)
-    // router.push('/client/contact-info')
-    console.log('Form submitted:', {
-      product: props.productName,
-      model: props.modelNumber,
-      ...formData.value
-    })
+    // 다음 단계로 이동 (본인 확인 페이지)
+    router.push('/client/consultation/verification')
   } catch (error) {
     console.error('제출 실패:', error)
     notificationStore.notifyWarning('제출 중 오류가 발생했습니다. 다시 시도해주세요')
