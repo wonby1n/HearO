@@ -1,10 +1,5 @@
 <template>
   <div class="client-call-view">
-    <!-- 상단 대기 순번 -->
-    <div class="queue-info">
-      <span v-if="queuePosition > 0">{{ queuePosition }}번째</span>
-      <span v-else>&nbsp;</span>
-    </div>
 
     <!-- 메인 컨텐츠 -->
     <div class="main-content">
