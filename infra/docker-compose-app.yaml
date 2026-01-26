@@ -7,7 +7,9 @@ services:
     container_name: spring-backend
     restart: always
     ports:
-      - "8080:8080"
+      - "8000:8080"
+    env_file:              
+      - ./.env
     networks:
       - ssafy-network # infra에서 만든 네트워크에 무임승차!
 
@@ -19,7 +21,7 @@ services:
     container_name: vue-frontend
     restart: always
     ports:
-      - "3000:80"
+      - "8001:80"
     networks:
       - ssafy-network
 

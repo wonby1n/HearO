@@ -1,5 +1,5 @@
 # 1. 빌드 단계 (Build Stage)
-FROM node:18-alpine AS build-stage
+FROM node:20-alpine AS build-stage
 WORKDIR /app
 
 # 캐싱을 위해 패키지 파일만 먼저 복사
