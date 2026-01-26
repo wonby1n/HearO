@@ -32,6 +32,15 @@ const router = createRouter({
             title: '고객 상담',
             role: 'client'
           }
+        },
+        {
+          path: 'call-end',
+          name: 'client-call-end',
+          component: () => import('@/views/client/ClientCallEndView.vue'),
+          meta: {
+            title: '상담 종료',
+            role: 'client'
+          }
         }
       ]
     },
