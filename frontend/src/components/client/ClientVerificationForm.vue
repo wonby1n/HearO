@@ -162,7 +162,8 @@ const router = useRouter()
 const carriers = [
   { value: 'skt', label: 'SKT' },
   { value: 'kt', label: 'KT' },
-  { value: 'lgu', label: 'LG U+' }
+  { value: 'lgu', label: 'LG U+' },
+  { value: 'all', label: '알뜰폰' },
 ]
 
 // 폼 데이터
@@ -249,7 +250,7 @@ const clearVerificationError = () => {
 
 // 뒤로 가기
 const handleBack = () => {
-  router.back()
+  router.push({ name: 'client-consultation-info' })
 }
 
 // 폼 제출
@@ -273,6 +274,8 @@ const handleSubmit = () => {
 <style scoped>
 .form-container {
   min-height: 100vh;
+  max-width: 480px;
+  margin: 0 auto;
   background: #f5f5f7;
   display: flex;
   flex-direction: column;

@@ -4,6 +4,11 @@
     <BrowserNotice v-model="showBrowserNotice" />
 
     <div class="form-header">
+      <button class="back-button" @click="handleBack" aria-label="뒤로 가기">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
       <div class="page-header">
         <h1 class="page-title">상담 신청</h1>
         <span class="page-indicator">1 / 3</span>
@@ -15,6 +20,7 @@
         <!-- 내 기기 정보 -->
         <section class="form-section">
           <h2 class="section-title">내 기기 정보</h2>
+          <p class="section-description">아래 자동 인식된 모델이 맞는지 확인해주세요.</p>
 
           <div class="device-card">
             <div class="device-icon">
@@ -33,6 +39,8 @@
 
         <!-- 에러코드 (선택) -->
         <section class="form-section">
+          <h2 class="section-title">에러코드 및 증상 입력</h2>
+
           <div class="label-with-counter">
             <label class="input-label optional">
               <svg class="info-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -40,7 +48,7 @@
                 <path d="M8 11V8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                 <circle cx="8" cy="5.5" r="0.75" fill="currentColor"/>
               </svg>
-              에러코드 (선택)
+              에러코드 (선택사항)
             </label>
             <span class="char-counter">{{ formData.errorCode.length }} / 100</span>
           </div>
@@ -48,20 +56,21 @@
             v-model="formData.errorCode"
             type="text"
             class="form-input"
-            placeholder="화면에 표시된 에러코드가 있다면 입력"
+            placeholder="화면에 표시된 에러코드가 있다면 입력 (선택)"
             maxlength="100"
           />
         </section>
 
         <!-- 증상 상세 입력 -->
         <section class="form-section">
+
           <div class="label-with-counter">
             <label class="input-label required">
               <svg class="message-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
                 <path d="M4 6H12M4 8.5H9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
               </svg>
-              증상 상세 입력
+              증상 입력
             </label>
             <span class="char-counter" :class="{ warning: formData.symptomDetail.length > 450 }">
               {{ formData.symptomDetail.length }} / 500
@@ -305,6 +314,11 @@ onUnmounted(() => {
   }
 })
 
+// 뒤로 가기
+const handleBack = () => {
+  router.push({ name: 'client-landing' })
+}
+
 const handleSubmit = async () => {
   if (!isFormValid.value) return
 
@@ -333,6 +347,8 @@ const handleSubmit = async () => {
 <style scoped>
 .form-container {
   min-height: 100vh;
+  max-width: 480px;
+  margin: 0 auto;
   background: #f5f5f7;
   display: flex;
   flex-direction: column;
@@ -341,17 +357,36 @@ const handleSubmit = async () => {
 /* 헤더 영역 */
 .form-header {
   background: white;
-  padding: 20px 20px 16px;
+  padding: 16px 20px;
+  position: relative;
+}
+
+.back-button {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  color: #1d1d1f;
+}
+
+.back-button svg {
+  width: 24px;
+  height: 24px;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding-left: 32px;
 }
 
 .page-title {
-  font-size: 28px;
+  font-size: 20px;
   font-weight: 700;
   color: #1d1d1f;
   margin: 0;
@@ -361,15 +396,12 @@ const handleSubmit = async () => {
   font-size: 14px;
   color: #5B7CFF;
   font-weight: 600;
-  background: #E8ECFF;
-  padding: 4px 12px;
-  border-radius: 12px;
 }
 
 /* 폼 콘텐츠 */
 .form-content {
   flex: 1;
-  padding: 20px;
+  padding: 24px 20px;
 }
 
 .form-section {
@@ -377,12 +409,17 @@ const handleSubmit = async () => {
 }
 
 .section-title {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 22px;
+  font-weight: 700;
+  color: #1d1d1f;
+  margin: 0 0 8px 0;
+}
+
+.section-description {
+  font-size: 14px;
   color: #86868b;
-  margin: 0 0 12px 0;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  margin: 0 0 24px 0;
+  line-height: 1.5;
 }
 
 /* 기기 정보 카드 */
@@ -446,12 +483,13 @@ const handleSubmit = async () => {
 }
 
 .input-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  display: block;
   font-size: 15px;
   font-weight: 600;
   color: #1d1d1f;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .input-label svg {
@@ -746,21 +784,22 @@ const handleSubmit = async () => {
 /* 제출 버튼 */
 .submit-button {
   width: 100%;
-  padding: 16px;
+  padding: 18px;
   background: linear-gradient(135deg, #5B7CFF 0%, #4A61D9 100%);
   color: white;
   border: none;
   border-radius: 12px;
   font-size: 17px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   margin-top: 32px;
-  transition: transform 0.2s, opacity 0.2s;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(91, 124, 255, 0.3);
 }
 
 .submit-button:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(91, 124, 255, 0.3);
+  box-shadow: 0 6px 20px rgba(91, 124, 255, 0.4);
 }
 
 .submit-button:active:not(:disabled) {
@@ -770,12 +809,17 @@ const handleSubmit = async () => {
 .submit-button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 /* 모바일 최적화 */
 @media (max-width: 768px) {
   .form-content {
-    padding: 16px;
+    padding: 20px 16px;
+  }
+
+  .section-title {
+    font-size: 20px;
   }
 }
 </style>
