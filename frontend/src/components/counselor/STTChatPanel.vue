@@ -1,8 +1,23 @@
 <template>
-  <div class="flex flex-col h-full bg-white rounded-lg shadow-sm border border-gray-200">
+  <div class="flex flex-col h-full bg-white rounded-lg shadow-sm border border-gray-200 relative">
     <!-- 헤더 -->
     <div class="px-6 py-4 border-b border-gray-200">
       <h3 class="text-lg font-semibold text-gray-900">실시간 자막</h3>
+    </div>
+
+    <!-- 폭언 감지 알림 (중앙 상단) -->
+    <div class="stt-notification-container">
+      <TransitionGroup name="notification-list">
+        <NotificationItem
+          v-for="notification in notifications"
+          :key="notification.id"
+          :id="notification.id"
+          :type="notification.type"
+          :message="notification.message"
+          :count="notification.count"
+          @close="notificationStore.removeNotification(notification.id)"
+        />
+      </TransitionGroup>
     </div>
 
     <!-- 자막 영역 (채팅 형태) -->
@@ -10,8 +25,8 @@
       ref="chatContainer"
       class="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin"
     >
-      <!-- 폭언 감지 경고 (상단 고정) -->
-      <div
+      <!-- 폭언 감지 경고 (상단 고정) - NotificationItem으로 대체됨 -->
+      <!-- <div
         v-if="profanityCount > 0"
         class="sticky top-0 bg-red-50 border border-red-300 rounded-lg p-4 flex items-center gap-3 shadow-sm z-10"
       >
@@ -21,7 +36,7 @@
         <div class="flex-1">
           <p class="text-sm font-semibold text-red-900">폭언 감지 : {{ profanityCount }}회</p>
         </div>
-      </div>
+      </div> -->
 
       <!-- 메시지 목록 -->
       <div
@@ -102,14 +117,14 @@
         </div>
       </div>
 
-      <!-- 폭언 경고 배너 (3회 감지 경고) -->
-      <div
+      <!-- 폭언 경고 배너 (3회 감지 경고) - 기존 스타일 주석처리 -->
+      <!-- <div
         v-if="profanityCount >= 1"
         class="bg-red-100 border-2 border-red-500 rounded-lg p-4 text-center"
       >
         <p class="text-red-900 font-bold text-sm">비속어 총 {{ profanityCount }}회 감지</p>
         <p class="text-red-700 text-xs mt-1">3회가 감지되면 통화종료됩니다</p>
-      </div>
+      </div> -->
 
       <!-- 빈 상태 -->
       <div
@@ -124,11 +139,51 @@
         </div>
       </div>
     </div>
+
+    <!-- 비속어 카운터 (중앙 하단) -->
+    <div v-if="notificationStore.profanityCount >= 1" class="profanity-counter">
+      <span :class="['text-red-600 font-bold text-lg', { 'counter-pulse': isCounterAnimating }]">
+        비속어 총 {{ notificationStore.profanityCount }}회 감지
+      </span>
+      <br>
+      <span class="text-red-600 font-bold text-sm">3회가 감지되면 종료됩니다</span>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch, nextTick } from 'vue'
+import { ref, watch, nextTick, computed } from 'vue'
+import { useNotificationStore } from '@/stores/notification'
+import NotificationItem from '@/components/notification/NotificationItem.vue'
+
+// 알림 스토어
+const notificationStore = useNotificationStore()
+
+// 개발용: 콘솔에서 테스트 가능하도록 window에 노출
+if (import.meta.env.DEV) {
+  window.notificationStore = notificationStore
+}
+
+// 알림 목록 (profanity 타입만 필터링)
+const notifications = computed(() => {
+  return notificationStore.notifications.filter(n => n.type === 'profanity')
+})
+
+// 카운터 애니메이션 상태
+const isCounterAnimating = ref(false)
+
+// 카운트 변경 시 애니메이션 트리거
+watch(
+  () => notificationStore.profanityCount,
+  (newCount, oldCount) => {
+    if (newCount > oldCount) {
+      isCounterAnimating.value = true
+      setTimeout(() => {
+        isCounterAnimating.value = false
+      }, 600)
+    }
+  }
+)
 
 const props = defineProps({
   messages: {
@@ -184,5 +239,77 @@ watch(
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background: #555;
+}
+
+/* 알림 컨테이너 - 중앙 상단 */
+.stt-notification-container {
+  position: absolute;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.stt-notification-container > * {
+  pointer-events: auto;
+}
+
+/* TransitionGroup 애니메이션 */
+.notification-list-enter-active,
+.notification-list-leave-active {
+  transition: all 0.3s ease;
+}
+
+.notification-list-enter-from {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+.notification-list-leave-to {
+  opacity: 0;
+  transform: translateY(-20px) scale(0.9);
+}
+
+.notification-list-move {
+  transition: transform 0.3s ease;
+}
+
+/* 비속어 카운터 - 중앙 하단 */
+.profanity-counter {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  padding: 8px 16px;
+  text-align: center;
+}
+
+/* 카운터 펄스 애니메이션 */
+.counter-pulse {
+  display: inline-block;
+  animation: counterPulse 0.6s ease-out;
+}
+
+@keyframes counterPulse {
+  0% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.3);
+    color: #dc2626;
+    text-shadow: 0 0 10px rgba(220, 38, 38, 0.5);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 </style>
