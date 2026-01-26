@@ -5,6 +5,9 @@ export const useNotificationStore = defineStore('notification', () => {
   // 알림 목록 (화면에 표시될 알림들)
   const notifications = ref([])
 
+  // 폭언 카운트 (영구 저장 - 알림이 사라져도 유지)
+  const profanityCount = ref(0)
+
   // 알림 ID 카운터
   let NOTIFICATION_ID_COUNTER = 0
 
@@ -104,6 +107,7 @@ export const useNotificationStore = defineStore('notification', () => {
    * @param {number} count - 폭언 횟수
    */
   const notifyProfanity = (count) => {
+    profanityCount.value = count  // 카운트 영구 저장
     return addNotification({
       type: 'profanity',
       message: '폭언 감지',
@@ -162,6 +166,7 @@ export const useNotificationStore = defineStore('notification', () => {
   return {
     // State
     notifications,
+    profanityCount,
 
     // Actions
     addNotification,

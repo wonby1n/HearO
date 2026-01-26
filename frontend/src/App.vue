@@ -5,7 +5,6 @@ import NotificationContainer from '@/components/notification/NotificationContain
 
 <template>
   <RouterView />
-  <NotificationContainer position="top-right" />
 </template>
 
 <style scoped>
