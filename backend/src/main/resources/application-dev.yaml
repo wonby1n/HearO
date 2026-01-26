@@ -32,7 +32,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: ${JPA_DDL_AUTO:update}     # 개발 편의,**엔티티가 많이 변경될 거 같으면 환경변수로 create도 권장**
+      ddl-auto: ${JPA_DDL_AUTO:create}     # 개발 편의,**엔티티가 많이 변경될 거 같으면 환경변수로 create도 권장**
     show-sql: ${JPA_SHOW_SQL:true}
     properties:
       hibernate:

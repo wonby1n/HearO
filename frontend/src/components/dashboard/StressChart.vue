@@ -22,7 +22,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { Doughnut } from 'vue-chartjs'
 import {
   Chart as ChartJS,
@@ -36,11 +36,22 @@ ChartJS.register(ArcElement, Tooltip)
 
 const agentStore = useAgentStore()
 
-// 차트 데이터
+// 컴포넌트 마운트 시 스트레스 지수 조회
+onMounted(() => {
+  // TODO: 백엔드 API 연동 시 주석 해제
+  // agentStore.fetchStressLevel()
+
+  // 임시 더미 데이터 (테스트용)
+  // agentStore.updateStressLevel(30) // 녹색
+  // agentStore.updateStressLevel(50) // 노란색
+  // agentStore.updateStressLevel(80) // 빨간색
+})
+
+// 차트 데이터 (3단계 색상 적용)
 const chartData = computed(() => ({
   datasets: [{
     data: [agentStore.stressLevel, 100 - agentStore.stressLevel],
-    backgroundColor: ['#ef4444', '#e5e7eb'], // red-500, gray-200
+    backgroundColor: [agentStore.stressColor, '#e5e7eb'], // 동적 색상, gray-200
     borderWidth: 0
   }]
 }))
@@ -56,19 +67,19 @@ const chartOptions = {
   }
 }
 
-// 스트레스 메시지
+// 스트레스 메시지 (3단계: 녹색/노란색/빨간색)
 const stressMessage = computed(() => {
-  const level = agentStore.stressLevel
-  if (level >= 70) return '휴식이 필요해요!'
-  if (level >= 40) return '적당한 긴장 상태예요'
+  const status = agentStore.stressStatus
+  if (status === 'high') return '휴식이 필요해요!'
+  if (status === 'medium') return '적당한 긴장 상태예요'
   return '좋은 컨디션이에요!'
 })
 
-// 스트레스 설명
+// 스트레스 설명 (3단계)
 const stressDescription = computed(() => {
-  const level = agentStore.stressLevel
-  if (level >= 70) return '잠시 휴식을 취하고 심호흡을 해보세요'
-  if (level >= 40) return '컨디션 관리에 신경 써주세요'
+  const status = agentStore.stressStatus
+  if (status === 'high') return '잠시 휴식을 취하고 심호흡을 해보세요'
+  if (status === 'medium') return '컨디션 관리에 신경 써주세요'
   return '이 상태를 유지하세요'
 })
 </script>
