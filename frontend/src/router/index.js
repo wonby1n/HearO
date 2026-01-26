@@ -25,6 +25,15 @@ const router = createRouter({
           }
         },
         {
+          path: 'waiting',
+          name: 'client-waiting',
+          component: () => import('@/views/client/ClientWaitingView.vue'),
+          meta: {
+            title: '상담 대기',
+            role: 'client'
+          }
+        },
+        {
           path: 'call',
           name: 'client-call',
           component: () => import('@/views/client/ClientCallView.vue'),
