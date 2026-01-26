@@ -1,4 +1,4 @@
-package com.ssafy.hearo.calls;
+package com.ssafy.hearo.domain.calls;
 
 
 import jakarta.validation.Valid;
