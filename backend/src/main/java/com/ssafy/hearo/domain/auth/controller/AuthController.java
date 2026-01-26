@@ -7,7 +7,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/auth") // Nginx에서 /api를 떼고 넘겨주므로 /auth만 적으면 돼
+@RequestMapping("api/auth") // Nginx에서 /api를 떼고 넘겨주므로 /auth만 적으면 돼
 public class AuthController {
 
     @GetMapping("/test")
