@@ -16,6 +16,15 @@ const router = createRouter({
       path: '/client',
       children: [
         {
+          path: '',
+          name: 'client-landing',
+          component: () => import('@/views/client/ClientLandingView.vue'),
+          meta: {
+            title: 'Smart AS Connect',
+            role: 'client'
+          }
+        },
+        {
           path: 'call',
           name: 'client-call',
           component: () => import('@/views/client/ClientCallView.vue'),
