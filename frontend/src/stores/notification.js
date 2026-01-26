@@ -6,7 +6,10 @@ export const useNotificationStore = defineStore('notification', () => {
   const notifications = ref([])
 
   // 알림 ID 카운터
-  let notificationIdCounter = 0
+  let NOTIFICATION_ID_COUNTER = 0
+
+  // 타이머 관리 맵 (메모리 누수 방지)
+  const timers = new Map()
 
   /**
    * 알림 추가
@@ -24,7 +27,31 @@ export const useNotificationStore = defineStore('notification', () => {
       count = null
     } = options
 
-    const id = ++notificationIdCounter
+    // 중복 알림 방지: 같은 타입과 메시지의 알림이 이미 있으면 업데이트
+    const existingIndex = notifications.value.findIndex(
+      n => n.type === type && n.message === message
+    )
+
+    if (existingIndex !== -1) {
+      const existingNotification = notifications.value[existingIndex]
+      // 카운트 업데이트
+      existingNotification.count = count
+      // 기존 타이머 취소
+      clearTimeout(timers.get(existingNotification.id))
+
+      // 새 타이머 설정
+      if (duration > 0) {
+        const timerId = setTimeout(() => {
+          removeNotification(existingNotification.id)
+        }, duration)
+        timers.set(existingNotification.id, timerId)
+      }
+
+      return existingNotification.id
+    }
+
+    // 새로운 알림 추가
+    const id = ++NOTIFICATION_ID_COUNTER
     const notification = {
       id,
       type,
@@ -33,14 +60,14 @@ export const useNotificationStore = defineStore('notification', () => {
       createdAt: Date.now()
     }
 
-    // 알림 목록에 추가
     notifications.value.push(notification)
 
     // 자동 제거 타이머 설정
     if (duration > 0) {
-      setTimeout(() => {
+      const timerId = setTimeout(() => {
         removeNotification(id)
       }, duration)
+      timers.set(id, timerId)
     }
 
     return id
@@ -51,6 +78,10 @@ export const useNotificationStore = defineStore('notification', () => {
    * @param {number} id - 알림 ID
    */
   const removeNotification = (id) => {
+    // 타이머 정리 (메모리 누수 방지)
+    clearTimeout(timers.get(id))
+    timers.delete(id)
+
     const index = notifications.value.findIndex(n => n.id === id)
     if (index !== -1) {
       notifications.value.splice(index, 1)
@@ -61,6 +92,10 @@ export const useNotificationStore = defineStore('notification', () => {
    * 모든 알림 제거
    */
   const clearAllNotifications = () => {
+    // 모든 타이머 정리
+    timers.forEach(timerId => clearTimeout(timerId))
+    timers.clear()
+
     notifications.value = []
   }
 
@@ -83,7 +118,7 @@ export const useNotificationStore = defineStore('notification', () => {
   const notifyAbuse = () => {
     return addNotification({
       type: 'abuse',
-      message: '비속어 등 경험이',
+      message: '비속어 감지',
       duration: 3000
     })
   }

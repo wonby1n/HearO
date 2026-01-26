@@ -23,6 +23,15 @@
 <script setup>
 import { computed } from 'vue'
 
+// 타입별 아이콘 매핑 (성능 최적화: 외부 상수로 선언)
+const ICON_MAP = {
+  profanity: 'AlertTriangleIcon',
+  abuse: 'ShieldIcon',
+  warning: 'AlertCircleIcon',
+  info: 'InfoIcon',
+  success: 'CheckCircleIcon'
+}
+
 const props = defineProps({
   id: {
     type: Number,
@@ -46,16 +55,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'click'])
 
 // 타입별 아이콘 컴포넌트
-const iconComponent = computed(() => {
-  const icons = {
-    profanity: 'AlertTriangleIcon',
-    abuse: 'ShieldIcon',
-    warning: 'AlertCircleIcon',
-    info: 'InfoIcon',
-    success: 'CheckCircleIcon'
-  }
-  return icons[props.type] || 'InfoIcon'
-})
+const iconComponent = computed(() => ICON_MAP[props.type] || 'InfoIcon')
 
 const handleClick = () => {
   emit('click', props.id)
@@ -221,5 +221,23 @@ export const CheckCircleIcon = {
 
 .notification-close:hover {
   opacity: 1;
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+  .notification-item {
+    min-width: 240px;
+    max-width: calc(100vw - 40px);
+    padding: 10px 12px;
+  }
+
+  .notification-content {
+    font-size: 13px;
+  }
+
+  .notification-icon svg {
+    width: 18px;
+    height: 18px;
+  }
 }
 </style>
