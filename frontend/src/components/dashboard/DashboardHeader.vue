@@ -36,14 +36,33 @@
       </button>
 
       <!-- 우측: 대기 고객 수 -->
-      <div class="text-right">
+      <div class="text-right relative">
         <div class="flex items-center justify-end gap-2 mb-1">
           <svg class="w-6 h-6 text-gray-700" fill="currentColor" viewBox="0 0 24 24">
             <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
           </svg>
-          <span class="text-3xl font-bold text-primary-600">
-            {{ dashboardStore.waitingCustomers }}명
-          </span>
+          <div class="relative">
+            <span
+              :class="[
+                'text-3xl font-bold text-primary-600 transition-all duration-300',
+                { 'customer-count-pulse': isCountAnimating }
+              ]"
+            >
+              {{ dashboardStore.waitingCustomers }}명
+            </span>
+            <!-- 증감 표시 -->
+            <Transition name="count-change">
+              <span
+                v-if="countChange !== 0"
+                :class="[
+                  'absolute -top-2 -right-8 text-sm font-bold',
+                  countChange > 0 ? 'text-green-600' : 'text-red-600'
+                ]"
+              >
+                {{ countChange > 0 ? '+' : '' }}{{ countChange }}
+              </span>
+            </Transition>
+          </div>
         </div>
         <p class="text-sm text-gray-600">현재 대기 고객</p>
       </div>
@@ -52,15 +71,22 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useAgentStore } from '@/stores/agent'
 import { useDashboardStore } from '@/stores/dashboard'
+import { useWebSocket } from '@/composables/useWebSocket'
 
 const agentStore = useAgentStore()
 const dashboardStore = useDashboardStore()
 
 // 현재 날짜/시간
 const currentTime = ref(new Date())
+
+// 대기 고객 수 애니메이션
+const isCountAnimating = ref(false)
+const countChange = ref(0)
+let countChangeTimer = null
+let countAnimationTimer = null
 
 // 날짜/시간 포맷팅
 const formattedDateTime = computed(() => {
@@ -100,20 +126,142 @@ const toggleConsultationStatus = () => {
 // 실시간 시계 타이머
 let clockInterval = null
 
+// WebSocket 연결 (TODO: 백엔드 엔드포인트 확정 후 활성화)
+// 환경변수 설정: .env 파일에 VITE_WS_URL=ws://your-server/api/v1/dashboard/queue-updates 추가
+// const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8080/api/v1/dashboard/queue-updates'
+// const { connect: connectWS, disconnect: disconnectWS } = useWebSocket(
+//   wsUrl,
+//   {
+//     onMessage: (data) => {
+//       if (data.type === 'waiting_customers_update') {
+//         dashboardStore.updateWaitingCustomers(data.count)
+//       }
+//     },
+//     onOpen: () => {
+//       console.log('[Dashboard] WebSocket 연결 성공')
+//     },
+//     onError: (error) => {
+//       console.error('[Dashboard] WebSocket 에러:', error)
+//     }
+//   }
+// )
+
+// 대기 고객 수 변경 감지 및 애니메이션 트리거
+watch(
+  () => dashboardStore.waitingCustomers,
+  (newCount, oldCount) => {
+    if (oldCount !== undefined && newCount !== oldCount) {
+      // 기존 애니메이션 타이머 취소
+      if (countAnimationTimer) {
+        clearTimeout(countAnimationTimer)
+      }
+
+      // 애니메이션 트리거
+      isCountAnimating.value = true
+      countAnimationTimer = setTimeout(() => {
+        isCountAnimating.value = false
+      }, 600)
+
+      // 증감 표시
+      const change = newCount - oldCount
+      countChange.value = change
+
+      // 기존 타이머 취소
+      if (countChangeTimer) {
+        clearTimeout(countChangeTimer)
+      }
+
+      // 2초 후 증감 표시 제거
+      countChangeTimer = setTimeout(() => {
+        countChange.value = 0
+      }, 2000)
+    }
+  }
+)
+
 onMounted(() => {
   // 1초마다 시간 업데이트
   clockInterval = setInterval(() => {
     currentTime.value = new Date()
   }, 1000)
+
+  // TODO: WebSocket 연결 (백엔드 준비 후 활성화)
+  // connectWS()
+
+  // TODO: 초기 대기 고객 수 조회 (백엔드 API 준비 후 활성화)
+  // dashboardStore.fetchWaitingCustomers()
 })
 
 onUnmounted(() => {
   if (clockInterval) {
     clearInterval(clockInterval)
   }
+
+  if (countChangeTimer) {
+    clearTimeout(countChangeTimer)
+  }
+
+  if (countAnimationTimer) {
+    clearTimeout(countAnimationTimer)
+  }
+
+  // TODO: WebSocket 연결 해제 (백엔드 준비 후 활성화)
+  // disconnectWS()
 })
 </script>
 
 <style scoped>
 /* DashboardHeader 전용 스타일 */
+
+/* 대기 고객 수 변경 시 펄스 애니메이션 */
+.customer-count-pulse {
+  animation: customerCountPulse 0.6s ease-out;
+}
+
+@keyframes customerCountPulse {
+  0% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.2);
+    color: #2563eb;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* 증감 표시 애니메이션 */
+.count-change-enter-active {
+  animation: countChangeIn 0.3s ease-out;
+}
+
+.count-change-leave-active {
+  animation: countChangeOut 0.3s ease-in;
+}
+
+@keyframes countChangeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes countChangeOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.8);
+  }
+}
 </style>
