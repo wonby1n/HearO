@@ -8,6 +8,8 @@ services:
     restart: always
     ports:
       - "8080:8080"
+    env_file:              
+      - ./.env
     networks:
       - ssafy-network # infra에서 만든 네트워크에 무임승차!
 
