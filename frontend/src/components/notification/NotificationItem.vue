@@ -1,8 +1,5 @@
 <template>
-  <div
-    :class="['notification-item', `notification-${type}`]"
-    @click="handleClick"
-  >
+  <div :class="['notification-item', `notification-${type}`]">
     <div class="notification-icon">
       <component :is="iconComponent" />
     </div>
@@ -52,14 +49,10 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['close', 'click'])
+defineEmits(['close'])
 
 // 타입별 아이콘 컴포넌트
 const iconComponent = computed(() => ICON_MAP[props.type] || 'InfoIcon')
-
-const handleClick = () => {
-  emit('click', props.id)
-}
 </script>
 
 <script>
@@ -122,32 +115,13 @@ export const CheckCircleIcon = {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   min-width: 280px;
   max-width: 400px;
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  animation: slideIn 0.3s ease-out;
-}
-
-.notification-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateX(100%);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
 }
 
 /* 폭언 감지 - 빨간색 + 점멸 애니메이션 */
 .notification-profanity {
   background-color: #ff4444;
   color: white;
-  animation: slideIn 0.3s ease-out, blink 1s ease-in-out infinite;
+  animation: blink 1s ease-in-out infinite;
 }
 
 @keyframes blink {
