@@ -1,21 +1,7 @@
 <template>
   <div class="landing-container">
     <!-- 브라우저 알림 배너 -->
-    <div v-if="!isChrome && showBrowserNotice" class="browser-notice">
-      <div class="notice-content">
-        <svg class="notice-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-          <path d="M12 8V12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <circle cx="12" cy="16" r="1" fill="currentColor"/>
-        </svg>
-        <span class="notice-text">Chrome 브라우저에서 더 원활한 상담이 가능합니다</span>
-        <button class="notice-close" @click="showBrowserNotice = false">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-        </button>
-      </div>
-    </div>
+    <BrowserNotice v-model="showBrowserNotice" />
 
     <!-- QR 인식 초기 화면 -->
     <div v-if="showInitialScreen" class="initial-screen">
@@ -63,31 +49,21 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import ClientInfoForm from '@/components/client/ClientInfoForm.vue'
+import BrowserNotice from '@/components/common/BrowserNotice.vue'
 
 const route = useRoute()
 
 // 화면 전환 상태
 const showInitialScreen = ref(true)
 
-// 브라우저 체크
-const isChrome = ref(false)
+// 브라우저 알림 표시 여부
 const showBrowserNotice = ref(true)
 
 // 제품 정보 (QR 코드에서 받아오거나 URL 파라미터로 받음)
 const productName = ref('Galaxy S24 Ultra')
 const modelNumber = ref('SM-S928N')
 
-// 크롬 브라우저 감지 함수
-const checkBrowser = () => {
-  const userAgent = navigator.userAgent.toLowerCase()
-  // Chrome, Edge (Chromium 기반) 모두 허용
-  isChrome.value = /chrome|crios|edg/.test(userAgent) && !/opr|opera/.test(userAgent)
-}
-
 onMounted(() => {
-  // 브라우저 체크
-  checkBrowser()
-
   // URL 파라미터에서 제품 정보 가져오기 (추후 QR 코드 구현 시)
   if (route.query.product) {
     productName.value = route.query.product
@@ -113,74 +89,6 @@ onMounted(() => {
   padding: 20px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   position: relative;
-}
-
-/* 브라우저 알림 배너 */
-.browser-notice {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  background: rgba(255, 193, 7, 0.95);
-  backdrop-filter: blur(10px);
-  z-index: 1000;
-  animation: slideDown 0.3s ease-out;
-}
-
-@keyframes slideDown {
-  from {
-    transform: translateY(-100%);
-  }
-  to {
-    transform: translateY(0);
-  }
-}
-
-.notice-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 12px 20px;
-  max-width: 768px;
-  margin: 0 auto;
-}
-
-.notice-icon {
-  width: 20px;
-  height: 20px;
-  color: #000;
-  flex-shrink: 0;
-}
-
-.notice-text {
-  font-size: 14px;
-  font-weight: 600;
-  color: #000;
-  flex: 1;
-}
-
-.notice-close {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #000;
-  opacity: 0.7;
-  transition: opacity 0.2s;
-  flex-shrink: 0;
-}
-
-.notice-close:hover {
-  opacity: 1;
-}
-
-.notice-close svg {
-  width: 18px;
-  height: 18px;
 }
 
 /* QR 인식 초기 화면 */

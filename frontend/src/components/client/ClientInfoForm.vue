@@ -1,21 +1,7 @@
 <template>
   <div class="form-container">
     <!-- 브라우저 알림 배너 -->
-    <div v-if="!isChrome && showBrowserNotice" class="browser-notice">
-      <div class="notice-content">
-        <svg class="notice-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-          <path d="M12 8V12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          <circle cx="12" cy="16" r="1" fill="currentColor"/>
-        </svg>
-        <span class="notice-text">Chrome 브라우저에서 더 원활한 상담이 가능합니다</span>
-        <button class="notice-close" @click="showBrowserNotice = false">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-        </button>
-      </div>
-    </div>
+    <BrowserNotice v-model="showBrowserNotice" />
 
     <div class="form-header">
       <div class="page-header">
@@ -106,6 +92,8 @@
               type="button"
               class="voice-record-button"
               :class="{ recording: isRecording }"
+              :aria-label="isRecording ? '녹음 중지' : '녹음 시작'"
+              :aria-pressed="isRecording"
               @click="toggleVoiceRecognition"
             >
               <svg class="mic-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -159,8 +147,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useNotificationStore } from '@/stores/notification'
+import BrowserNotice from '@/components/common/BrowserNotice.vue'
 
 const props = defineProps({
   productName: {
@@ -174,16 +164,16 @@ const props = defineProps({
 })
 
 const router = useRouter()
+const notificationStore = useNotificationStore()
 
-// 브라우저 체크
-const isChrome = ref(false)
+// 브라우저 알림 표시 여부
 const showBrowserNotice = ref(true)
 
 // 음성 인식 관련
 const isRecording = ref(false)
 const speechSupported = ref(false)
 const voiceTranscript = ref('')
-let recognition = null
+const recognition = ref(null)
 
 const formData = ref({
   errorCode: '',
@@ -193,13 +183,6 @@ const formData = ref({
 const isFormValid = computed(() => {
   return formData.value.symptomDetail.trim().length > 0
 })
-
-// 크롬 브라우저 감지 함수
-const checkBrowser = () => {
-  const userAgent = navigator.userAgent.toLowerCase()
-  // Chrome, Edge (Chromium 기반) 모두 허용
-  isChrome.value = /chrome|crios|edg/.test(userAgent) && !/opr|opera/.test(userAgent)
-}
 
 // 음성 인식 초기화
 const initSpeechRecognition = () => {
@@ -213,17 +196,17 @@ const initSpeechRecognition = () => {
   }
 
   speechSupported.value = true
-  recognition = new SpeechRecognition()
+  recognition.value = new SpeechRecognition()
 
   // 한국어 설정
-  recognition.lang = 'ko-KR'
+  recognition.value.lang = 'ko-KR'
   // 중간 결과도 반환
-  recognition.interimResults = true
+  recognition.value.interimResults = true
   // 연속 인식
-  recognition.continuous = true
+  recognition.value.continuous = true
 
   // 인식 결과 처리
-  recognition.onresult = (event) => {
+  recognition.value.onresult = (event) => {
     let interimTranscript = ''
     let finalTranscript = ''
 
@@ -241,8 +224,8 @@ const initSpeechRecognition = () => {
       const newTranscript = voiceTranscript.value + (voiceTranscript.value ? ' ' : '') + finalTranscript
       if (newTranscript.length > 500) {
         voiceTranscript.value = newTranscript.substring(0, 500)
-        recognition.stop()
-        alert('최대 500자에 도달하여 녹음이 자동 종료되었습니다.')
+        recognition.value.stop()
+        notificationStore.notifyWarning('최대 500자에 도달하여 녹음이 자동 종료되었습니다')
       } else {
         voiceTranscript.value = newTranscript
       }
@@ -250,36 +233,36 @@ const initSpeechRecognition = () => {
   }
 
   // 인식 시작
-  recognition.onstart = () => {
+  recognition.value.onstart = () => {
     isRecording.value = true
   }
 
   // 인식 종료
-  recognition.onend = () => {
+  recognition.value.onend = () => {
     isRecording.value = false
   }
 
   // 에러 처리
-  recognition.onerror = (event) => {
+  recognition.value.onerror = (event) => {
     console.error('음성 인식 오류:', event.error)
     isRecording.value = false
 
     if (event.error === 'not-allowed') {
-      alert('마이크 권한이 필요합니다. 브라우저 설정에서 마이크 권한을 허용해주세요.')
+      notificationStore.notifyWarning('마이크 권한이 필요합니다. 브라우저 설정에서 마이크 권한을 허용해주세요')
     }
   }
 }
 
 // 음성 인식 토글
 const toggleVoiceRecognition = () => {
-  if (!recognition) return
+  if (!recognition.value) return
 
   if (isRecording.value) {
-    recognition.stop()
+    recognition.value.stop()
   } else {
     // 녹음 시작 전 이전 내용 초기화
     voiceTranscript.value = ''
-    recognition.start()
+    recognition.value.start()
   }
 }
 
@@ -294,9 +277,9 @@ const addTranscriptToForm = () => {
       const remaining = 500 - currentText.length
       if (remaining > 0) {
         formData.value.symptomDetail = currentText + (currentText ? ' ' : '') + voiceTranscript.value.substring(0, remaining - 1)
-        alert(`최대 500자까지 입력 가능합니다. ${remaining}자만 추가되었습니다.`)
+        notificationStore.notifyWarning(`최대 500자까지 입력 가능합니다. ${remaining}자만 추가되었습니다`)
       } else {
-        alert('증상 입력란이 이미 가득 찼습니다. (최대 500자)')
+        notificationStore.notifyWarning('증상 입력란이 이미 가득 찼습니다 (최대 500자)')
       }
     } else {
       formData.value.symptomDetail = newText
@@ -311,19 +294,43 @@ const clearTranscript = () => {
 }
 
 onMounted(() => {
-  checkBrowser()
   initSpeechRecognition()
 })
 
-const handleSubmit = () => {
-  if (isFormValid.value) {
-    // 다음 단계로 이동 (추후 구현)
+onUnmounted(() => {
+  // 음성 인식 정리 (메모리 누수 방지)
+  if (recognition.value) {
+    recognition.value.stop()
+    recognition.value = null
+  }
+})
+
+const handleSubmit = async () => {
+  if (!isFormValid.value) return
+
+  try {
+    // TODO: API 호출로 제품 정보 저장
+    // const response = await saveProductInfo({ ... })
+
+    // 임시로 localStorage에 저장
+    localStorage.setItem('clientInfo', JSON.stringify({
+      product: props.productName,
+      model: props.modelNumber,
+      ...formData.value
+    }))
+
+    notificationStore.notifySuccess('정보가 저장되었습니다')
+
+    // 다음 단계로 이동 (추후 페이지 구현 필요)
+    // router.push('/client/contact-info')
     console.log('Form submitted:', {
       product: props.productName,
       model: props.modelNumber,
       ...formData.value
     })
-    // router.push('/client/contact-info') // 다음 단계 페이지
+  } catch (error) {
+    console.error('제출 실패:', error)
+    notificationStore.notifyWarning('제출 중 오류가 발생했습니다. 다시 시도해주세요')
   }
 }
 </script>
@@ -334,68 +341,6 @@ const handleSubmit = () => {
   background: #f5f5f7;
   display: flex;
   flex-direction: column;
-}
-
-/* 브라우저 알림 배너 */
-.browser-notice {
-  background: rgba(255, 193, 7, 0.95);
-  backdrop-filter: blur(10px);
-  animation: slideDown 0.3s ease-out;
-}
-
-@keyframes slideDown {
-  from {
-    transform: translateY(-100%);
-  }
-  to {
-    transform: translateY(0);
-  }
-}
-
-.notice-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 12px 20px;
-}
-
-.notice-icon {
-  width: 20px;
-  height: 20px;
-  color: #000;
-  flex-shrink: 0;
-}
-
-.notice-text {
-  font-size: 14px;
-  font-weight: 600;
-  color: #000;
-  flex: 1;
-  text-align: center;
-}
-
-.notice-close {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #000;
-  opacity: 0.7;
-  transition: opacity 0.2s;
-  flex-shrink: 0;
-}
-
-.notice-close:hover {
-  opacity: 1;
-}
-
-.notice-close svg {
-  width: 18px;
-  height: 18px;
 }
 
 /* 헤더 영역 */
