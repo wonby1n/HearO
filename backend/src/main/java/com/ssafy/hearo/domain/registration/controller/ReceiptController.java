@@ -12,13 +12,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v1/registerations")
+@RequestMapping("/api/v1/registerations/receipt")
 public class ReceiptController {
 
     private final Integer mockId = 123;
     private final ReceiptService receiptService;
 
-    @GetMapping("/receipt/latest")
+    @GetMapping("/latest")
     public ResponseEntity<ReceiptResponse> getLatestReceipt(HttpServletRequest request) {
         Integer customerId = mockId;
         return ResponseEntity.ok(receiptService.getLatestReceiptByCustomerId(customerId));
