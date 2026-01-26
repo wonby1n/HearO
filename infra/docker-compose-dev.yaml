@@ -54,6 +54,18 @@ services:
     networks:
       - ssafy-network
 
+  # 4. ChromaDB (벡터 데이터베이스)
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: chroma-db
+    restart: always
+    ports:
+      - "8100:8000"          # 외부 8100 -> 내부 8000 (포트 제한 규칙 준수)
+    volumes:
+      - ./chroma_data:/chroma/chroma  # 데이터 영구 보존 (아까 pg_data처럼 자동 생성됨)
+    networks:
+      - ssafy-network # 같은 네트워크에 무임승차!
+
 networks:
   ssafy-network:
     name: ssafy-network

@@ -89,6 +89,18 @@ services:
       # app 파일에 있는 서비스는 여기서 depends_on으로 묶기 어려우니 
       # 나중에 컨테이너가 다 뜬 뒤에 nginx를 재시작하거나 그냥 둬도 무방해.
 
+  # 6. ChromaDB (벡터 데이터베이스)
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: chroma-db
+    restart: always
+    ports:
+      - "8100:8000"  # Spring 백엔드나 AI 서버가 8000번 포트로 접속
+    volumes:
+      - ./chroma_data:/chroma/chroma  # 데이터 영구 보존 (아까 pg_data처럼 자동 생성됨)
+    networks:
+      - ssafy-network # 같은 네트워크에 무임승차!
+
 networks:
   ssafy-network:
     name: ssafy-network
