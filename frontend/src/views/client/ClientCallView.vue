@@ -198,6 +198,9 @@ const closeConfirmModal = () => {
 const confirmEndCall = async () => {
   showConfirmModal.value = false
 
+  // 현재 통화 시간 저장
+  const finalDuration = callDuration.value
+
   if (timerInterval) {
     clearInterval(timerInterval)
   }
@@ -205,7 +208,11 @@ const confirmEndCall = async () => {
   await disconnect()
   callStore.endCall()
 
-  alert('통화가 종료되었습니다. 이용해 주셔서 감사합니다.')
+  // 통화 종료 페이지로 이동 (통화 시간 전달)
+  router.push({
+    name: 'client-call-end',
+    query: { duration: finalDuration }
+  })
 }
 
 // 연결 해제 핸들러
