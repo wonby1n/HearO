@@ -81,6 +81,7 @@ services:
       - "443:443"  # 나중에 HTTPS 쓸 때를 대비
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     networks:
       - ssafy-network
     depends_on:
