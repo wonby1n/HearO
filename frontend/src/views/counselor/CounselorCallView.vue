@@ -40,7 +40,6 @@
         <div class="lg:col-span-6">
           <STTChatPanel
             :messages="sttMessages"
-            :profanityCount="profanityCount"
             @toggle-profanity="handleToggleProfanity"
           />
         </div>
@@ -142,7 +141,6 @@ const notificationStore = useNotificationStore()
 const isCallActive = ref(true)
 const isMuted = ref(false)
 const isPaused = ref(false)
-const profanityCount = ref(0)
 
 // 고객 정보
 const customerInfo = ref(mockCustomerInfo)
@@ -229,8 +227,8 @@ const addSttMessage = (message) => {
 
   // 마스킹(폭언) 감지 시 알림 표시
   if (message.hasProfanity) {
-    profanityCount.value++
-    notificationStore.notifyProfanity(profanityCount.value)
+    const newCount = notificationStore.profanityCount + 1
+    notificationStore.notifyProfanity(newCount)
   }
 }
 
