@@ -40,7 +40,6 @@
         <div class="lg:col-span-6">
           <STTChatPanel
             :messages="sttMessages"
-            :profanityCount="profanityCount"
             @toggle-profanity="handleToggleProfanity"
           />
         </div>
@@ -133,12 +132,15 @@ import STTChatPanel from '@/components/counselor/STTChatPanel.vue'
 import CounselorCallControls from '@/components/counselor/CounselorCallControls.vue'
 import { mockCustomerInfo, mockSttMessages } from '@/mocks/counselor'
 import { fetchCustomerData } from '@/services/customerService'
+import { useNotificationStore } from '@/stores/notification'
+
+// 알림 스토어
+const notificationStore = useNotificationStore()
 
 // 통화 상태
 const isCallActive = ref(true)
 const isMuted = ref(false)
 const isPaused = ref(false)
-const profanityCount = ref(1)
 
 // 고객 정보
 const customerInfo = ref(mockCustomerInfo)
@@ -201,6 +203,37 @@ const handleEndCall = async () => {
 const handleToggleProfanity = (index) => {
   sttMessages.value[index].showOriginal = !sttMessages.value[index].showOriginal
 }
+
+/**
+ * STT 메시지 추가 (실제 STT/WebSocket 연동 시 이 함수 호출)
+ * @param {Object} message - STT 메시지 객체
+ * @param {string} message.speaker - 화자 ('agent' | 'customer')
+ * @param {string} message.text - 원본 텍스트
+ * @param {string} message.maskedText - 마스킹된 텍스트
+ * @param {boolean} message.hasProfanity - 폭언 포함 여부
+ * @param {number} message.confidence - 신뢰도
+ */
+const addSttMessage = (message) => {
+  const timestamp = new Date().toLocaleTimeString('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+
+  sttMessages.value.push({
+    ...message,
+    timestamp,
+    showOriginal: false
+  })
+
+  // 마스킹(폭언) 감지 시 알림 표시
+  if (message.hasProfanity) {
+    const newCount = notificationStore.profanityCount + 1
+    notificationStore.notifyProfanity(newCount)
+  }
+}
+
+// 외부에서 사용할 수 있도록 expose (선택적)
+defineExpose({ addSttMessage })
 
 // 컴포넌트 마운트 시 고객 정보 로드
 onMounted(() => {
