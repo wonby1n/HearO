@@ -71,6 +71,24 @@ services:
     networks:
       - ssafy-network
 
+  # 5. Nginx 대문
+  nginx:
+    image: nginx:stable-alpine
+    container_name: nginx-proxy
+    restart: always
+    ports:
+      - "80:80"    # HTTP 대문
+      - "443:443"  # 나중에 HTTPS 쓸 때를 대비
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - ssafy-network
+    depends_on:
+      - redis
+      - livekit
+      # app 파일에 있는 서비스는 여기서 depends_on으로 묶기 어려우니 
+      # 나중에 컨테이너가 다 뜬 뒤에 nginx를 재시작하거나 그냥 둬도 무방해.
+
 networks:
   ssafy-network:
     name: ssafy-network
