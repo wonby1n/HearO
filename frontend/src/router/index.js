@@ -77,6 +77,15 @@ const router = createRouter({
             title: '상담 종료',
             role: 'client'
           }
+        },
+        {
+          path: 'review',
+          name: 'client-review',
+          component: () => import('@/views/client/ClientReviewView.vue'),
+          meta: {
+            title: '상담 만족도 조사',
+            role: 'client'
+          }
         }
       ]
     },
