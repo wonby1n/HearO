@@ -47,8 +47,11 @@
                 <div class="term-header-left">
                   <div
                     class="checkbox-small"
+                    role="checkbox"
+                    :aria-checked="agreements.privacy"
                     :class="{ checked: agreements.privacy }"
                     @click.stop="toggleAgreement('privacy')"
+                    tabindex="0"
                   >
                     <svg v-if="agreements.privacy" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
@@ -98,6 +101,9 @@
                 <div class="term-header-left">
                   <div
                     class="checkbox-small"
+                    role="checkbox"
+                    :aria-checked="agreements.identification"
+                    tabindex="0"
                     :class="{ checked: agreements.identification }"
                     @click.stop="toggleAgreement('identification')"
                   >
@@ -155,8 +161,12 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useCustomerStore } from '@/stores/customer'
+import { useNotificationStore } from '@/stores/notification'
 
 const router = useRouter()
+const customerStore = useCustomerStore()
+const notificationStore = useNotificationStore()
 
 const agreements = ref({
   privacy: false,
@@ -196,17 +206,15 @@ const handleBack = () => {
 const handleSubmit = () => {
   if (!isFormComplete.value) return
 
-  // TODO: 실제 API 호출
-  console.log('약관 동의 완료:', agreements.value)
+  // 약관 동의 정보 저장
+  customerStore.saveConsent(agreements.value)
 
-  // 임시로 localStorage에 저장
-  localStorage.setItem('clientConsent', JSON.stringify(agreements.value))
+  // 성공 알림
+  notificationStore.notifySuccess('약관 동의가 완료되었습니다')
 
   // 상담사 연결 (추후 구현)
   // TODO: 상담사 연결 로직 구현 후 주석 해제
   // router.push({ name: 'client-call' })
-
-  alert('약관 동의가 완료되었습니다!\n상담사 연결 기능은 추후 구현 예정입니다.')
 }
 </script>
 
