@@ -52,6 +52,15 @@ const router = createRouter({
           }
         },
         {
+          path: 'consultation/consent',
+          name: 'client-consultation-consent',
+          component: () => import('@/views/client/ClientConsultationConsentView.vue'),
+          meta: {
+            title: '약관 동의',
+            role: 'client'
+          }
+        },
+        {
           path: 'call',
           name: 'client-call',
           component: () => import('@/views/client/ClientCallView.vue'),
