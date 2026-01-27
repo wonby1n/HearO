@@ -22,10 +22,11 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
+const router = useRouter()
 
 // 라우트 쿼리에서 통화 시간(초) 가져오기
 const callDuration = computed(() => {
@@ -37,6 +38,16 @@ const formattedDuration = computed(() => {
   const minutes = Math.floor(callDuration.value / 60)
   const seconds = callDuration.value % 60
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+})
+
+// 2초 후 만족도 조사 페이지로 이동
+onMounted(() => {
+  setTimeout(() => {
+    router.push({
+      name: 'client-review',
+      query: { consultationId: route.query.consultationId }
+    })
+  }, 2000)
 })
 </script>
 
