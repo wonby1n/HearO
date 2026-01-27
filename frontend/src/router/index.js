@@ -59,6 +59,15 @@ const router = createRouter({
             title: '상담 완료',
             role: 'client'
           }
+        },
+        {
+          path: 'reconnect',
+          name: 'client-reconnect',
+          component: () => import('@/views/client/ClientReconnectView.vue'),
+          meta: {
+            title: '상담 재연결',
+            role: 'client'
+          }
         }
       ]
     },

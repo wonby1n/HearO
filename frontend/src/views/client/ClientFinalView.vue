@@ -17,10 +17,25 @@
         더 나은 서비스를 제공하겠습니다.
       </p>
     </div>
+    <div class="button-section">
+      <button type="button" class="main-redirect" @click="goToMain">
+        <svg viewBox="0 0 24 24" fill="currentColor" class="home-icon">
+          <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+        </svg>
+        메인으로
+      </button>
+    </div>
   </div>
 </template>
 
 <script setup>
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+
+const goToMain = () => {
+  router.push({ name: 'client-landing' })
+}
 </script>
 
 <style scoped>
@@ -28,10 +43,12 @@
   min-height: 100vh;
   max-width: 430px;
   margin: 0 auto;
-  background: #ffffff;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
   display: flex;
   flex-direction: column;
+  position: relative;
 }
+
 
 .main-content {
   flex: 1;
@@ -78,5 +95,38 @@
   color: #9ca3af;
   margin: 0;
   line-height: 1.6;
+}
+
+
+
+/* 버튼 영역 */
+.button-section {
+  padding: 16px 24px 32px;
+}
+
+.main-redirect {
+  width: 100%;
+  padding: 16px;
+  border: none;
+  border-radius: 12px;
+  background: #3b82f6;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.main-redirect:hover {
+  background: #2563eb;
+}
+
+.home-icon {
+  width: 20px;
+  height: 20px;
 }
 </style>

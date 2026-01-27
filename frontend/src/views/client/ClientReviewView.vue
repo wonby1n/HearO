@@ -59,11 +59,19 @@
         </div>
       </div>
     </div>
-
+    <div class="main-redirect">
+      <p @click="mainRedirect">메인으로</p>
+    </div>
     <!-- 하단 버튼 영역 -->
     <div class="button-section">
+      <button type="button" class="submit-button" :class="{ active: isFormValid }" :disabled="!isFormValid" @click="handleSubmit">
+        제출하기
+      </button>
+    </div>
+    <!-- 하단 버튼 영역 -->
+    <!-- <div class="button-section">
       <button type="button" class="skip-button" @click="handleSkip">
-        건너뛰기
+        메인으로
       </button>
       <button
         type="button"
@@ -74,7 +82,7 @@
       >
         제출하기
       </button>
-    </div>
+    </div> -->
   </div>
 </template>
 
@@ -95,9 +103,9 @@ const isFormValid = computed(() => {
   return processRating.value > 0 && solutionRating.value > 0
 })
 
-// 건너뛰기
-const handleSkip = () => {
-  router.push({ name: 'client-final' })
+// 메인으로
+const mainRedirect = () => {
+  router.push({ name: 'client-landing' })
 }
 
 // 제출하기
@@ -118,6 +126,7 @@ const handleSubmit = () => {
   // 제출 완료 후 감사 페이지로 이동
   router.push({ name: 'client-final' })
 }
+
 </script>
 
 <style scoped>
@@ -125,9 +134,10 @@ const handleSubmit = () => {
   min-height: 100vh;
   max-width: 430px;
   margin: 0 auto;
-  background: #ffffff;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .main-content {
@@ -232,7 +242,7 @@ const handleSubmit = () => {
   display: flex;
   gap: 12px;
   padding: 16px 24px 32px;
-  background: #ffffff;
+  /* background: #ffffff; */
 }
 
 .skip-button {
@@ -274,4 +284,25 @@ const handleSubmit = () => {
 .submit-button.active:hover {
   background: #2563eb;
 }
+
+.button-section {
+  padding: 16px 24px 32px;
+}
+
+
+.main-redirect {
+  width: 100%;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #646464;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
 </style>
