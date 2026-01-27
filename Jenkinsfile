@@ -1,51 +1,47 @@
+// 1. 배포된 항목들을 담을 그릇 (리스트) 정의
+def deployLog = []
+
 pipeline {
     agent any
 
     environment {
-        // --- 1. 공통 설정 ---
         GIT_CRED_ID = 'gitlab'
         DOCKER_CRED_ID = 'docker'
         SSH_CRED_ID = 'ssh'
-        
         GIT_REPO_URL = 'https://lab.ssafy.com/s14-webmobile1-sub1/S14P11E106.git'
         SERVER_IP = '13.125.88.103'
         SERVER_USER = 'ubuntu'
-        
-        // 경로 설정
-        // 어차피 infra 폴더 안에 다 있으니까 경로 하나로 통일해서 쓰자
         BASE_PATH = '/home/ubuntu/infra'
         
-        // --- 2. 이미지 이름 ---
         BACKEND_IMAGE = 'hjh1248/hearo-backend'
         FRONTEND_IMAGE = 'hjh1248/hearo-frontend'
+        
+        // 메터모스트 웹훅
+        MM_WEBHOOK = 'https://meeting.ssafy.com/hooks/abhj49fbs7yh8cfp34gg3uh3do'
     }
 
     stages {
-        // [1단계] 코드 가져오기
         stage('Git Checkout') {
             steps {
                 git branch: 'main', credentialsId: "${GIT_CRED_ID}", url: "${GIT_REPO_URL}"
             }
         }
 
-        // [2단계] 인프라 먼저 설정! (네 말대로 여기서 먼저 셋팅)
         stage('Infra Setup') {
-            // infra 폴더가 바뀌었을 때만 실행 (안 바뀌었으면 기존 파일 믿고 패스)
             when { changeset "infra/**" }
             steps {
+                script {
+                    // 실행됐다는 건 인프라가 변경됐다는 뜻! 리스트에 추가
+                    deployLog.add("🛠️ 인프라") 
+                }
                 sshagent(credentials: ["${SSH_CRED_ID}"]) {
-                    // 1. 필요한 파일들 한 방에 전송
-                    // Nginx, Jenkins 폴더, 그리고 모든 yaml 파일들 (prod, infra 등등)
+                    // 파일 전송 및 인프라 업데이트 (기존 코드)
                     sh "scp -r -o StrictHostKeyChecking=no ./infra/nginx ${SERVER_USER}@${SERVER_IP}:${BASE_PATH}/"
                     sh "scp -r -o StrictHostKeyChecking=no ./infra/jenkins ${SERVER_USER}@${SERVER_IP}:${BASE_PATH}/"
                     sh "scp -o StrictHostKeyChecking=no ./infra/*.yaml ${SERVER_USER}@${SERVER_IP}:${BASE_PATH}/"
-                    
-                    // 2. 인프라 컨테이너(Nginx, Jenkins 등) 최신화
                     sh """
                         ssh -o StrictHostKeyChecking=no ${SERVER_USER}@${SERVER_IP} '
                             cd ${BASE_PATH}
-                            echo "--- 🛠 인프라(Nginx/설정) 업데이트 ---"
-                            # 인프라용 컴포즈 실행
                             docker-compose -f docker-compose-infra.yaml up -d --build
                             docker image prune -f
                         '
@@ -54,29 +50,24 @@ pipeline {
             }
         }
 
-        // [3단계] 앱 배포 (인프라 셋팅 끝났으니 맘 놓고 병렬 실행)
         stage('App Deploy') {
             parallel {
-                
-                // ==================== [Backend] ====================
                 stage('Backend') {
                     when { changeset "backend/**" }
                     steps {
+                        script { deployLog.add("🚀 백엔드") } // 리스트 추가
+                        
                         dir('backend') {
                             script {
                                 docker.withRegistry('', "${DOCKER_CRED_ID}") {
-                                    def customImage = docker.build("${BACKEND_IMAGE}:latest")
-                                    customImage.push()
+                                    docker.build("${BACKEND_IMAGE}:latest").push()
                                 }
                             }
                         }
-                        // scp 필요 없음! 이미 2단계나, 혹은 이전에 전송된 파일 사용
                         sshagent(credentials: ["${SSH_CRED_ID}"]) {
                             sh """
                                 ssh -o StrictHostKeyChecking=no ${SERVER_USER}@${SERVER_IP} '
                                     cd ${BASE_PATH}
-                                    echo "--- 🚀 백엔드 배포 ---"
-                                    # 파일 전송 없이 바로 도커 명령!
                                     docker-compose -f docker-compose-prod.yaml pull backend
                                     docker-compose -f docker-compose-prod.yaml up -d backend
                                     docker image prune -f
@@ -86,15 +77,15 @@ pipeline {
                     }
                 }
 
-                // ==================== [Frontend] ====================
                 stage('Frontend') {
                     when { changeset "frontend/**" }
                     steps {
+                        script { deployLog.add("✨ 프론트엔드") } // 리스트 추가
+
                         dir('frontend') {
                             script {
                                 docker.withRegistry('', "${DOCKER_CRED_ID}") {
-                                    def customImage = docker.build("${FRONTEND_IMAGE}:latest")
-                                    customImage.push()
+                                    docker.build("${FRONTEND_IMAGE}:latest").push()
                                 }
                             }
                         }
@@ -102,7 +93,6 @@ pipeline {
                             sh """
                                 ssh -o StrictHostKeyChecking=no ${SERVER_USER}@${SERVER_IP} '
                                     cd ${BASE_PATH}
-                                    echo "--- 🚀 프론트엔드 배포 ---"
                                     docker-compose -f docker-compose-prod.yaml pull frontend
                                     docker-compose -f docker-compose-prod.yaml up -d frontend
                                     docker image prune -f
@@ -114,4 +104,40 @@ pipeline {
             }
         }
     }
+
+    // ⭐ 여기가 핵심! (모든 단계가 끝난 후 한 번만 실행)
+    post {
+        success {
+            script {
+                // 1. 변경사항이 있었는지 확인
+                if (deployLog.size() > 0) {
+                    // 예: "🚀 백엔드, ✨ 프론트엔드" 처럼 문자열 합치기
+                    def deployContent = deployLog.join(', ')
+                    
+                    def message = """
+📢 **[배포 성공]** 이번 배포에 포함된 내용: **${deployContent}**
+확인하러 가기: <${env.BUILD_URL}|젠킨스 로그>
+"""
+                    sendMattermost(message)
+                } else {
+                    // 변경사항이 하나도 없어서 스킵된 경우 (선택 사항: 안 보내도 됨)
+                    echo "변경 사항이 없어 배포된 항목이 없습니다."
+                }
+            }
+        }
+
+        failure {
+            script {
+                def msg = "🚨 **[배포 실패]** 에러 발생! 로그를 확인하세요.\\n👉 <${env.BUILD_URL}|로그 보러가기>"
+                sendMattermost(msg)
+            }
+        }
+    }
+}
+
+// 메터모스트 전송 함수
+def sendMattermost(String message) {
+    // JSON 포맷에 맞게 줄바꿈 등 이스케이프 처리
+    def payload = """{"text": "${message}"}"""
+    sh "curl -X POST -H 'Content-Type: application/json' -d '${payload}' ${MM_WEBHOOK}"
 }
