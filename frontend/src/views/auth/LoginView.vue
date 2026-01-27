@@ -99,7 +99,7 @@ const handleLogin = async () => {
 }
 
 const handleForgotPassword = () => {
-  alert('비밀번호 찾기 기능은 준비 중입니다.')
+  alert('비밀번호 찾기 기능은 현재 개발 중입니다. 빠른 시일 내에 제공될 예정입니다')
 }
 </script>
 
