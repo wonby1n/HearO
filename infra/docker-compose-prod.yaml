@@ -1,5 +1,5 @@
 services:
-  # 1. Spring Boot 백엔드 (예시)
+  # 1. Spring Boot 백엔드
   backend:
     image: hjh1248/hearo-backend:latest
     container_name: spring-backend
@@ -11,7 +11,7 @@ services:
     networks:
       - ssafy-network 
 
-  # 2. Vue.js 프론트엔드 (예시)
+  # 2. Vue.js 프론트엔드
   frontend:
     image: hjh1248/hearo-frontend:latest
     container_name: vue-frontend
