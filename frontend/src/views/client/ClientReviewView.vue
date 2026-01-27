@@ -97,7 +97,7 @@ const isFormValid = computed(() => {
 
 // 건너뛰기
 const handleSkip = () => {
-  router.push({ name: 'client-landing' })
+  router.push({ name: 'client-final' })
 }
 
 // 제출하기
@@ -115,8 +115,8 @@ const handleSubmit = () => {
 
   // TODO: API 호출로 리뷰 데이터 전송
 
-  // 제출 완료 후 랜딩 페이지로 이동
-  router.push({ name: 'client-landing' })
+  // 제출 완료 후 감사 페이지로 이동
+  router.push({ name: 'client-final' })
 }
 </script>
 

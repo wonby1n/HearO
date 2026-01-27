@@ -50,6 +50,15 @@ const router = createRouter({
             title: '상담 만족도 조사',
             role: 'client'
           }
+        },
+        {
+          path: 'final',
+          name: 'client-final',
+          component: () => import('@/views/client/ClientFinalView.vue'),
+          meta: {
+            title: '상담 완료',
+            role: 'client'
+          }
         }
       ]
     },
