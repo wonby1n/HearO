@@ -19,6 +19,7 @@
               type="button"
               class="star-button"
               :class="{ active: processRating >= star }"
+              :aria-label="`상담 과정 ${star}점`"
               @click="processRating = star"
             >
               <svg viewBox="0 0 24 24" fill="currentColor">
@@ -38,6 +39,7 @@
               type="button"
               class="star-button"
               :class="{ active: solutionRating >= star }"
+              :aria-label="`해결 방법 ${star}점`"
               @click="solutionRating = star"
             >
               <svg viewBox="0 0 24 24" fill="currentColor">
@@ -76,27 +78,30 @@
       <button
         type="button"
         class="submit-button"
-        :class="{ active: isFormValid }"
-        :disabled="!isFormValid"
+        :class="{ active: isFormValid && !isLoading }"
+        :disabled="!isFormValid || isLoading"
         @click="handleSubmit"
       >
-        제출하기
+        {{ isLoading ? '제출 중...' : '제출하기' }}
       </button>
     </div> -->
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useNotificationStore } from '@/stores/notification'
 
 const router = useRouter()
 const route = useRoute()
+const notificationStore = useNotificationStore()
 
 // 별점 상태
 const processRating = ref(0)
 const solutionRating = ref(0)
 const additionalComment = ref('')
+const isLoading = ref(false)
 
 // 폼 유효성 검사 (두 별점 모두 선택해야 제출 가능)
 const isFormValid = computed(() => {
@@ -109,19 +114,36 @@ const mainRedirect = () => {
 }
 
 // 제출하기
-const handleSubmit = () => {
-  if (!isFormValid.value) return
+const handleSubmit = async () => {
+  if (!isFormValid.value || isLoading.value) return
+
+  const consultationId = route.query.consultationId
+  if (!consultationId) {
+    notificationStore.notifyError('상담 정보를 찾을 수 없습니다')
+    return
+  }
 
   const reviewData = {
     processRating: processRating.value,
     solutionRating: solutionRating.value,
     additionalComment: additionalComment.value,
-    consultationId: route.query.consultationId
+    consultationId
   }
 
-  console.log('Review submitted:', reviewData)
+  isLoading.value = true
 
-  // TODO: API 호출로 리뷰 데이터 전송
+  try {
+    // TODO: API 호출로 리뷰 데이터 전송
+    // const response = await fetch(`/api/v1/consultations/${consultationId}/review`, {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({
+    //     processRating: reviewData.processRating,
+    //     solutionRating: reviewData.solutionRating,
+    //     comment: reviewData.additionalComment
+    //   })
+    // })
+    // if (!response.ok) throw new Error('리뷰 제출 실패')
 
   // 제출 완료 후 감사 페이지로 이동
   router.push({ name: 'client-final' })
@@ -258,8 +280,13 @@ const handleSubmit = () => {
   transition: background-color 0.15s ease;
 }
 
-.skip-button:hover {
+.skip-button:hover:not(:disabled) {
   background: #f9fafb;
+}
+
+.skip-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .submit-button {
@@ -281,7 +308,7 @@ const handleSubmit = () => {
   cursor: pointer;
 }
 
-.submit-button.active:hover {
+.submit-button.active:hover:not(:disabled) {
   background: #2563eb;
 }
 

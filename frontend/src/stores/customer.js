@@ -31,6 +31,18 @@ export const useCustomerStore = defineStore('customer', () => {
     isBlacklisted: false
   })
 
+  // 본인 인증 정보
+  const verification = ref({
+    name: '',
+    phone: ''
+  })
+
+  // 약관 동의 정보
+  const consent = ref({
+    privacy: false,
+    identification: false
+  })
+
   // 고객 정보 존재 여부
   const hasCustomerInfo = computed(() => {
     return currentCustomer.value.id !== null
@@ -101,6 +113,32 @@ export const useCustomerStore = defineStore('customer', () => {
     queueInfo.value.position = 0
   }
 
+  // 본인 인증 정보 저장
+  const saveVerification = (data) => {
+    verification.value = {
+      ...verification.value,
+      ...data
+    }
+    try {
+      localStorage.setItem('clientVerification', JSON.stringify(data))
+    } catch (error) {
+      console.error('본인 인증 정보 저장 실패:', error)
+    }
+  }
+
+  // 약관 동의 정보 저장
+  const saveConsent = (data) => {
+    consent.value = {
+      ...consent.value,
+      ...data
+    }
+    try {
+      localStorage.setItem('clientConsent', JSON.stringify(data))
+    } catch (error) {
+      console.error('약관 동의 정보 저장 실패:', error)
+    }
+  }
+
   // 고객 정보 초기화
   const resetCustomer = () => {
     currentCustomer.value = {
@@ -126,6 +164,14 @@ export const useCustomerStore = defineStore('customer', () => {
       isWaiting: false,
       isBlacklisted: false
     }
+    verification.value = {
+      name: '',
+      phone: ''
+    }
+    consent.value = {
+      privacy: false,
+      identification: false
+    }
   }
 
   return {
@@ -133,6 +179,8 @@ export const useCustomerStore = defineStore('customer', () => {
     currentCustomer,
     callHistory,
     queueInfo,
+    verification,
+    consent,
     // Getters
     hasCustomerInfo,
     // Actions
@@ -145,6 +193,8 @@ export const useCustomerStore = defineStore('customer', () => {
     updateQueueInfo,
     startWaiting,
     stopWaiting,
+    saveVerification,
+    saveConsent,
     resetCustomer
   }
 })

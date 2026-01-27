@@ -20,7 +20,7 @@ COPY src src
 RUN ./gradlew bootJar -x test --no-daemon
 
 # 2. 실행 단계 (Runner)
-FROM openjdk:17-jdk-slim
+FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 
 # 타임존 설정
