@@ -30,6 +30,8 @@ services:
       - "50000:50000"
     environment:
       - TZ=Asia/Seoul
+      - JENKINS_OPTS="--prefix=/jenkins"
+      - JENKINS_ARGS="--prefix=/jenkins"
     volumes:
       - ./jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
