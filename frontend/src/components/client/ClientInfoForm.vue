@@ -39,9 +39,8 @@
 
         <!-- 에러코드 (선택) -->
         <section class="form-section">
-          <h2 class="section-title">에러코드 및 증상 입력</h2>
-
-          <div class="label-with-counter">
+          <h2 class="section-title py-2">에러코드 및 증상 입력</h2>
+          <div class="label-with-counter py-2">
             <label class="input-label optional">
               <svg class="info-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
