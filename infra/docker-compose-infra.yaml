@@ -100,7 +100,7 @@ services:
     ports:
       - "8100:8000"  # Spring 백엔드나 AI 서버가 8000번 포트로 접속
     volumes:
-      - ./chroma_data:/chroma/chroma  # 데이터 영구 보존 (아까 pg_data처럼 자동 생성됨)
+      - ./chroma_data:/chroma/chroma  # 데이터 영구 보존
     networks:
       - ssafy-network # 같은 네트워크에 무임승차!
 
