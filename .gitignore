@@ -22,3 +22,4 @@ chroma_data/
 # 4. claude 폴더
 thoughts/
 .claude
+.tldr

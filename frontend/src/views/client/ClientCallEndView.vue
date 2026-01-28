@@ -19,6 +19,16 @@
       <!-- 통화 시간 -->
       <p class="call-duration">{{ formattedDuration }}</p>
     </div>
+    <div class="call-reconnection">
+      <p @click="handleReconnect">같은 내용으로 재연결하기</p>
+    </div>
+    <!-- 하단 버튼 영역 -->
+    <div class="button-section">
+      <button type="button" class="next-button" @click="clientReview">
+        다음으로
+      </button>
+    </div>
+
   </div>
 </template>
 
@@ -66,10 +76,12 @@ onUnmounted(() => {
   min-height: 100vh;
   max-width: 430px;
   margin: 0 auto;
-  background: #ffffff;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
   display: flex;
   flex-direction: column;
+  position: relative;
 }
+
 
 .main-content {
   flex: 1;
@@ -113,4 +125,47 @@ onUnmounted(() => {
   font-family: 'SF Mono', Monaco, monospace;
   letter-spacing: 1px;
 }
+
+
+.next-button {
+  width: 100%;
+  padding: 16px;
+  border: none;
+  border-radius: 12px;
+  background: #3b82f6;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.next-button:hover {
+  background: #2563eb;
+}
+
+.button-section {
+  padding: 16px 24px 32px;
+}
+
+
+.call-reconnection {
+  width: 100%;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #646464;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
 </style>
