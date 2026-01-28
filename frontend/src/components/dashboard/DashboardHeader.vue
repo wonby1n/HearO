@@ -4,7 +4,7 @@
       <!-- 좌측: 인사말 + 날짜/시간 -->
       <div>
         <h2 class="text-3xl font-bold text-gray-900">
-          어서오세요, {{ agentStore.agentInfo?.name || '상담원' }}님
+          어서오세요, {{ authStore.user?.name || '상담원' }}님
         </h2>
         <p class="text-base text-gray-500 mt-2">
           {{ formattedDateTime }}
@@ -72,13 +72,12 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
-import { useAgentStore } from '@/stores/agent'
+import { useAuthStore } from '@/stores/auth'
 import { useDashboardStore } from '@/stores/dashboard'
 
-const agentStore = useAgentStore()
+const authStore = useAuthStore()
 const dashboardStore = useDashboardStore()
 
-// --- 상태 및 타이머 변수 ---
 const currentTime = ref(new Date())
 const isCountAnimating = ref(false)
 const countChange = ref(0)
@@ -86,8 +85,8 @@ let countChangeTimer = null
 let countAnimationTimer = null
 let clockInterval = null
 let heartbeatInterval = null
+let isRequestPending = false // 중복 요청 방지 플래그
 
-// --- 포맷팅 로직 ---
 const formattedDateTime = computed(() => {
   const date = currentTime.value
   const year = date.getFullYear()
@@ -106,57 +105,111 @@ const formattedCallStatus = computed(() => {
   return dashboardStore.consultationStatus.isActive ? '통화 대기 중' : '클릭하여 상담 시작'
 })
 
-
-// --- Heartbeat 핵심 로직 ---
-
-const sendHeartbeat = async () => {
+/**
+ * 하트비트 전송 함수
+ * @param {boolean} forceStatus - 강제로 보낼 상태값 (없으면 현재 스토어 상태 사용)
+ */
+const sendHeartbeat = async (forceStatus = null) => {
+  if (isRequestPending && forceStatus === null) return // 주기적 호출 시 중복 방지
+  
+  isRequestPending = true
   try {
-    const status = !!dashboardStore.consultationStatus.isActive
-    
+    const status = forceStatus !== null ? forceStatus : !!dashboardStore.consultationStatus.isActive
     await axios.post('/api/v1/users/me/heartbeat', {
-      isHeartbeatActive: status 
+      isHeartbeatActive: status
     })
     console.log(`[Heartbeat] 전송됨: ${status}`)
   } catch (error) {
     console.error('[Heartbeat] 전송 실패:', error)
+  } finally {
+    isRequestPending = false
   }
 }
 
 const startHeartbeat = () => {
-  stopHeartbeat() 
-  sendHeartbeat() 
-  heartbeatInterval = setInterval(sendHeartbeat, 10000)
+  stopHeartbeat()
+  sendHeartbeat()
+  heartbeatInterval = setInterval(() => sendHeartbeat(), 10000)
 }
 
 const stopHeartbeat = () => {
-  // 피드백 반영: 조건부 체크 강화
   if (heartbeatInterval) {
     clearInterval(heartbeatInterval)
     heartbeatInterval = null
-    console.log('[Heartbeat] 중지됨')
+    console.log('[Heartbeat] 타이머 중지')
   }
 }
 
-// --- 감시자 (Watchers) ---
+/**
+ * 브라우저 종료 대응 로직
+ * 탭을 닫을 때 fetch keepalive를 사용하여 서버에 마지막 OFF 신호를 전송합니다.
+ */
+const handleBeforeUnload = () => {
+  if (dashboardStore.consultationStatus.isActive) {
+    const url = '/api/v1/users/me/heartbeat'
+    const payload = JSON.stringify({ isHeartbeatActive: false })
+    
+    // fetch keepalive는 페이지가 종료되어도 요청이 완료될 때까지 유지됩니다.
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: payload,
+      keepalive: true
+    })
+  }
+}
 
+const toggleConsultationStatus = () => {
+  dashboardStore.consultationStatus.isActive = !dashboardStore.consultationStatus.isActive
+}
+
+// 상담 상태 실시간 감시 (강제 종료 대응)
 watch(
   () => dashboardStore.consultationStatus.isActive,
   (isActive) => {
     if (isActive) {
       startHeartbeat()
     } else {
-      sendHeartbeat() // 마지막 상태값(false) 전송
+      sendHeartbeat(false) // 즉시 OFF 신호 전송
       stopHeartbeat()
     }
   }
-  // immediate: false 제거 (기본값 활용)
 )
 
-// --- 생명주기 ---
+// 대기 고객 수 애니메이션
+watch(
+  () => dashboardStore.waitingCustomers,
+  (newCount, oldCount) => {
+    if (oldCount !== undefined && newCount !== oldCount) {
+      if (countAnimationTimer) clearTimeout(countAnimationTimer)
+      isCountAnimating.value = true
+      countAnimationTimer = setTimeout(() => { isCountAnimating.value = false }, 600)
+
+      const change = newCount - oldCount
+      countChange.value = change
+      if (countChangeTimer) clearTimeout(countChangeTimer)
+      countChangeTimer = setTimeout(() => { countChange.value = 0 }, 2000)
+    }
+  }
+)
+
+onMounted(() => {
+  clockInterval = setInterval(() => {
+    currentTime.value = new Date()
+  }, 1000)
+
+  // 윈도우 종료 이벤트 리스너 등록
+  window.addEventListener('beforeunload', handleBeforeUnload)
+
+  if (dashboardStore.consultationStatus.isActive) {
+    startHeartbeat()
+  }
+})
 
 onUnmounted(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
   if (clockInterval) clearInterval(clockInterval)
-  stopHeartbeat() // 내부에서 이미 null 체크를 수행하므로 안전함
+  stopHeartbeat()
   if (countChangeTimer) clearTimeout(countChangeTimer)
   if (countAnimationTimer) clearTimeout(countAnimationTimer)
 })
