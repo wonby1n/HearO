@@ -22,3 +22,9 @@ spring:
 server:
   # Nginx/ALB 같은 프록시 뒤에서 X-Forwarded-* 헤더 신뢰
   forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY:framework}
+
+# JWT 기본 설정 (테스트용, 프로필별로 오버라이드)
+jwt:
+  secret: ${JWT_SECRET:default-test-secret-key-must-be-at-least-32-characters}
+  access-token-expiry-ms: ${JWT_ACCESS_TOKEN_EXPIRY_MS:1800000}
+  refresh-token-expiry-ms: ${JWT_REFRESH_TOKEN_EXPIRY_MS:604800000}
