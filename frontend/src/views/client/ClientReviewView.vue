@@ -70,21 +70,6 @@
         제출하기
       </button>
     </div>
-    <!-- 하단 버튼 영역 -->
-    <!-- <div class="button-section">
-      <button type="button" class="skip-button" @click="handleSkip">
-        메인으로
-      </button>
-      <button
-        type="button"
-        class="submit-button"
-        :class="{ active: isFormValid && !isLoading }"
-        :disabled="!isFormValid || isLoading"
-        @click="handleSubmit"
-      >
-        {{ isLoading ? '제출 중...' : '제출하기' }}
-      </button>
-    </div> -->
   </div>
 </template>
 

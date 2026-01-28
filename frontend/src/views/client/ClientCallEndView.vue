@@ -57,7 +57,7 @@ const clientReview = () => {
 }
 
 const handleReconnect = () => {
-  router.push({ name: 'client-landing'})
+  router.push({ name: 'client-waiting'})
 }
 
 
