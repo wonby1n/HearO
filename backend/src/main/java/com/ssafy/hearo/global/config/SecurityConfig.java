@@ -1,5 +1,9 @@
 package com.ssafy.hearo.global.config;
 
+import com.ssafy.hearo.global.security.jwt.JwtAuthenticationFilter;
+import com.ssafy.hearo.global.security.jwt.JwtProperties;
+import lombok.RequiredArgsConstructor;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -7,41 +11,74 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.web.cors.CorsConfiguration;
 
 import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@EnableConfigurationProperties(JwtProperties.class)
+@RequiredArgsConstructor
 public class SecurityConfig {
+
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .cors(Customizer.withDefaults()) // ✅ CORS 활성화
-            .csrf(AbstractHttpConfigurer::disable)
-            .sessionManagement(session ->
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                // WebSocket 엔드포인트
-                .requestMatchers("/ws/**").permitAll()
-                // Queue 엔드포인트 (고객용)
-                .requestMatchers("/api/v1/queue/**").permitAll()
-                // Counselor 엔드포인트 (상담원용)
-                .requestMatchers("/api/v1/counselor/**").permitAll()
-                // Calls 엔드포인트
-                .requestMatchers("/api/v1/calls/**").permitAll()
-                // Actuator 엔드포인트
-                .requestMatchers("/actuator/**").permitAll()
-                // Swagger UI
-                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                // 나머지 요청은 인증 필요
-                .anyRequest().authenticated()
-            );
+                .cors(Customizer.withDefaults())
+                .csrf(AbstractHttpConfigurer::disable)
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        // Auth endpoints (login, refresh, logout)
+                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        // WebSocket endpoints
+                        .requestMatchers("/ws/**").permitAll()
+                        // Queue endpoints (customers) - registration, status, cancel
+                        .requestMatchers("/api/v1/queue/register").permitAll()
+                        .requestMatchers("/api/v1/queue/status").permitAll()
+                        .requestMatchers("/api/v1/queue/cancel").permitAll()
+                        .requestMatchers("/api/v1/queue/stats").permitAll()
+                        // Calls endpoint
+                        .requestMatchers("/api/v1/calls/**").permitAll()
+                        // Actuator endpoints
+                        .requestMatchers("/actuator/**").permitAll()
+                        // Swagger UI
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        // User endpoints require authentication
+                        .requestMatchers("/api/v1/users/**").authenticated()
+                        // Counselor endpoints require authentication
+                        .requestMatchers("/api/v1/counselor/**").authenticated()
+                        // All other requests require authentication
+                        .anyRequest().authenticated()
+                )
+                // Handle authentication/authorization errors
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setContentType("application/json;charset=UTF-8");
+                            response.setStatus(401);
+                            response.getWriter().write("{\"error\":\"Unauthorized\",\"message\":\"" + authException.getMessage() + "\"}");
+                        })
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            response.setContentType("application/json;charset=UTF-8");
+                            response.setStatus(403);
+                            response.getWriter().write("{\"error\":\"Forbidden\",\"message\":\"" + accessDeniedException.getMessage() + "\"}");
+                        })
+                )
+                // Add JWT filter before UsernamePasswordAuthenticationFilter
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -50,19 +87,18 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // ✅ 개발용: Vite / Electron dev server 허용
-        config.setAllowedOrigins(List.of(
-                "http://localhost:5173",
-                "http://127.0.0.1:5173",
-                "http://localhost:3000"
+        // Development: Allow Vite / Electron dev server
+        config.setAllowedOriginPatterns(List.of(
+                "http://localhost:*",
+                "http://127.0.0.1:*"
         ));
 
-        config.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setExposedHeaders(List.of("*"));
 
-        // 쿠키/인증을 쓸 거면 true (현재는 mock 헤더 기반이라 false여도 됨)
-        config.setAllowCredentials(false);
+        // Enable credentials for cookie-based refresh token
+        config.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
