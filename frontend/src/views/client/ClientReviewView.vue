@@ -61,16 +61,19 @@
         </div>
       </div>
     </div>
-
+    <div class="main-redirect">
+      <p @click="mainRedirect">메인으로</p>
+    </div>
     <!-- 하단 버튼 영역 -->
     <div class="button-section">
-      <button
-        type="button"
-        class="skip-button"
-        :disabled="isLoading"
-        @click="handleSkip"
-      >
-        건너뛰기
+      <button type="button" class="submit-button" :class="{ active: isFormValid }" :disabled="!isFormValid" @click="handleSubmit">
+        제출하기
+      </button>
+    </div>
+    <!-- 하단 버튼 영역 -->
+    <!-- <div class="button-section">
+      <button type="button" class="skip-button" @click="handleSkip">
+        메인으로
       </button>
       <button
         type="button"
@@ -81,7 +84,7 @@
       >
         {{ isLoading ? '제출 중...' : '제출하기' }}
       </button>
-    </div>
+    </div> -->
   </div>
 </template>
 
@@ -105,28 +108,8 @@ const isFormValid = computed(() => {
   return processRating.value > 0 && solutionRating.value > 0
 })
 
-// 작성 내용이 있는지 확인
-const hasContent = computed(() => {
-  return processRating.value > 0 || solutionRating.value > 0 || additionalComment.value.trim() !== ''
-})
-
-// consultationId 검증
-onMounted(() => {
-  const consultationId = route.query.consultationId
-  if (!consultationId) {
-    notificationStore.notifyError('상담 정보를 찾을 수 없습니다')
-    router.push({ name: 'client-landing' })
-  }
-})
-
-// 건너뛰기
-const handleSkip = () => {
-  // 작성 내용이 있으면 확인
-  if (hasContent.value) {
-    const confirmed = confirm('작성하신 내용이 저장되지 않습니다. 정말 건너뛰시겠습니까?')
-    if (!confirmed) return
-  }
-
+// 메인으로
+const mainRedirect = () => {
   router.push({ name: 'client-landing' })
 }
 
@@ -162,20 +145,10 @@ const handleSubmit = async () => {
     // })
     // if (!response.ok) throw new Error('리뷰 제출 실패')
 
-    console.log('Review submitted:', reviewData)
-
-    // 임시: API 호출 시뮬레이션 (제거 필요)
-    await new Promise(resolve => setTimeout(resolve, 500))
-
-    notificationStore.notifySuccess('소중한 의견 감사합니다')
-    router.push({ name: 'client-landing' })
-  } catch (error) {
-    console.error('Review submission error:', error)
-    notificationStore.notifyError('리뷰 제출에 실패했습니다. 다시 시도해주세요.')
-  } finally {
-    isLoading.value = false
-  }
+  // 제출 완료 후 감사 페이지로 이동
+  router.push({ name: 'client-final' })
 }
+
 </script>
 
 <style scoped>
@@ -183,9 +156,10 @@ const handleSubmit = async () => {
   min-height: 100vh;
   max-width: 430px;
   margin: 0 auto;
-  background: #ffffff;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .main-content {
@@ -290,7 +264,7 @@ const handleSubmit = async () => {
   display: flex;
   gap: 12px;
   padding: 16px 24px 32px;
-  background: #ffffff;
+  /* background: #ffffff; */
 }
 
 .skip-button {
@@ -338,8 +312,24 @@ const handleSubmit = async () => {
   background: #2563eb;
 }
 
-.submit-button:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
+.button-section {
+  padding: 16px 24px 32px;
 }
+
+
+.main-redirect {
+  width: 100%;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #646464;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
 </style>

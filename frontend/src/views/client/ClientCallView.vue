@@ -66,7 +66,7 @@
 
         <!-- 통화 종료 버튼 -->
         <button
-          @click="handleEndCall"
+          @click="endCall"
           class="control-btn end-call"
           title="통화 종료"
         >
@@ -98,7 +98,7 @@
     </div>
 
     <!-- 통화 종료 확인 모달 -->
-    <Teleport to="body">
+    <!-- <Teleport to="body">
       <div
         v-if="showConfirmModal"
         class="modal-overlay"
@@ -113,7 +113,7 @@
           </div>
         </div>
       </div>
-    </Teleport>
+    </Teleport> -->
   </div>
 </template>
 
@@ -184,10 +184,10 @@ const toggleMute = async () => {
   console.log('[Client] 음소거 상태:', isMuted.value)
 }
 
-// 통화 종료 버튼 클릭
-const handleEndCall = () => {
-  showConfirmModal.value = true
-}
+// // 통화 종료 버튼 클릭
+// const handleEndCall = () => {
+//   router.push()
+// }
 
 // 모달 닫기
 const closeConfirmModal = () => {
@@ -195,9 +195,7 @@ const closeConfirmModal = () => {
 }
 
 // 통화 종료 확인
-const confirmEndCall = async () => {
-  showConfirmModal.value = false
-
+const endCall = async () => {
   // 현재 통화 시간 저장
   const finalDuration = callDuration.value
 
