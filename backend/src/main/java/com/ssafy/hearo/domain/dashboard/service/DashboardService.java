@@ -39,7 +39,7 @@ public class DashboardService {
         // 1. 스트레스 지수 계산 (User 엔티티 메서드 활용)
         // getDailyAvgStress()는 0.0~1.0을 반환하므로 * 100
         BigDecimal stressScore = user.getDailyAvgStress().multiply(BigDecimal.valueOf(100));
-        int stressIndex = stressScore.intValue(); 
+        int stressIndex = stressScore.intValue();
 
         // 2. 주간 차트 데이터 (이번 주 월~일)
         List<WeeklyChartDto> weeklyChart = getWeeklyChartData(userId);
@@ -50,20 +50,13 @@ public class DashboardService {
 
         // 4. 평균 평점
         BigDecimal avgRating = ratingRepository.findAverageRatingByUserId(userId);
-        double customerSatisfaction = avgRating != null 
-                ? avgRating.setScale(1, RoundingMode.HALF_UP).doubleValue() 
+        double customerSatisfaction = avgRating != null
+                ? avgRating.setScale(1, RoundingMode.HALF_UP).doubleValue()
                 : 0.0;
-
-        // 5. 대기 고객 수 & 상담 상태 (이건 보통 Redis나 실시간 큐에서 가져와야 함. 여기선 더미)
-        int waitingCount = 10; // TODO: WebSocket/Redis 연결 필요
-        boolean isConsultationOn = false; // TODO: User Status 관리 필요
 
         return DashboardSummaryResponse.builder()
                 .userName(user.getName())
-                .waitingCustomerCount(waitingCount)
-                .isConsultationOn(isConsultationOn)
                 .stressIndex(stressIndex)
-                .conditionMessage(getConditionMessage(stressIndex))
                 .weeklyChart(weeklyChart)
                 .totalDuration(formattedDuration)
                 .customerSatisfaction(customerSatisfaction)
@@ -91,11 +84,11 @@ public class DashboardService {
         // 월~금(또는 일)까지 빈 날짜도 0으로 채워서 리스트 생성
         List<WeeklyChartDto> chartData = new ArrayList<>();
         // 평일만 보여줄거면 i < 5, 주말 포함이면 i < 7
-        for (int i = 0; i < 5; i++) { 
+        for (int i = 0; i < 5; i++) {
             LocalDate date = startOfWeek.plusDays(i);
             long count = dailyCounts.getOrDefault(date, 0L);
             String dayName = date.getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.ENGLISH); // Mon, Tue...
-            
+
             chartData.add(new WeeklyChartDto(dayName, count));
         }
         return chartData;
@@ -106,12 +99,5 @@ public class DashboardService {
         long hours = totalSeconds / 3600;
         long minutes = (totalSeconds % 3600) / 60;
         return String.format("%d:%02d", hours, minutes);
-    }
-
-    // 스트레스 지수에 따른 메시지
-    private String getConditionMessage(int stressIndex) {
-        if (stressIndex < 30) return "좋은 컨디션이에요! 이 상태를 유지하세요.";
-        if (stressIndex < 70) return "조금 지친 것 같아요. 스트레칭 어때요?";
-        return "휴식이 필요해요! 잠시 상담을 멈추고 쉬세요.";
     }
 }
