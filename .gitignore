@@ -21,3 +21,7 @@ jenkins_home/
 # 4. claude 폴더
 thoughts/
 .claude
+
+# 5. TLDR tool files
+.tldr/
+.tldrignore

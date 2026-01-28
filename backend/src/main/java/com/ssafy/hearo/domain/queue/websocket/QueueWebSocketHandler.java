@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
+import org.springframework.messaging.simp.annotation.SendToUser;
 import org.springframework.stereotype.Controller;
 
 import java.util.Map;
@@ -23,18 +24,45 @@ public class QueueWebSocketHandler {
     /**
      * 클라이언트 순위 조회 요청 처리
      * 클라이언트 전송: /app/queue/rank
+     * 응답: /user/queue/rank (요청한 사용자에게만 전송)
      */
     @MessageMapping("/queue/rank")
-    public void handleRankRequest(SimpMessageHeaderAccessor headerAccessor) {
+    @SendToUser("/queue/rank")
+    public Map<String, Object> handleRankRequest(SimpMessageHeaderAccessor headerAccessor) {
         Map<String, Object> sessionAttrs = headerAccessor.getSessionAttributes();
-        if (sessionAttrs != null) {
-            String userId = (String) sessionAttrs.get("userId");
-            if (userId != null) {
-                queueService.getWaitingRank(userId).ifPresent(rank -> {
-                    log.debug("순위 조회 요청: userId={}, rank={}", userId, rank);
-                });
-            }
+        if (sessionAttrs == null) {
+            return Map.of(
+                "success", false,
+                "message", "세션 정보를 찾을 수 없습니다",
+                "timestamp", System.currentTimeMillis()
+            );
         }
+
+        String customerId = (String) sessionAttrs.get("userId");
+        if (customerId == null) {
+            return Map.of(
+                "success", false,
+                "message", "사용자 정보를 찾을 수 없습니다",
+                "timestamp", System.currentTimeMillis()
+            );
+        }
+
+        return queueService.getWaitingRank(customerId)
+            .map(rank -> {
+                log.debug("순위 조회 요청: customerId={}, rank={}", customerId, rank);
+                return Map.<String, Object>of(
+                    "success", true,
+                    "rank", rank,
+                    "customerId", customerId,
+                    "timestamp", System.currentTimeMillis()
+                );
+            })
+            .orElseGet(() -> Map.of(
+                "success", false,
+                "message", "대기열에서 순위를 찾을 수 없습니다",
+                "customerId", customerId,
+                "timestamp", System.currentTimeMillis()
+            ));
     }
 
     /**

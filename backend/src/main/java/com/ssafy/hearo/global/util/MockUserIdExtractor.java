@@ -1,14 +1,16 @@
 package com.ssafy.hearo.global.util;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
 /**
  * HTTP 요청에서 사용자 ID를 추출하는 유틸리티
- * 현재는 X-User-ID 헤더 사용 (mock)
- * JWT 구현 후 SecurityContext로 전환 예정
+ * JWT 인증 우선, X-User-ID 헤더 fallback (하위 호환성)
  */
 @Component
 public class MockUserIdExtractor {
@@ -18,22 +20,24 @@ public class MockUserIdExtractor {
 
     /**
      * HTTP 요청에서 사용자 ID 추출
-     * 우선순위: 1) X-User-ID 헤더, 2) JWT token (미래), 3) anonymous
+     * 우선순위: 1) JWT SecurityContext, 2) X-User-ID 헤더, 3) anonymous
      */
     public String extract(HttpServletRequest request) {
-        // Mock 모드: 헤더 사용
-        String userId = request.getHeader(USER_ID_HEADER);
+        // 1. Try SecurityContext first (JWT authenticated user)
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated()
+                && !(auth instanceof AnonymousAuthenticationToken)) {
+            // SecurityContext의 principal name은 userId
+            return auth.getName();
+        }
 
+        // 2. Fallback to X-User-ID header (backward compatibility)
+        String userId = request.getHeader(USER_ID_HEADER);
         if (userId != null && !userId.isBlank()) {
             return userId;
         }
 
-        // TODO: JWT 구현 후 아래 코드로 전환
-        // Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        // if (auth != null && auth.isAuthenticated()) {
-        //     return auth.getName();
-        // }
-
+        // 3. Default
         return DEFAULT_USER_ID;
     }
 

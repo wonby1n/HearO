@@ -1,7 +1,9 @@
 package com.ssafy.hearo.domain.user.service;
 
+import com.ssafy.hearo.domain.matching.service.CounselorAvailabilityService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -12,7 +14,6 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class HeartbeatServiceImpl implements HeartbeatService {
 
     private static final String HEARTBEAT_KEY_PREFIX = "heartbeat:counselor:";
@@ -21,6 +22,15 @@ public class HeartbeatServiceImpl implements HeartbeatService {
     private static final String HEARTBEAT_VALUE = "active";
 
     private final RedisTemplate<String, String> redisTemplate;
+    private final CounselorAvailabilityService counselorAvailabilityService;
+
+    public HeartbeatServiceImpl(
+            RedisTemplate<String, String> redisTemplate,
+            @Lazy CounselorAvailabilityService counselorAvailabilityService
+    ) {
+        this.redisTemplate = redisTemplate;
+        this.counselorAvailabilityService = counselorAvailabilityService;
+    }
 
     @Override
     public void setHeartbeat(Long userId, boolean isActive) {
@@ -29,11 +39,15 @@ public class HeartbeatServiceImpl implements HeartbeatService {
         if (isActive) {
             // Set heartbeat with TTL
             redisTemplate.opsForValue().set(key, HEARTBEAT_VALUE, HEARTBEAT_TTL_SECONDS, TimeUnit.SECONDS);
-            log.debug("Heartbeat activated for counselor: {}", userId);
+            // 상담 가능 버튼 클릭 시 가용 상태로 전환
+            counselorAvailabilityService.setAvailable(userId);
+            log.debug("Heartbeat activated and counselor available: {}", userId);
         } else {
             // Remove heartbeat
             redisTemplate.delete(key);
-            log.debug("Heartbeat deactivated for counselor: {}", userId);
+            // 상담 불가능 상태로 전환
+            counselorAvailabilityService.setUnavailable(userId);
+            log.debug("Heartbeat deactivated and counselor unavailable: {}", userId);
         }
     }
 

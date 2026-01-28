@@ -1,10 +1,12 @@
 package com.ssafy.hearo.domain.matching.service;
 
+import com.ssafy.hearo.domain.user.service.HeartbeatService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -20,6 +22,7 @@ public class CounselorAvailabilityService {
     private static final String AVAILABLE_COUNSELORS_KEY = "counselors:available";
 
     private final RedisTemplate<String, String> redisTemplate;
+    private final HeartbeatService heartbeatService;
 
     /**
      * 상담원을 가용 상태로 설정 (로그인/상담 종료 시)
@@ -72,5 +75,31 @@ public class CounselorAvailabilityService {
     public void clearAll() {
         redisTemplate.delete(AVAILABLE_COUNSELORS_KEY);
         log.info("모든 상담원 가용성 초기화");
+    }
+
+    /**
+     * 매칭 가능한 상담원 ID 조회
+     * 가용 상태(available) AND 하트비트 활성(heartbeat active)인 상담원만 반환
+     */
+    public Set<Long> getMatchableCounselorIds() {
+        Set<Long> availableCounselors = getAvailableCounselorIds();
+        if (availableCounselors.isEmpty()) {
+            return Set.of();
+        }
+
+        Set<Long> heartbeatActiveCounselors = heartbeatService.getActiveHeartbeatCounselorIds();
+        if (heartbeatActiveCounselors.isEmpty()) {
+            log.debug("하트비트 활성 상담원 없음");
+            return Set.of();
+        }
+
+        // Intersection: available AND heartbeat active
+        Set<Long> matchable = new HashSet<>(availableCounselors);
+        matchable.retainAll(heartbeatActiveCounselors);
+
+        log.debug("매칭 가능 상담원: {} (가용: {}, 하트비트: {})",
+                matchable.size(), availableCounselors.size(), heartbeatActiveCounselors.size());
+
+        return matchable;
     }
 }

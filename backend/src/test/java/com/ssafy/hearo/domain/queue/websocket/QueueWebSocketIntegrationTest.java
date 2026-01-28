@@ -1,8 +1,11 @@
 package com.ssafy.hearo.domain.queue.websocket;
 
+import com.ssafy.hearo.domain.queue.service.QueueService;
 import org.junit.jupiter.api.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.converter.MappingJackson2MessageConverter;
 import org.springframework.messaging.simp.stomp.*;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -23,6 +26,7 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.*;
 
 import static org.assertj.core.api.Assertions.*;
@@ -52,6 +56,12 @@ class QueueWebSocketIntegrationTest {
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
     }
 
+    @Autowired
+    private QueueService queueService;
+
+    @Autowired
+    private RedisTemplate<String, String> redisTemplate;
+
     private WebSocketStompClient stompClient;
     private BlockingQueue<Map<String, Object>> receivedMessages;
     private List<StompSession> activeSessions;
@@ -65,6 +75,9 @@ class QueueWebSocketIntegrationTest {
         stompClient.setMessageConverter(new MappingJackson2MessageConverter());
         receivedMessages = new LinkedBlockingQueue<>();
         activeSessions = new ArrayList<>();
+
+        // Redis 초기화
+        clearRedis();
     }
 
     @AfterEach
@@ -81,6 +94,21 @@ class QueueWebSocketIntegrationTest {
 
         if (stompClient != null) {
             stompClient.stop();
+        }
+
+        // Redis 정리
+        clearRedis();
+    }
+
+    void clearRedis() {
+        try {
+            redisTemplate.delete("queue:normal");
+            redisTemplate.delete("queue:blacklist");
+            Set<String> heartbeatKeys = redisTemplate.keys("heartbeat:*");
+            if (heartbeatKeys != null && !heartbeatKeys.isEmpty()) {
+                redisTemplate.delete(heartbeatKeys);
+            }
+        } catch (Exception ignored) {
         }
     }
 
@@ -242,5 +270,214 @@ class QueueWebSocketIntegrationTest {
         // then
         boolean allConnected = connectLatch.await(15, TimeUnit.SECONDS);
         assertThat(allConnected).isTrue();
+    }
+
+    @Test
+    @DisplayName("고객이 자신의 대기 순위를 실시간으로 조회한다")
+    @SuppressWarnings("unchecked")
+    void webSocket_ShouldReceiveMyRank() throws Exception {
+        // given - 대기열에 고객 3명 등록
+        String customerId1 = "customer-1";
+        String customerId2 = "customer-2";
+        String customerId3 = "customer-3";
+
+        queueService.enqueue(customerId1);
+        queueService.enqueue(customerId2);
+        queueService.enqueue(customerId3);
+
+        // userId 파라미터로 WebSocket 연결 (customer-2로 연결)
+        String wsUrl = "ws://localhost:" + port + "/ws/queue?userId=" + customerId2;
+        CountDownLatch messageLatch = new CountDownLatch(1);
+        BlockingQueue<Map<String, Object>> rankMessages = new LinkedBlockingQueue<>();
+
+        StompSession session = stompClient.connectAsync(
+                wsUrl,
+                new WebSocketHttpHeaders(),
+                new StompSessionHandlerAdapter() {}
+        ).get(10, TimeUnit.SECONDS);
+
+        activeSessions.add(session);
+
+        // /user/queue/rank 구독 (개인 메시지)
+        session.subscribe("/user/queue/rank", new StompFrameHandler() {
+            @Override
+            public Type getPayloadType(StompHeaders headers) {
+                return Map.class;
+            }
+
+            @Override
+            public void handleFrame(StompHeaders headers, Object payload) {
+                rankMessages.add((Map<String, Object>) payload);
+                messageLatch.countDown();
+            }
+        });
+
+        // 구독 완료 대기
+        Thread.sleep(1000);
+
+        // when - 순위 조회 요청
+        session.send("/app/queue/rank", "");
+
+        // then
+        boolean received = messageLatch.await(10, TimeUnit.SECONDS);
+        assertThat(received).isTrue();
+
+        Map<String, Object> response = rankMessages.poll(5, TimeUnit.SECONDS);
+        assertThat(response).isNotNull();
+        assertThat(response.get("success")).isEqualTo(true);
+        assertThat(response.get("customerId")).isEqualTo(customerId2);
+        assertThat(response.get("rank")).isEqualTo(2); // 2번째로 등록했으므로 순위 2
+        assertThat(response).containsKey("timestamp");
+    }
+
+    @Test
+    @DisplayName("대기열에 없는 고객이 순위 조회 시 실패 응답을 받는다")
+    @SuppressWarnings("unchecked")
+    void webSocket_ShouldReceiveFailureWhenNotInQueue() throws Exception {
+        // given - 대기열에 등록하지 않은 고객으로 연결
+        String customerId = "not-in-queue-customer";
+        String wsUrl = "ws://localhost:" + port + "/ws/queue?userId=" + customerId;
+        CountDownLatch messageLatch = new CountDownLatch(1);
+        BlockingQueue<Map<String, Object>> rankMessages = new LinkedBlockingQueue<>();
+
+        StompSession session = stompClient.connectAsync(
+                wsUrl,
+                new WebSocketHttpHeaders(),
+                new StompSessionHandlerAdapter() {}
+        ).get(10, TimeUnit.SECONDS);
+
+        activeSessions.add(session);
+
+        session.subscribe("/user/queue/rank", new StompFrameHandler() {
+            @Override
+            public Type getPayloadType(StompHeaders headers) {
+                return Map.class;
+            }
+
+            @Override
+            public void handleFrame(StompHeaders headers, Object payload) {
+                rankMessages.add((Map<String, Object>) payload);
+                messageLatch.countDown();
+            }
+        });
+
+        Thread.sleep(1000);
+
+        // when
+        session.send("/app/queue/rank", "");
+
+        // then
+        boolean received = messageLatch.await(10, TimeUnit.SECONDS);
+        assertThat(received).isTrue();
+
+        Map<String, Object> response = rankMessages.poll(5, TimeUnit.SECONDS);
+        assertThat(response).isNotNull();
+        assertThat(response.get("success")).isEqualTo(false);
+        assertThat(response.get("message")).isEqualTo("대기열에서 순위를 찾을 수 없습니다");
+        assertThat(response.get("customerId")).isEqualTo(customerId);
+    }
+
+    @Test
+    @DisplayName("대기열 변동 시 순위가 실시간으로 반영된다")
+    @SuppressWarnings("unchecked")
+    void webSocket_ShouldReflectRankChanges() throws Exception {
+        // given - 대기열에 고객 3명 등록
+        String customerId1 = "customer-a";
+        String customerId2 = "customer-b";
+        String customerId3 = "customer-c";
+
+        queueService.enqueue(customerId1);
+        queueService.enqueue(customerId2);
+        queueService.enqueue(customerId3);
+
+        // customer-3으로 연결 (초기 순위: 3)
+        String wsUrl = "ws://localhost:" + port + "/ws/queue?userId=" + customerId3;
+        BlockingQueue<Map<String, Object>> rankMessages = new LinkedBlockingQueue<>();
+
+        StompSession session = stompClient.connectAsync(
+                wsUrl,
+                new WebSocketHttpHeaders(),
+                new StompSessionHandlerAdapter() {}
+        ).get(10, TimeUnit.SECONDS);
+
+        activeSessions.add(session);
+
+        session.subscribe("/user/queue/rank", new StompFrameHandler() {
+            @Override
+            public Type getPayloadType(StompHeaders headers) {
+                return Map.class;
+            }
+
+            @Override
+            public void handleFrame(StompHeaders headers, Object payload) {
+                rankMessages.add((Map<String, Object>) payload);
+            }
+        });
+
+        Thread.sleep(1000);
+
+        // when - 첫 번째 순위 조회 (순위 3)
+        CountDownLatch firstLatch = new CountDownLatch(1);
+        session.send("/app/queue/rank", "");
+
+        Map<String, Object> firstResponse = rankMessages.poll(10, TimeUnit.SECONDS);
+        assertThat(firstResponse).isNotNull();
+        assertThat(firstResponse.get("rank")).isEqualTo(3);
+
+        // 앞의 고객 1명 제거
+        queueService.remove(customerId1);
+
+        // 다시 순위 조회 (순위 2로 변경)
+        session.send("/app/queue/rank", "");
+
+        Map<String, Object> secondResponse = rankMessages.poll(10, TimeUnit.SECONDS);
+        assertThat(secondResponse).isNotNull();
+        assertThat(secondResponse.get("success")).isEqualTo(true);
+        assertThat(secondResponse.get("rank")).isEqualTo(2); // 순위가 3에서 2로 변경
+    }
+
+    @Test
+    @DisplayName("userId 없이 연결 시 순위 조회가 실패한다")
+    @SuppressWarnings("unchecked")
+    void webSocket_ShouldFailWithoutUserId() throws Exception {
+        // given - userId 없이 연결
+        String wsUrl = "ws://localhost:" + port + "/ws/queue";
+        CountDownLatch messageLatch = new CountDownLatch(1);
+        BlockingQueue<Map<String, Object>> rankMessages = new LinkedBlockingQueue<>();
+
+        StompSession session = stompClient.connectAsync(
+                wsUrl,
+                new WebSocketHttpHeaders(),
+                new StompSessionHandlerAdapter() {}
+        ).get(10, TimeUnit.SECONDS);
+
+        activeSessions.add(session);
+
+        session.subscribe("/user/queue/rank", new StompFrameHandler() {
+            @Override
+            public Type getPayloadType(StompHeaders headers) {
+                return Map.class;
+            }
+
+            @Override
+            public void handleFrame(StompHeaders headers, Object payload) {
+                rankMessages.add((Map<String, Object>) payload);
+                messageLatch.countDown();
+            }
+        });
+
+        Thread.sleep(1000);
+
+        // when
+        session.send("/app/queue/rank", "");
+
+        // then
+        boolean received = messageLatch.await(10, TimeUnit.SECONDS);
+        assertThat(received).isTrue();
+
+        Map<String, Object> response = rankMessages.poll(5, TimeUnit.SECONDS);
+        assertThat(response).isNotNull();
+        assertThat(response.get("success")).isEqualTo(false);
+        assertThat(response.get("message")).isEqualTo("사용자 정보를 찾을 수 없습니다");
     }
 }

@@ -5,6 +5,7 @@ import com.ssafy.hearo.domain.customer.entity.Customer;
 import com.ssafy.hearo.domain.queue.service.QueueService;
 import com.ssafy.hearo.domain.user.entity.User;
 import com.ssafy.hearo.domain.user.entity.UserRole;
+import com.ssafy.hearo.domain.user.service.HeartbeatService;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -67,6 +68,9 @@ class MatchingSchedulerTest {
     private QueueService queueService;
 
     @Autowired
+    private HeartbeatService heartbeatService;
+
+    @Autowired
     private RedisTemplate<String, String> redisTemplate;
 
     @Autowired
@@ -105,6 +109,19 @@ class MatchingSchedulerTest {
         redisTemplate.delete("queue:normal");
         redisTemplate.delete("queue:blacklist");
         redisTemplate.delete("counselors:available");
+        // Clear heartbeat keys
+        java.util.Set<String> heartbeatKeys = redisTemplate.keys("heartbeat:counselor:*");
+        if (heartbeatKeys != null && !heartbeatKeys.isEmpty()) {
+            redisTemplate.delete(heartbeatKeys);
+        }
+    }
+
+    /**
+     * 상담원을 매칭 가능 상태로 설정 (가용 + 하트비트 활성)
+     */
+    private void setCounselorMatchable(Long counselorId) {
+        availabilityService.setAvailable(counselorId);
+        heartbeatService.setHeartbeat(counselorId, true);
     }
 
     @Test
@@ -128,7 +145,7 @@ class MatchingSchedulerTest {
     @DisplayName("executeMatching: 대기 고객이 없으면 매칭을 스킵한다")
     void executeMatching_NoWaitingCustomers_ShouldSkip() {
         // given
-        availabilityService.setAvailable(1L);
+        setCounselorMatchable(1L);
         // 대기 고객 없음
 
         // when
@@ -144,7 +161,7 @@ class MatchingSchedulerTest {
     void executeMatching_SuccessfulMatch_ShouldPublishEventAndSetUnavailable() {
         // given
         queueService.enqueue("customer-1");
-        availabilityService.setAvailable(1L);
+        setCounselorMatchable(1L);
 
         // when
         matchingScheduler.executeMatching();
@@ -174,8 +191,8 @@ class MatchingSchedulerTest {
         Thread.sleep(10);
         queueService.enqueue("customer-3");
 
-        availabilityService.setAvailable(1L);
-        availabilityService.setAvailable(2L);
+        setCounselorMatchable(1L);
+        setCounselorMatchable(2L);
 
         // when
         matchingScheduler.executeMatching();
@@ -198,7 +215,7 @@ class MatchingSchedulerTest {
         queueService.enqueue("blacklist-customer");
         queueService.moveToBlacklistQueue("blacklist-customer");
 
-        availabilityService.setAvailable(1L);
+        setCounselorMatchable(1L);
 
         // when
         matchingScheduler.executeMatching();
@@ -228,7 +245,7 @@ class MatchingSchedulerTest {
         });
 
         queueService.enqueue(testData.customerId.toString());
-        availabilityService.setAvailable(testData.counselor1Id);
+        setCounselorMatchable(testData.counselor1Id);
 
         // when
         matchingScheduler.executeMatching();
@@ -263,8 +280,8 @@ class MatchingSchedulerTest {
         });
 
         queueService.enqueue(testData.customerId.toString());
-        availabilityService.setAvailable(testData.counselor1Id);
-        availabilityService.setAvailable(testData.counselor2Id);
+        setCounselorMatchable(testData.counselor1Id);
+        setCounselorMatchable(testData.counselor2Id);
 
         // when
         matchingScheduler.executeMatching();
@@ -286,7 +303,7 @@ class MatchingSchedulerTest {
     void executeMatching_RoomName_ShouldHaveCorrectFormat() {
         // given
         queueService.enqueue("test-customer");
-        availabilityService.setAvailable(42L);
+        setCounselorMatchable(42L);
 
         // when
         matchingScheduler.executeMatching();
@@ -311,7 +328,7 @@ class MatchingSchedulerTest {
     void executeMatching_ConsecutiveExecutions_ShouldWorkIndependently() throws InterruptedException {
         // given - 첫 번째 매칭
         queueService.enqueue("customer-1");
-        availabilityService.setAvailable(1L);
+        setCounselorMatchable(1L);
 
         matchingScheduler.executeMatching();
         assertThat(eventListener.getEvents()).hasSize(1);
@@ -319,7 +336,7 @@ class MatchingSchedulerTest {
 
         // 두 번째 매칭
         queueService.enqueue("customer-2");
-        availabilityService.setAvailable(2L);
+        setCounselorMatchable(2L);
 
         // when
         matchingScheduler.executeMatching();

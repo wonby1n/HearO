@@ -6,14 +6,19 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
+
+import java.util.Set;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -50,6 +55,11 @@ class QueueControllerIntegrationTest {
         redisTemplate.delete("queue:normal");
         redisTemplate.delete("queue:blacklist");
         redisTemplate.delete("counselors:available");
+        // Clear heartbeat keys
+        Set<String> heartbeatKeys = redisTemplate.keys("heartbeat:counselor:*");
+        if (heartbeatKeys != null && !heartbeatKeys.isEmpty()) {
+            redisTemplate.delete(heartbeatKeys);
+        }
     }
 
     // ==================== 고객용 Queue API 테스트 ====================
@@ -158,6 +168,7 @@ class QueueControllerIntegrationTest {
     // ==================== 상담원용 Counselor API 테스트 ====================
 
     @Test
+    @WithMockUser(username = "1", roles = {"USER"})
     @DisplayName("POST /api/v1/counselor/{id}/available: 상담원을 가용 상태로 설정한다")
     void setAvailable_ShouldAddCounselorToAvailableSet() throws Exception {
         // when
@@ -171,6 +182,7 @@ class QueueControllerIntegrationTest {
     }
 
     @Test
+    @WithMockUser(username = "1", roles = {"USER"})
     @DisplayName("POST /api/v1/counselor/{id}/unavailable: 상담원을 비가용 상태로 설정한다")
     void setUnavailable_ShouldRemoveCounselorFromAvailableSet() throws Exception {
         // given - 먼저 가용 상태로 설정
@@ -187,6 +199,7 @@ class QueueControllerIntegrationTest {
     }
 
     @Test
+    @WithMockUser(username = "5", roles = {"USER"})
     @DisplayName("POST /api/v1/counselor/{id}/consultation-complete: 상담 완료 후 가용 상태로 전환")
     void consultationComplete_ShouldSetCounselorAvailable() throws Exception {
         // when
@@ -202,23 +215,30 @@ class QueueControllerIntegrationTest {
     @Test
     @DisplayName("GET /api/v1/counselor/system-status: 시스템 전체 상태를 반환한다")
     void getSystemStatus_ShouldReturnFullStatus() throws Exception {
-        // given - 고객 2명 등록, 상담원 1명 가용
+        // given - 고객 2명 등록 (인증 없이 X-User-ID 헤더 사용)
         mockMvc.perform(post("/api/v1/queue/register")
                         .header("X-User-ID", "sys-customer-1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                             {"symptom":"test","productCategory":"TV","boughtAt":"2025-01-01T00:00:00"}
-                            """));
+                            """))
+                .andExpect(status().isOk());
         mockMvc.perform(post("/api/v1/queue/register")
                         .header("X-User-ID", "sys-customer-2")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                             {"symptom":"test","productCategory":"TV","boughtAt":"2025-01-01T00:00:00"}
-                            """));
-        mockMvc.perform(post("/api/v1/counselor/10/available"));
+                            """))
+                .andExpect(status().isOk());
 
-        // when/then
-        mockMvc.perform(get("/api/v1/counselor/system-status"))
+        // 상담원 가용 설정 (인증 필요)
+        mockMvc.perform(post("/api/v1/counselor/10/available")
+                        .with(user("10").roles("USER")))
+                .andExpect(status().isOk());
+
+        // when/then (인증 필요)
+        mockMvc.perform(get("/api/v1/counselor/system-status")
+                        .with(user("10").roles("USER")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.normalQueueSize").value(2))
                 .andExpect(jsonPath("$.blacklistQueueSize").value(0))

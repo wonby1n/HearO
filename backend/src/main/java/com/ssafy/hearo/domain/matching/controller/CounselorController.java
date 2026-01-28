@@ -2,9 +2,11 @@ package com.ssafy.hearo.domain.matching.controller;
 
 import com.ssafy.hearo.domain.matching.service.CounselorAvailabilityService;
 import com.ssafy.hearo.domain.queue.service.QueueService;
+import com.ssafy.hearo.global.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -12,7 +14,7 @@ import java.util.Set;
 
 /**
  * 상담원 관련 API
- * 상담원 가용성 관리 및 시스템 상태 조회
+ * 시스템 상태 조회 (가용성 전환은 heartbeat에서 처리)
  */
 @RestController
 @RequestMapping("/api/v1/counselor")
@@ -24,34 +26,19 @@ public class CounselorController {
     private final QueueService queueService;
 
     /**
-     * 상담원 가용 상태 설정 (로그인/상담 대기 시작)
-     * TODO: JWT 구현 후 SecurityContext에서 상담원 ID 추출
+     * 현재 로그인한 상담원의 가용 상태 조회
      */
-    @PostMapping("/{counselorId}/available")
-    public ResponseEntity<Void> setAvailable(@PathVariable Long counselorId) {
-        availabilityService.setAvailable(counselorId);
-        log.info("상담원 {} 가용 상태로 전환", counselorId);
-        return ResponseEntity.ok().build();
-    }
+    @GetMapping("/me/status")
+    public ResponseEntity<Map<String, Object>> getMyStatus(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        Long counselorId = userDetails.getId();
+        boolean isAvailable = availabilityService.isAvailable(counselorId);
 
-    /**
-     * 상담원 비가용 상태 설정 (로그아웃/휴식)
-     */
-    @PostMapping("/{counselorId}/unavailable")
-    public ResponseEntity<Void> setUnavailable(@PathVariable Long counselorId) {
-        availabilityService.setUnavailable(counselorId);
-        log.info("상담원 {} 비가용 상태로 전환", counselorId);
-        return ResponseEntity.ok().build();
-    }
-
-    /**
-     * 상담 종료 후 다시 가용 상태로 전환
-     */
-    @PostMapping("/{counselorId}/consultation-complete")
-    public ResponseEntity<Void> consultationComplete(@PathVariable Long counselorId) {
-        availabilityService.setAvailable(counselorId);
-        log.info("상담원 {} 상담 종료, 가용 상태로 전환", counselorId);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(Map.of(
+                "counselorId", counselorId,
+                "isAvailable", isAvailable
+        ));
     }
 
     /**

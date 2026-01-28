@@ -40,11 +40,11 @@ public class MatchingScheduler {
      */
     @Scheduled(fixedRate = 5000) // 5초마다 실행
     public void executeMatching() {
-        // 가용 상담원 조회
-        Set<Long> availableCounselors = counselorAvailabilityService.getAvailableCounselorIds();
+        // 매칭 가능한 상담원 조회 (가용 AND 하트비트 활성)
+        Set<Long> availableCounselors = counselorAvailabilityService.getMatchableCounselorIds();
 
         if (availableCounselors.isEmpty()) {
-            log.debug("매칭 스킵: 가용 상담원 없음");
+            log.debug("매칭 스킵: 매칭 가능한 상담원 없음 (가용 상태 + 하트비트 활성 필요)");
             return;
         }
 
@@ -64,8 +64,8 @@ public class MatchingScheduler {
         int maxMatches = availableCounselors.size();
 
         while (matchedCount < maxMatches) {
-            // 현재 가용 상담원 목록 다시 조회 (매칭 중 변경될 수 있음)
-            Set<Long> currentAvailable = counselorAvailabilityService.getAvailableCounselorIds();
+            // 현재 매칭 가능한 상담원 목록 다시 조회 (매칭 중 변경될 수 있음)
+            Set<Long> currentAvailable = counselorAvailabilityService.getMatchableCounselorIds();
             if (currentAvailable.isEmpty()) {
                 break;
             }
