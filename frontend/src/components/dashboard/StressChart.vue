@@ -1,10 +1,14 @@
 <template>
-  <div class="card h-full flex flex-col p-6 bg-white rounded-2xl shadow-sm">
+  <!-- [피드백 반영] data-status 속성을 통해 현재 상태에 따른 CSS 변수를 제어합니다. -->
+  <div 
+    class="energy-card card h-full flex flex-col p-6 bg-white rounded-2xl shadow-sm"
+    :data-status="statusKey"
+  >
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-lg font-semibold text-gray-800">에너지 지수</h3>
       <button
         @click="refreshStressLevel"
-        class="p-2 rounded-lg hover:bg-gray-100 transition-colors group"
+        class="refresh-btn p-2 rounded-lg hover:bg-gray-100 transition-colors group"
         title="새로고침"
       >
         <svg 
@@ -23,44 +27,33 @@
     <div class="relative flex-1 flex items-center justify-center min-h-[300px]">
       <div class="relative w-full max-w-[280px] aspect-square">
         <!-- SVG 원형 프로그레스 -->
-        <svg class="transform -rotate-90 w-full h-full" viewBox="0 0 280 280">
+        <svg class="progress-svg transform -rotate-90 w-full h-full" viewBox="0 0 280 280">
           <!-- 배경 원 -->
           <circle
             cx="140"
             cy="140"
             r="120"
-            stroke="#e5e7eb"
-            stroke-width="20"
-            fill="none"
+            class="circle-bg"
           />
-          <!-- 진행 원 (4단계 색상 적용) -->
+          <!-- [피드백 반영] 진행 원: 인라인 스타일 대신 클래스를 사용합니다. -->
           <circle
             cx="140"
             cy="140"
             r="120"
-            :stroke="statusColor"
-            stroke-width="20"
-            fill="none"
-            stroke-linecap="round"
+            class="circle-progress"
             :stroke-dasharray="circumference"
             :stroke-dashoffset="dashOffset"
-            class="transition-all duration-1000 ease-in-out"
-            :style="{ filter: `drop-shadow(0 0 8px ${statusColor}60)` }"
           />
         </svg>
 
         <!-- 중앙 아이콘 -->
         <div class="absolute inset-0 flex items-center justify-center">
-          <div 
-            class="p-6 rounded-full transition-all duration-500"
-            :style="{ backgroundColor: `${statusColor}15` }"
-          >
+          <div class="icon-container p-6 rounded-full transition-all duration-500">
             <svg
-              class="w-16 h-16 animate-pulse-slow"
+              class="w-16 h-16 animate-pulse-slow status-icon"
               fill="none"
               viewBox="0 0 24 24"
               stroke-width="1.5"
-              :stroke="statusColor"
             >
               <path
                 stroke-linecap="round"
@@ -75,13 +68,10 @@
 
     <!-- 하단 메시지 섹션 -->
     <div class="mt-4 text-center">
-      <div 
-        class="inline-block px-4 py-1 rounded-full text-xs font-bold mb-2 transition-colors duration-500" 
-        :style="{ backgroundColor: `${statusColor}20`, color: statusColor }"
-      >
+      <div class="status-badge inline-block px-4 py-1 rounded-full text-xs font-bold mb-2 transition-colors duration-500">
         ENERGY LEVEL: {{ batteryLevel }}%
       </div>
-      <p class="text-2xl font-bold tracking-tight transition-colors duration-500" :style="{ color: statusColor }">
+      <p class="status-message text-2xl font-bold tracking-tight transition-colors duration-500">
         {{ statusContent.message }}
       </p>
       <p class="text-sm text-gray-500 mt-1 font-medium">{{ statusContent.description }}</p>
@@ -100,22 +90,19 @@ const circumference = 2 * Math.PI * 120
 
 // 에너지 레벨 (100 - 스트레스 지수)
 const batteryLevel = computed(() => {
-  return Math.max(0, Math.min(100, 100 - (40 || 0)))
+  return Math.max(0, Math.min(100, 100 - (agentStore.stressLevel || 0)))
 })
 
 /**
- * 4단계 상태 컬러 로직
- * - 80% 이상: 파란색 (Best)
- * - 55% ~ 79%: 노란색 (Warning/Stretch) -> 새로 추가된 단계
- * - 30% ~ 54%: 주황색 (Tired)
- * - 30% 미만: 빨간색 (Critical)
+ * [피드백 반영] 상태 키워드 반환
+ * 직접적인 색상값 대신 상태를 나타내는 키워드만 반환하여 스타일과 로직을 분리합니다.
  */
-const statusColor = computed(() => {
+const statusKey = computed(() => {
   const level = batteryLevel.value
-  if (level >= 80) return '#3d5abe' // 최상 (Blue)
-  if (level >= 55) return '#f59e0b' // 주의/스트레칭 필요 (Yellow/Amber)
-  if (level >= 30) return '#f97316' // 휴식 필요 (Orange)
-  return '#ef4444' // 긴급 (Red)
+  if (level >= 80) return 'best'
+  if (level >= 55) return 'stretch'
+  if (level >= 30) return 'tired'
+  return 'critical'
 })
 
 // 차트 오프셋 계산
@@ -123,35 +110,19 @@ const dashOffset = computed(() => {
   return circumference * (1 - batteryLevel.value / 100)
 })
 
-// 4단계 메시지 및 설명 관리
+// 메시지 매핑
 const statusContent = computed(() => {
-  const level = batteryLevel.value
-  
-  if (level >= 80) {
-    return {
-      message: '최상의 컨디션!',
-      description: '아주 좋은 상태입니다. 지금처럼 유지하세요!'
-    }
-  } else if (level >= 55) {
-    return {
-      message: '스트레칭 어때요?',
-      description: '조금씩 피로가 쌓이고 있어요. 몸을 가볍게 풀어주세요.'
-    }
-  } else if (level >= 30) {
-    return {
-      message: '휴식이 필요해요',
-      description: '집중력이 떨어질 수 있습니다. 잠시 차 한 잔 어떠세요?'
-    }
-  } else {
-    return {
-      message: '긴급 충전 필요!',
-      description: '즉시 휴식을 취하고 심호흡을 통해 안정을 찾으세요.'
-    }
+  const key = statusKey.value
+  const contentMap = {
+    best: { message: '최상의 컨디션!', description: '아주 좋은 상태입니다. 지금처럼 유지하세요!' },
+    stretch: { message: '스트레칭 어때요?', description: '조금씩 피로가 쌓이고 있어요. 몸을 가볍게 풀어주세요.' },
+    tired: { message: '휴식이 필요해요', description: '집중력이 떨어질 수 있습니다. 잠시 차 한 잔 어떠세요?' },
+    critical: { message: '긴급 충전 필요!', description: '즉시 휴식을 취하고 심호흡을 통해 안정을 찾으세요.' }
   }
+  return contentMap[key]
 })
 
 const refreshStressLevel = async () => {
-  // 백엔드 API 호출 로직
   if (agentStore.fetchStressLevel) {
     await agentStore.fetchStressLevel()
   }
@@ -159,6 +130,76 @@ const refreshStressLevel = async () => {
 </script>
 
 <style scoped>
+/**
+ * [피드백 반영] 테마별 색상을 CSS 변수로 관리
+ */
+ .energy-card {
+  --energy-theme-color: #3d5abe; /* Default: Best */
+  --energy-bg-opacity: rgba(61, 90, 190, 0.15);
+  --energy-badge-opacity: rgba(61, 90, 190, 0.2);
+}
+
+.energy-card[data-status="best"] {
+  --energy-theme-color: #3d5abe;
+  --energy-bg-opacity: rgba(61, 90, 190, 0.15);
+  --energy-badge-opacity: rgba(61, 90, 190, 0.2);
+}
+
+.energy-card[data-status="stretch"] {
+  --energy-theme-color: #f59e0b;
+  --energy-bg-opacity: rgba(245, 158, 11, 0.15);
+  --energy-badge-opacity: rgba(245, 158, 11, 0.2);
+}
+
+.energy-card[data-status="tired"] {
+  --energy-theme-color: #f97316;
+  --energy-bg-opacity: rgba(249, 115, 22, 0.15);
+  --energy-badge-opacity: rgba(249, 115, 22, 0.2);
+}
+
+.energy-card[data-status="critical"] {
+  --energy-theme-color: #ef4444;
+  --energy-bg-opacity: rgba(239, 68, 68, 0.15);
+  --energy-badge-opacity: rgba(239, 68, 68, 0.2);
+}
+
+/**
+ * SVG 스타일링 클래스화
+ */
+.circle-bg {
+  stroke: #e5e7eb;
+  stroke-width: 20;
+  fill: none;
+}
+
+.circle-progress {
+  stroke: var(--energy-theme-color);
+  stroke-width: 20;
+  fill: none;
+  stroke-linecap: round;
+  /* [피드백 반영] SVG 속성들을 CSS 클래스에서 관리 */
+  transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.8s ease-in-out;
+  filter: drop-shadow(0 0 8px var(--energy-theme-color));
+}
+
+.icon-container {
+  background-color: var(--energy-bg-opacity);
+}
+
+.status-icon {
+  stroke: var(--energy-theme-color);
+}
+
+.status-badge {
+  background-color: var(--energy-badge-opacity);
+  color: var(--energy-theme-color);
+}
+
+.status-message {
+  color: var(--energy-theme-color);
+}
+
+/* Animations */
 @keyframes spin-once {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
@@ -173,10 +214,5 @@ const refreshStressLevel = async () => {
 }
 .animate-pulse-slow {
   animation: pulse-slow 3s ease-in-out infinite;
-}
-
-circle {
-  /* 4단계 전환이 부드럽게 보이도록 transition 설정 */
-  transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.8s ease-in-out;
 }
 </style>
