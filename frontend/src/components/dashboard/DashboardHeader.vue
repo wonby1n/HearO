@@ -4,7 +4,7 @@
       <!-- 좌측: 인사말 + 날짜/시간 -->
       <div class="info-section">
         <h2 class="greeting-text text-2xl font-bold text-gray-900 tracking-tight">
-          어서오세요, <span class="user-name text-primary-main">{{ authStore.user?.name || '상담원' }}</span>님
+          어서오세요, <span class="user-name text-primary-main">{{ authStore.user?.name || '로그인안됨' }}</span>님
         </h2>
         <p class="datetime-text text-xs font-medium text-gray-400 mt-1.5 flex items-center gap-1.5">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -49,12 +49,19 @@ export const useAuthStore = defineStore('auth', () => {
         password
       })
 
-      const { token, user: userData } = response.data
+      const { accessToken: token, userId, username, userRole } = response.data
+
+      // 사용자 정보 객체 구성
+      const userData = {
+        id: userId,
+        name: username,
+        role: userRole
+      }
 
       // 토큰 및 사용자 정보 저장
       accessToken.value = token
       user.value = userData
-
+      console.log(token)
       localStorage.setItem('accessToken', token)
       localStorage.setItem('user', JSON.stringify(userData))
 
@@ -80,7 +87,7 @@ export const useAuthStore = defineStore('auth', () => {
   const refreshToken = async () => {
     try {
       const response = await axios.post('/api/v1/auth/refresh')
-      const { token } = response.data
+      const { accessToken: token } = response.data
 
       accessToken.value = token
       localStorage.setItem('accessToken', token)
