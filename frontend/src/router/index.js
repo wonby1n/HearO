@@ -3,12 +3,23 @@ import { createRouter, createWebHistory } from 'vue-router'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    // 로그인 페이지
+    {
+      path: '/login',
+      name: 'login',
+      component: () => import('@/views/auth/LoginView.vue'),
+      meta: {
+        title: '로그인',
+        requiresAuth: false
+      }
+    },
     {
       path: '/',
       name: 'dashboard',
       component: () => import('@/views/dashboard/DashboardView.vue'),
       meta: {
-        title: 'Dashboard'
+        title: 'Dashboard',
+        requiresAuth: true
       },
     },
     // 고객 라우트
@@ -121,9 +132,31 @@ const router = createRouter({
   ],
 })
 
-// 라우트 가드 - 페이지 타이틀 설정
+// 라우트 가드 - 인증 체크 및 페이지 타이틀 설정
 router.beforeEach((to, from, next) => {
+  // 페이지 타이틀 설정
   document.title = to.meta.title || 'HearO'
+
+  // 인증이 필요한 페이지 체크
+  const token = localStorage.getItem('accessToken')
+  const requiresAuth = to.meta.requiresAuth
+
+  /** * 로그인 DB 미구현으로 인한 인증 체크 일시 중단
+   * 추후 DB 연결 시 아래 if-else if 블록의 주석을 해제
+   */
+  /*
+  if (requiresAuth && !token) {
+    // 인증 필요한데 토큰 없으면 로그인 페이지로
+    next({ name: 'login', query: { redirect: to.fullPath } })
+  } else if (to.name === 'login' && token) {
+    // 이미 로그인된 상태에서 로그인 페이지 접근 시 대시보드로
+    next({ name: 'dashboard' })
+  } else {
+    next()
+  }
+  */
+
+  // 임시: 모든 접근 허용
   next()
 })
 
