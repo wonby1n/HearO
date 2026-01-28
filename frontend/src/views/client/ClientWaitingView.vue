@@ -43,6 +43,7 @@
           <button
             @click="toggleSpeaker"
             :class="['control-btn', { active: isSpeakerOn }]"
+            :aria-label="isSpeakerOn ? '스피커폰 끄기' : '스피커폰 켜기'"
             title="스피커"
           >
             <div class="control-icon-wrapper">
@@ -62,6 +63,7 @@
           <button
             @click="handleEndCall"
             class="control-btn end-call"
+            aria-label="대기 취소"
             title="통화 종료"
           >
             <div class="control-icon-wrapper end">
@@ -79,6 +81,7 @@
           <button
             @click="toggleMute"
             :class="['control-btn', { active: isMuted }]"
+            :aria-label="isMuted ? '음소거 해제' : '음소거'"
             title="음소거"
           >
             <div class="control-icon-wrapper">
@@ -121,6 +124,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCallStore } from '@/stores/call'
 import { useCustomerStore } from '@/stores/customer'
+import ARSvoiceFile from '@/assets/ARSvoice.mp3'
 
 const router = useRouter()
 const callStore = useCallStore()
@@ -131,6 +135,8 @@ const queuePosition = ref(3) // 대기 순번 (추후 백엔드 연동)
 const isMuted = ref(false)
 const isSpeakerOn = ref(true)
 const showConfirmModal = ref(false)
+const arsAudio = ref(null)
+const isARSPlaying = ref(false)
 
 let queuePollingInterval = null
 
@@ -190,21 +196,86 @@ const confirmEndCall = async () => {
     clearInterval(queuePollingInterval)
   }
 
+  // ARS 음성 정리
+  if (arsAudio.value) {
+    arsAudio.value.pause()
+    arsAudio.value.removeEventListener('ended', onARSAudioEnded)
+    arsAudio.value = null
+  }
+
   // TODO: 백엔드에 대기 취소 요청
-  // await api.post('/queue/cancel', { customerId: customerStore.currentCustomer?.id })
 
   callStore.endCall()
   router.push('/client')
 }
 
+// ARS 음성 재생
+const playARSAudio = () => {
+  // 기존 오디오 정리
+  if (arsAudio.value) {
+    arsAudio.value.pause()
+    arsAudio.value.currentTime = 0
+    arsAudio.value.removeEventListener('ended', onARSAudioEnded)
+  }
+
+  // 새 Audio 객체 생성
+  arsAudio.value = new Audio(ARSvoiceFile)
+  isARSPlaying.value = true
+  console.log('[Client] ARS 음성 재생 시작')
+
+  arsAudio.value.play()
+    .then(() => {
+      console.log('[Client] ARS 음성 재생 성공')
+    })
+    .catch((error) => {
+      console.error('[Client] ARS 음성 재생 실패:', error)
+      isARSPlaying.value = false
+    })
+
+  // 음성 재생 완료 이벤트
+  arsAudio.value.addEventListener('ended', onARSAudioEnded)
+}
+
+// ARS 음성 재생 완료 처리
+const onARSAudioEnded = async () => {
+  console.log('[Client] ARS 음성 재생 완료')
+  isARSPlaying.value = false
+
+  // TODO: 상담원에게 통화 알림 전송
+  try {
+    // 백엔드 API 호출하여 상담원에게 알림
+    // const response = await fetch('/api/v1/calls/notify-agent', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({
+    //     customerId: customerStore.currentCustomer?.id
+    //   })
+    // })
+    // if (!response.ok) throw new Error('상담원 알림 실패')
+
+    console.log('[Client] 상담원에게 통화 알림 전송 완료 (대기 중)')
+  } catch (error) {
+    console.error('[Client] 상담원 알림 전송 실패:', error)
+  }
+}
+
 // 상담원 연결 시 호출될 함수
 const onAgentConnected = () => {
+  // ARS 음성 정리
+  if (arsAudio.value) {
+    arsAudio.value.pause()
+    arsAudio.value.removeEventListener('ended', onARSAudioEnded)
+  }
+
   // 상담 화면으로 이동
   router.push('/client/call')
 }
 
 // 컴포넌트 마운트 시 초기화
 onMounted(async () => {
+  // ARS 음성 자동 재생
+  playARSAudio()
+
   // 초기 대기 순번 조회
   await fetchQueuePosition()
 
@@ -224,6 +295,13 @@ onMounted(async () => {
 onUnmounted(() => {
   if (queuePollingInterval) {
     clearInterval(queuePollingInterval)
+  }
+
+  // ARS 오디오 정리
+  if (arsAudio.value) {
+    arsAudio.value.pause()
+    arsAudio.value.removeEventListener('ended', onARSAudioEnded)
+    arsAudio.value = null
   }
 
   // TODO: WebSocket 이벤트 해제
