@@ -43,6 +43,7 @@
           <button
             @click="toggleSpeaker"
             :class="['control-btn', { active: isSpeakerOn }]"
+            :aria-label="isSpeakerOn ? '스피커폰 끄기' : '스피커폰 켜기'"
             title="스피커"
           >
             <div class="control-icon-wrapper">
@@ -62,6 +63,7 @@
           <button
             @click="handleEndCall"
             class="control-btn end-call"
+            aria-label="대기 취소"
             title="통화 종료"
           >
             <div class="control-icon-wrapper end">
@@ -79,6 +81,7 @@
           <button
             @click="toggleMute"
             :class="['control-btn', { active: isMuted }]"
+            :aria-label="isMuted ? '음소거 해제' : '음소거'"
             title="음소거"
           >
             <div class="control-icon-wrapper">
@@ -193,8 +196,14 @@ const confirmEndCall = async () => {
     clearInterval(queuePollingInterval)
   }
 
+  // ARS 음성 정리
+  if (arsAudio.value) {
+    arsAudio.value.pause()
+    arsAudio.value.removeEventListener('ended', onARSAudioEnded)
+    arsAudio.value = null
+  }
+
   // TODO: 백엔드에 대기 취소 요청
-  // await api.post('/queue/cancel', { customerId: customerStore.currentCustomer?.id })
 
   callStore.endCall()
   router.push('/client')
@@ -202,10 +211,15 @@ const confirmEndCall = async () => {
 
 // ARS 음성 재생
 const playARSAudio = () => {
-  if (!arsAudio.value) {
-    arsAudio.value = new Audio(ARSvoiceFile)
+  // 기존 오디오 정리
+  if (arsAudio.value) {
+    arsAudio.value.pause()
+    arsAudio.value.currentTime = 0
+    arsAudio.value.removeEventListener('ended', onARSAudioEnded)
   }
 
+  // 새 Audio 객체 생성
+  arsAudio.value = new Audio(ARSvoiceFile)
   isARSPlaying.value = true
   console.log('[Client] ARS 음성 재생 시작')
 
@@ -219,7 +233,7 @@ const playARSAudio = () => {
     })
 
   // 음성 재생 완료 이벤트
-  arsAudio.value.addEventListener('ended', onARSAudioEnded, { once: true })
+  arsAudio.value.addEventListener('ended', onARSAudioEnded)
 }
 
 // ARS 음성 재생 완료 처리
