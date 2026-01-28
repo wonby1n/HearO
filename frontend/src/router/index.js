@@ -3,7 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-        // 로그인 페이지
+    // 로그인 페이지
     {
       path: '/login',
       name: 'login',
@@ -132,6 +132,10 @@ router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('accessToken')
   const requiresAuth = to.meta.requiresAuth
 
+  /** * 로그인 DB 미구현으로 인한 인증 체크 일시 중단
+   * 추후 DB 연결 시 아래 if-else if 블록의 주석을 해제
+   */
+  /*
   if (requiresAuth && !token) {
     // 인증 필요한데 토큰 없으면 로그인 페이지로
     next({ name: 'login', query: { redirect: to.fullPath } })
@@ -141,6 +145,10 @@ router.beforeEach((to, from, next) => {
   } else {
     next()
   }
+  */
+
+  // 임시: 모든 접근 허용
+  next()
 })
 
 export default router
