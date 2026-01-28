@@ -33,7 +33,7 @@
             stroke-width="20"
             fill="none"
           />
-          <!-- 진행 원 -->
+          <!-- 진행 원 (4단계 색상 적용) -->
           <circle
             cx="140"
             cy="140"
@@ -44,16 +44,16 @@
             stroke-linecap="round"
             :stroke-dasharray="circumference"
             :stroke-dashoffset="dashOffset"
-            class="transition-all duration-1000 ease-out"
-            :style="{ filter: `drop-shadow(0 0 6px ${statusColor}40)` }"
+            class="transition-all duration-1000 ease-in-out"
+            :style="{ filter: `drop-shadow(0 0 8px ${statusColor}60)` }"
           />
         </svg>
 
         <!-- 중앙 아이콘 -->
         <div class="absolute inset-0 flex items-center justify-center">
           <div 
-            class="p-6 rounded-full transition-colors duration-500"
-            :style="{ backgroundColor: `${statusColor}10` }"
+            class="p-6 rounded-full transition-all duration-500"
+            :style="{ backgroundColor: `${statusColor}15` }"
           >
             <svg
               class="w-16 h-16 animate-pulse-slow"
@@ -75,10 +75,13 @@
 
     <!-- 하단 메시지 섹션 -->
     <div class="mt-4 text-center">
-      <div class="inline-block px-4 py-1 rounded-full text-xs font-bold mb-2" :style="{ backgroundColor: `${statusColor}20`, color: statusColor }">
+      <div 
+        class="inline-block px-4 py-1 rounded-full text-xs font-bold mb-2 transition-colors duration-500" 
+        :style="{ backgroundColor: `${statusColor}20`, color: statusColor }"
+      >
         ENERGY LEVEL: {{ batteryLevel }}%
       </div>
-      <p class="text-2xl font-bold tracking-tight" :style="{ color: statusColor }">
+      <p class="text-2xl font-bold tracking-tight transition-colors duration-500" :style="{ color: statusColor }">
         {{ statusContent.message }}
       </p>
       <p class="text-sm text-gray-500 mt-1 font-medium">{{ statusContent.description }}</p>
@@ -95,21 +98,24 @@ const agentStore = useAgentStore()
 // 원의 둘레 고정값 (r=120)
 const circumference = 2 * Math.PI * 120
 
-onMounted(() => {
-  // 초기 데이터 로드 로직 (필요 시)
-})
-
-// 에너지 레벨 (역산 로직 유지)
+// 에너지 레벨 (100 - 스트레스 지수)
 const batteryLevel = computed(() => {
-  return Math.max(0, Math.min(100, 100 - (agentStore.stressLevel || 0)))
+  return Math.max(0, Math.min(100, 100 - (40 || 0)))
 })
 
-// 색상 로직 통합
+/**
+ * 4단계 상태 컬러 로직
+ * - 80% 이상: 파란색 (Best)
+ * - 55% ~ 79%: 노란색 (Warning/Stretch) -> 새로 추가된 단계
+ * - 30% ~ 54%: 주황색 (Tired)
+ * - 30% 미만: 빨간색 (Critical)
+ */
 const statusColor = computed(() => {
   const level = batteryLevel.value
-  if (level >= 70) return '#3d5abe' // 충분
-  if (level >= 40) return '#1F3A8C' // 보통
-  return '#ef4444' // 부족 (Danger)
+  if (level >= 80) return '#3d5abe' // 최상 (Blue)
+  if (level >= 55) return '#f59e0b' // 주의/스트레칭 필요 (Yellow/Amber)
+  if (level >= 30) return '#f97316' // 휴식 필요 (Orange)
+  return '#ef4444' // 긴급 (Red)
 })
 
 // 차트 오프셋 계산
@@ -117,26 +123,38 @@ const dashOffset = computed(() => {
   return circumference * (1 - batteryLevel.value / 100)
 })
 
-// 상태별 콘텐츠 통합 관리
+// 4단계 메시지 및 설명 관리
 const statusContent = computed(() => {
   const level = batteryLevel.value
-  if (level >= 70) return {
-    message: '최상의 컨디션!',
-    description: '현재의 긍정적인 에너지를 유지하세요.'
-  }
-  if (level >= 40) return {
-    message: '충전이 필요할지도?',
-    description: '잠시 스트레칭을 하며 환기해보세요.'
-  }
-  return {
-    message: '긴급 휴식 권고!',
-    description: '지금 바로 심호흡을 하고 5분간 휴식하세요.'
+  
+  if (level >= 80) {
+    return {
+      message: '최상의 컨디션!',
+      description: '아주 좋은 상태입니다. 지금처럼 유지하세요!'
+    }
+  } else if (level >= 55) {
+    return {
+      message: '스트레칭 어때요?',
+      description: '조금씩 피로가 쌓이고 있어요. 몸을 가볍게 풀어주세요.'
+    }
+  } else if (level >= 30) {
+    return {
+      message: '휴식이 필요해요',
+      description: '집중력이 떨어질 수 있습니다. 잠시 차 한 잔 어떠세요?'
+    }
+  } else {
+    return {
+      message: '긴급 충전 필요!',
+      description: '즉시 휴식을 취하고 심호흡을 통해 안정을 찾으세요.'
+    }
   }
 })
 
 const refreshStressLevel = async () => {
-  // API 연동 로직
-  console.log('Refreshing Energy Level...')
+  // 백엔드 API 호출 로직
+  if (agentStore.fetchStressLevel) {
+    await agentStore.fetchStressLevel()
+  }
 }
 </script>
 
@@ -158,6 +176,7 @@ const refreshStressLevel = async () => {
 }
 
 circle {
-  transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.5s ease;
+  /* 4단계 전환이 부드럽게 보이도록 transition 설정 */
+  transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.8s ease-in-out;
 }
 </style>
