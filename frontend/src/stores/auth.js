@@ -44,7 +44,7 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
 
     try {
-      const response = await axios.post('/api/auth/login', {
+      const response = await axios.post('/api/v1/auth/login', {
         email,
         password
       })
@@ -79,7 +79,7 @@ export const useAuthStore = defineStore('auth', () => {
   // 토큰 갱신
   const refreshToken = async () => {
     try {
-      const response = await axios.post('/api/auth/refresh')
+      const response = await axios.post('/api/v1/auth/refresh')
       const { token } = response.data
 
       accessToken.value = token
