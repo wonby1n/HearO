@@ -3,8 +3,16 @@
     <!-- 자동 종료 모달 -->
     <AutoTerminationModal
       :show="showAutoTerminationModal"
+      :ai-summary="aiSummary"
+      v-model:memo="memo"
       @confirm="handleAutoTerminationConfirm"
-      @close="handleAutoTerminationConfirm"
+    />
+
+    <ManualEndCallModal
+      :show="showManualEndModal"
+      :ai-summary="aiSummary"
+      v-model:memo="memo"
+      @confirm="handleManualEndConfirm"
     />
 
     <!-- 상단 헤더 -->
@@ -25,7 +33,7 @@
             :isPaused="isPaused"
             @mute-changed="handleMuteChanged"
             @pause-changed="handlePauseChanged"
-            @call-ended="handleEndCall"
+            @call-end-requested="handleManualEndRequest"
           />
         </div>
       </div>
@@ -120,7 +128,7 @@
               <h4 class="text-sm font-semibold text-gray-900 mb-3">메모</h4>
               <textarea
                 v-model="memo"
-                placeholder="상담 메모를 입력하세요..."
+                placeholder="상담 메모를 입력하세요."
                 class="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
               ></textarea>
             </section>
@@ -139,6 +147,7 @@ import CustomerInfoPanel from '@/components/counselor/CustomerInfoPanel.vue'
 import STTChatPanel from '@/components/counselor/STTChatPanel.vue'
 import CounselorCallControls from '@/components/counselor/CounselorCallControls.vue'
 import AutoTerminationModal from '@/components/call/AutoTerminationModal.vue'
+import ManualEndCallModal from '@/components/call/ManualEndCallModal.vue'
 import { mockCustomerInfo, mockSttMessages } from '@/mocks/counselor'
 import { fetchCustomerData } from '@/services/customerService'
 import { useNotificationStore } from '@/stores/notification'
@@ -157,6 +166,7 @@ const isPaused = ref(false)
 
 // 자동 종료 모달
 const showAutoTerminationModal = ref(false)
+const showManualEndModal = ref(false)
 
 // 자동 종료 감지
 watch(() => callStore.autoTerminationTriggered, (triggered) => {
@@ -176,6 +186,7 @@ const sttMessages = ref(mockSttMessages)
 // AI 가이드
 const searchQuery = ref('')
 const memo = ref('')
+const aiSummary = ref('')
 
 // 고객 정보 로드
 const loadCustomerData = async () => {
@@ -220,7 +231,20 @@ const handleEndCall = async () => {
     console.error('통화 종료 실패:', error)
     // TODO: 에러 토스트 표시
   }
+
 }
+
+// Manual end modal request
+const handleManualEndRequest = () => {
+  showManualEndModal.value = true
+}
+
+// Manual end modal confirm
+const handleManualEndConfirm = async () => {
+  showManualEndModal.value = false
+  await handleEndCall()
+}
+
 
 // 자동 종료 모달 확인 핸들러
 const handleAutoTerminationConfirm = async () => {

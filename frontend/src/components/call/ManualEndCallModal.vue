@@ -3,30 +3,12 @@
     <div v-if="isVisible" class="modal-overlay">
       <div class="modal-container">
         <CallEndModalContent
-          title="통화가 자동 종료되었습니다"
-          :message="'고객의 반복적인 폭언으로 인해\n통화가 자동으로 종료되었습니다.'"
+          title="통화가 종료되었습니다"
+          :message="'통화가 정상적으로 종료되었습니다.\n상담 요약과 메모를 확인해 주세요.'"
           :ai-summary="aiSummary"
           :memo="memo"
           @update:memo="emit('update:memo', $event)"
-        >
-          <template #extra>
-            <div class="ai-transfer-notice">
-              <svg class="bot-icon" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5-9h2v2H7v-2zm8 0h2v2h-2v-2zm-4 4h2v2h-2v-2z"/>
-              </svg>
-              <p class="ai-message">
-                고객은 AI 상담사로 자동 전환되었습니다.
-              </p>
-            </div>
-
-            <div class="info-box">
-              <p class="info-text">
-                • 해당 고객은 블랙리스트에 등록됩니다<br>
-                • 향후 이 고객의 상담은 자동으로 배정되지 않습니다
-              </p>
-            </div>
-          </template>
-        </CallEndModalContent>
+        />
 
         <div class="button-container">
           <button
@@ -69,7 +51,6 @@ watch(() => props.show, (newValue) => {
   isVisible.value = newValue
 })
 
-
 const handleConfirm = () => {
   emit('confirm')
 }
@@ -96,10 +77,10 @@ const handleConfirm = () => {
   padding: 32px;
   max-width: 560px;
   width: 100%;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  animation: modalSlideUp 0.3s ease-out;
   max-height: 85vh;
   overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  animation: modalSlideUp 0.3s ease-out;
 }
 
 @keyframes modalSlideUp {
@@ -113,44 +94,6 @@ const handleConfirm = () => {
   }
 }
 
-.ai-transfer-notice {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 12px;
-  padding: 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.bot-icon {
-  width: 24px;
-  height: 24px;
-  color: #3b82f6;
-  flex-shrink: 0;
-}
-
-.ai-message {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1e40af;
-  margin: 0;
-}
-
-.info-box {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 16px;
-}
-
-.info-text {
-  font-size: 13px;
-  color: #6b7280;
-  line-height: 1.7;
-  margin: 0;
-}
-
 .button-container {
   display: flex;
   justify-content: center;
@@ -158,7 +101,7 @@ const handleConfirm = () => {
 
 .confirm-button {
   padding: 12px 32px;
-  background: #dc2626;
+  background: #2563eb;
   color: white;
   border: none;
   border-radius: 10px;
@@ -170,7 +113,7 @@ const handleConfirm = () => {
 }
 
 .confirm-button:hover {
-  background: #b91c1c;
+  background: #1d4ed8;
 }
 
 .confirm-button:active {
