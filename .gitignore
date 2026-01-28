@@ -17,6 +17,7 @@ Thumbs.db
 pg_data/
 redis_data/
 jenkins_home/
+chroma_data/
 
 # 4. claude 폴더
 thoughts/

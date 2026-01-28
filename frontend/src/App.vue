@@ -4,10 +4,27 @@ import NotificationContainer from '@/components/notification/NotificationContain
 </script>
 
 <template>
-  <RouterView />
-  <NotificationContainer position="top-right" />
+  <RouterView v-slot="{ Component }">
+    <Transition name="page" mode="out-in">
+      <component :is="Component" />
+    </Transition>
+  </RouterView>
 </template>
 
 <style scoped>
-/* App 레벨 스타일 */
+/* 페이지 전환 애니메이션 */
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+.page-leave-to {
+  opacity: 0;
+  transform: translateX(-20px);
+}
 </style>

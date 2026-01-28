@@ -1,6 +1,6 @@
 ## 🎫 JIRA Issue
 
-- Issue: [S14P11E106-000](https://your-jira.atlassian.net/browse/S14P11E106-000)
+- Issue: [S14P11E106-000](https://ssafy.atlassian.net/browse/S14P11E106-000)
 - Type: Story / Task / Bug
 - Sprint: Sprint 1
 
@@ -25,8 +25,3 @@
 ## 📎 스크린샷
 
 (필요 시 첨부)
-
-## 🔗 관련 MR
-
-- Depends on: !12
-- Related to: !15

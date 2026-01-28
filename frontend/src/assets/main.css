@@ -1,17 +1,17 @@
 @import "tailwindcss";
 
-/* HearO 프로젝트 커스텀 테마 */
+/* HearO 프로젝트 커스텀 테마 - 남색(Navy) 기반 */
 @theme {
-  --color-primary-50: #f0f9ff;
-  --color-primary-100: #e0f2fe;
-  --color-primary-200: #bae6fd;
-  --color-primary-300: #7dd3fc;
-  --color-primary-400: #38bdf8;
-  --color-primary-500: #0ea5e9;
-  --color-primary-600: #0284c7;
-  --color-primary-700: #0369a1;
-  --color-primary-800: #075985;
-  --color-primary-900: #0c4a6e;
+  --color-primary-50: #f0f3ff;
+  --color-primary-100: #e0e7ff;
+  --color-primary-200: #c7d2fe;
+  --color-primary-300: #a5b4fc;
+  --color-primary-400: #818cf8;
+  --color-primary-500: #3d5abe;
+  --color-primary-600: #1F3A8C; /* 메인 컬러 - 피그마 기준 */
+  --color-primary-700: #1a3278;
+  --color-primary-800: #152a64;
+  --color-primary-900: #0f1f4a;
 
   --color-success: #10b981;
   --color-success-light: #d1fae5;
@@ -31,12 +31,20 @@
     @apply box-border;
   }
 
+  html, body {
+    font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+  }
+
   body {
     @apply bg-gray-50 text-gray-900 antialiased;
   }
 
   button {
     @apply transition-all duration-200;
+  }
+
+  input, textarea, select {
+    font-family: inherit;
   }
 }
 
