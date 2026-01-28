@@ -11,7 +11,7 @@ import NotificationContainer from '@/components/notification/NotificationContain
   </RouterView>
 </template>
 
-<style>
+<style scoped>
 /* 페이지 전환 애니메이션 */
 .page-enter-active,
 .page-leave-active {

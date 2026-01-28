@@ -2,6 +2,11 @@ import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 
 export const useDashboardStore = defineStore('dashboard', () => {
+  // 개발 환경에서 콘솔 테스트 활성화
+  if (import.meta.env.DEV) {
+    // 나중에 window에 노출
+  }
+
   // 주간 실적 데이터 (월~금)
   const weeklyPerformance = ref([
     { day: 'Mon', calls: 20 },
@@ -89,16 +94,28 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
   const fetchWaitingCustomers = async () => {
     try {
-      // TODO: WebSocket 또는 폴링으로 실시간 업데이트
-      // const response = await fetch('/api/dashboard/waiting-customers')
+      // TODO: REST API로 초기 대기 고객 수 조회
+      // const response = await fetch('/api/v1/users/me/dashboard', {
+      //   headers: {
+      //     'Authorization': `Bearer ${getAccessToken()}`
+      //   }
+      // })
       // if (!response.ok) throw new Error('대기 고객 수를 불러오지 못했습니다')
       // const data = await response.json()
-      // waitingCustomers.value = data.count
+      // waitingCustomers.value = data.waitingCustomers
       console.log('fetchWaitingCustomers - API 연동 대기 중')
     } catch (error) {
       console.error('대기 고객 수 조회 실패:', error)
       // TODO: 사용자에게 에러 메시지 표시 (Toast/Snackbar 등)
     }
+  }
+
+  /**
+   * 대기 고객 수 업데이트 (WebSocket 이벤트 핸들러)
+   * @param {number} count - 새로운 대기 고객 수
+   */
+  const updateWaitingCustomers = (count) => {
+    waitingCustomers.value = count
   }
 
   // Todo 목록 조회 (백엔드 연동 시 사용)
@@ -211,7 +228,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
     // }
   }
 
-  return {
+  const store = {
     // State
     weeklyPerformance,
     totalCallTime,
@@ -225,9 +242,17 @@ export const useDashboardStore = defineStore('dashboard', () => {
     fetchWeeklyPerformance,
     fetchStats,
     fetchWaitingCustomers,
+    updateWaitingCustomers,
     fetchTodos,
     toggleTodo,
     addTodo,
     deleteTodo
   }
+
+  // 개발 환경에서 콘솔 테스트용으로 store 노출
+  if (import.meta.env.DEV) {
+    window.__DEV_DASHBOARD_STORE__ = store
+  }
+
+  return store
 })

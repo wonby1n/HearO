@@ -1,9 +1,7 @@
 services:
-  # 1. Spring Boot 백엔드 (예시)
+  # 1. Spring Boot 백엔드
   backend:
-    build: 
-      context: ../backend
-      dockerfile: Dockerfile
+    image: hjh1248/hearo-backend:latest
     container_name: spring-backend
     restart: always
     ports:
@@ -11,13 +9,11 @@ services:
     env_file:              
       - ./.env
     networks:
-      - ssafy-network # infra에서 만든 네트워크에 무임승차!
+      - ssafy-network 
 
-  # 2. Vue.js 프론트엔드 (예시)
+  # 2. Vue.js 프론트엔드
   frontend:
-    build:
-      context: ../frontend
-      dockerfile: Dockerfile
+    image: hjh1248/hearo-frontend:latest
     container_name: vue-frontend
     restart: always
     ports:

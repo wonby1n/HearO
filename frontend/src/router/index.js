@@ -25,6 +25,42 @@ const router = createRouter({
           }
         },
         {
+          path: 'waiting',
+          name: 'client-waiting',
+          component: () => import('@/views/client/ClientWaitingView.vue'),
+          meta: {
+            title: '상담 대기',
+            role: 'client'
+          }
+        },
+        {
+          path: 'consultation/info',
+          name: 'client-consultation-info',
+          component: () => import('@/views/client/ClientConsultationInfoView.vue'),
+          meta: {
+            title: '상담 신청',
+            role: 'client'
+          }
+        },
+        {
+          path: 'consultation/verification',
+          name: 'client-consultation-verification',
+          component: () => import('@/views/client/ClientConsultationVerificationView.vue'),
+          meta: {
+            title: '본인 확인',
+            role: 'client'
+          }
+        },
+        {
+          path: 'consultation/consent',
+          name: 'client-consultation-consent',
+          component: () => import('@/views/client/ClientConsultationConsentView.vue'),
+          meta: {
+            title: '약관 동의',
+            role: 'client'
+          }
+        },
+        {
           path: 'call',
           name: 'client-call',
           component: () => import('@/views/client/ClientCallView.vue'),
