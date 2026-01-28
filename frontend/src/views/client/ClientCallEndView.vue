@@ -35,6 +35,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { CALL_END_REDIRECT_DELAY_MS } from '@/constants/call'
 
 const route = useRoute()
 const router = useRouter()
@@ -51,16 +52,23 @@ const formattedDuration = computed(() => {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 })
 
+// 설정된 시간 후 만족도 조사 페이지로 이동
+let redirectTimer = null
 
-const clientReview = () => {
-  router.push({ name: 'client-review'})
-}
+onMounted(() => {
+  redirectTimer = setTimeout(() => {
+    router.push({
+      name: 'client-review',
+      query: { consultationId: route.query.consultationId }
+    })
+  }, CALL_END_REDIRECT_DELAY_MS)
+})
 
-const handleReconnect = () => {
-  router.push({ name: 'client-waiting'})
-}
-
-
+onUnmounted(() => {
+  if (redirectTimer) {
+    clearTimeout(redirectTimer)
+  }
+})
 </script>
 
 <style scoped>

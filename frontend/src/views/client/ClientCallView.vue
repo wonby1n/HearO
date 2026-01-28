@@ -1,5 +1,30 @@
 <template>
   <div class="client-call-view">
+    <!-- 자동 종료 모달 -->
+    <Teleport to="body">
+      <div
+        v-if="showAutoTerminationModal"
+        class="modal-overlay"
+      >
+        <div class="modal-content auto-term">
+          <div class="icon-container warning">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+          </div>
+          <h3 class="modal-title">통화가 종료되었습니다</h3>
+          <p class="modal-message center">
+            서비스 정책에 따라 통화가 종료되었습니다.<br>
+            AI 상담사로 전환됩니다.
+          </p>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- 메인 컨텐츠 -->
     <div class="main-content">
@@ -97,19 +122,65 @@
       </div>
     </div>
 
+    <!-- 통화 종료 확인 모달 -->
+    <Teleport to="body">
+      <div
+        v-if="showConfirmModal"
+        class="modal-overlay"
+        @click.self="closeConfirmModal"
+      >
+        <div class="modal-content">
+          <h3 class="modal-title">통화 종료</h3>
+          <p class="modal-message">상담을 종료하시겠습니까?</p>
+          <div class="modal-actions">
+            <button @click="closeConfirmModal" class="modal-btn cancel">취소</button>
+            <button @click="confirmEndCall" class="modal-btn confirm">종료</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- 개발 모드 전용: 폭언 테스트 버튼 -->
+    <div v-if="isDev" class="dev-test-panel">
+      <div class="dev-panel-header">
+        <span class="dev-badge">DEV</span>
+        <span class="dev-title">폭언 테스트</span>
+      </div>
+      <div class="dev-panel-content">
+        <div class="dev-status">
+          <span>{{ callStore.currentCall.profanityCount }} / 3회</span>
+          <span v-if="callStore.autoTerminationTriggered" class="triggered">🚨 트리거됨</span>
+        </div>
+        <div class="dev-buttons">
+          <button @click="testAddProfanity" class="dev-btn add">
+            폭언 +1
+          </button>
+          <button @click="testTriggerNow" class="dev-btn trigger">
+            즉시 종료
+          </button>
+          <button @click="testReset" class="dev-btn reset">
+            리셋
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCallStore } from '@/stores/call'
 import { useCustomerStore } from '@/stores/customer'
 import { useLiveKit } from '@/composables/useLiveKit'
+import { AUTO_TERMINATION_REDIRECT_DELAY_MS } from '@/constants/call'
 
 const router = useRouter()
 const callStore = useCallStore()
 const customerStore = useCustomerStore()
+
+// 개발 모드 체크
+const isDev = import.meta.env.DEV
 
 // LiveKit composable
 const {
@@ -144,8 +215,38 @@ const queuePosition = ref(3) // 테스트용 대기 순번
 const isMuted = ref(false)
 const isSpeakerOn = ref(true)
 const showConfirmModal = ref(false)
+const showAutoTerminationModal = ref(false)
 
 let timerInterval = null
+let autoRedirectTimer = null
+
+// 자동 종료 감지
+watch(() => callStore.autoTerminationTriggered, (triggered) => {
+  if (triggered) {
+    showAutoTerminationModal.value = true
+
+    // 설정된 시간 후 자동으로 종료 화면으로 이동
+    autoRedirectTimer = setTimeout(async () => {
+      try {
+        const finalDuration = callDuration.value
+
+        if (timerInterval) {
+          clearInterval(timerInterval)
+        }
+
+        await disconnect()
+        callStore.resetCall()
+
+        router.push({
+          name: 'client-call-end',
+          query: { duration: finalDuration, autoTerminated: 'true' }
+        })
+      } catch (error) {
+        console.error('[ClientCall] 자동 종료 처리 실패:', error)
+      }
+    }, AUTO_TERMINATION_REDIRECT_DELAY_MS)
+  }
+})
 
 // 통화 시간 포맷팅 (mm:ss)
 const formattedCallDuration = computed(() => {
@@ -199,6 +300,30 @@ const handleDisconnected = (reason) => {
   }
 }
 
+// ========================================
+// 개발 모드 전용: 테스트 함수들
+// ========================================
+
+// 폭언 1회 추가
+const testAddProfanity = () => {
+  callStore.incrementProfanityCount()
+  console.log(`[TEST] 폭언 ${callStore.currentCall.profanityCount}/3회`)
+}
+
+// 즉시 자동 종료 트리거
+const testTriggerNow = () => {
+  callStore.currentCall.profanityCount = 3
+  callStore.autoTerminationTriggered = true
+  console.log('[TEST] 자동 종료 즉시 트리거! 3초 후 이동합니다.')
+}
+
+// 폭언 카운트 리셋
+const testReset = () => {
+  callStore.currentCall.profanityCount = 0
+  callStore.autoTerminationTriggered = false
+  console.log('[TEST] 폭언 카운트 리셋 완료')
+}
+
 // 컴포넌트 마운트 시 초기화
 onMounted(async () => {
   // 테스트용 고객 정보 설정
@@ -239,6 +364,10 @@ onMounted(async () => {
 onUnmounted(async () => {
   if (timerInterval) {
     clearInterval(timerInterval)
+  }
+
+  if (autoRedirectTimer) {
+    clearTimeout(autoRedirectTimer)
   }
 
   if (isConnected.value) {
@@ -511,5 +640,135 @@ onUnmounted(async () => {
 
 .modal-btn.confirm:hover {
   background-color: #dc2626;
+}
+
+/* 자동 종료 모달 */
+.modal-content.auto-term {
+  max-width: 360px;
+  text-align: center;
+}
+
+.icon-container.warning {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 20px;
+  background: #fef2f2;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-container.warning svg {
+  width: 32px;
+  height: 32px;
+  color: #dc2626;
+}
+
+.modal-message.center {
+  text-align: center;
+  line-height: 1.6;
+}
+
+/* 개발 모드 전용: 테스트 패널 */
+.dev-test-panel {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: white;
+  border: 2px solid #3b82f6;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 9999;
+  min-width: 200px;
+}
+
+.dev-panel-header {
+  background: #3b82f6;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 10px 10px 0 0;
+}
+
+.dev-badge {
+  background: #1e40af;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.dev-title {
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dev-panel-content {
+  padding: 12px;
+}
+
+.dev-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 8px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.dev-status .triggered {
+  color: #dc2626;
+  font-size: 12px;
+}
+
+.dev-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dev-btn {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dev-btn.add {
+  background: #fbbf24;
+  color: #78350f;
+}
+
+.dev-btn.add:hover {
+  background: #f59e0b;
+}
+
+.dev-btn.trigger {
+  background: #ef4444;
+  color: white;
+}
+
+.dev-btn.trigger:hover {
+  background: #dc2626;
+}
+
+.dev-btn.reset {
+  background: #e5e7eb;
+  color: #475569;
+}
+
+.dev-btn.reset:hover {
+  background: #d1d5db;
 }
 </style>

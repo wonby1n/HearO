@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { PROFANITY_AUTO_TERMINATION_THRESHOLD } from '@/constants/call'
 
 export const useCallStore = defineStore('call', () => {
   // 현재 통화 정보
@@ -100,6 +101,7 @@ export const useCallStore = defineStore('call', () => {
     livekitRoom.value = null
     audioTrack.value = null
     connectionError.value = null
+    autoTerminationTriggered.value = false
   }
 
   // 연결 중 여부
@@ -115,9 +117,18 @@ export const useCallStore = defineStore('call', () => {
     })
   }
 
+  // 자동 종료 트리거 상태
+  const autoTerminationTriggered = ref(false)
+
   // 욕설 카운트 증가
   const incrementProfanityCount = () => {
     currentCall.value.profanityCount++
+
+    // 임계값 도달 시 자동 종료 트리거
+    if (currentCall.value.profanityCount >= PROFANITY_AUTO_TERMINATION_THRESHOLD && !autoTerminationTriggered.value) {
+      autoTerminationTriggered.value = true
+    }
+
     return currentCall.value.profanityCount
   }
 
@@ -151,6 +162,7 @@ export const useCallStore = defineStore('call', () => {
     transcripts,
     callMemo,
     connectionError,
+    autoTerminationTriggered,
     // Getters
     isInCall,
     isConnecting,
