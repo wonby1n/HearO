@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="client-waiting-view">
 
     <!-- 메인 컨텐츠 -->
@@ -131,16 +131,137 @@ const callStore = useCallStore()
 const customerStore = useCustomerStore()
 
 // 상태 관리
-const queuePosition = ref(3) // 대기 순번 (추후 백엔드 연동)
+const queuePosition = ref(customerStore.queueInfo.position || 0) // 대기 순번 (추후 백엔드 연동)
 const isMuted = ref(false)
 const isSpeakerOn = ref(true)
 const showConfirmModal = ref(false)
 const arsAudio = ref(null)
 const isARSPlaying = ref(false)
+const queueSocket = ref(null)
 
 let queuePollingInterval = null
+let queueSocketReconnectTimeout = null
+let shouldReconnect = true
+const QUEUE_SOCKET_RECONNECT_DELAY = 3000
 
-// 대기열 순번 조회 (백엔드 연동용)
+const getQueueSocketUrl = () => {
+  const configuredBase = import.meta.env.VITE_WS_BASE_URL
+  let baseUrl = configuredBase?.replace(/\/$/, '')
+
+  if (baseUrl) {
+    if (baseUrl.startsWith('http://')) {
+      baseUrl = `ws://${baseUrl.slice(7)}`
+    } else if (baseUrl.startsWith('https://')) {
+      baseUrl = `wss://${baseUrl.slice(8)}`
+    }
+  } else {
+    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
+    baseUrl = `${protocol}://${window.location.host}`
+  }
+
+  return `${baseUrl}/api/v1/consultations/wait`
+}
+
+const startQueuePolling = () => {
+  if (queuePollingInterval) return
+  queuePollingInterval = setInterval(fetchQueuePosition, 5000)
+}
+
+const stopQueuePolling = () => {
+  if (queuePollingInterval) {
+    clearInterval(queuePollingInterval)
+    queuePollingInterval = null
+  }
+}
+
+const parseQueueMessage = (rawData) => {
+  try {
+    return JSON.parse(rawData)
+  } catch (error) {
+    console.error('[QueueWS] message parse failed:', error)
+    return null
+  }
+}
+
+const handleQueueStatusMessage = (payload) => {
+  if (!payload) return
+  if (payload.type && payload.type !== 'queue_status') return
+
+  if (typeof payload.queue_position === 'number') {
+    const isWaiting = payload.status ? payload.status === 'waiting' : true
+    updateQueuePosition(payload.queue_position, isWaiting)
+  } else if (typeof payload.status === 'string') {
+    customerStore.updateQueueInfo({ isWaiting: payload.status === 'waiting' })
+  }
+}
+
+const scheduleQueueSocketReconnect = () => {
+  if (!shouldReconnect || queueSocketReconnectTimeout) return
+  queueSocketReconnectTimeout = setTimeout(() => {
+    queueSocketReconnectTimeout = null
+    connectQueueSocket()
+  }, QUEUE_SOCKET_RECONNECT_DELAY)
+}
+
+const clearQueueSocketReconnect = () => {
+  if (queueSocketReconnectTimeout) {
+    clearTimeout(queueSocketReconnectTimeout)
+    queueSocketReconnectTimeout = null
+  }
+}
+
+const connectQueueSocket = () => {
+  const customerId = customerStore.currentCustomer?.id
+  if (!customerId) {
+    console.warn('[QueueWS] customerId missing - skip WebSocket connect')
+    return
+  }
+
+  const socketUrl = getQueueSocketUrl()
+
+  if (queueSocket.value) {
+    queueSocket.value.close()
+    queueSocket.value = null
+  }
+
+  shouldReconnect = true
+  clearQueueSocketReconnect()
+
+  const socket = new WebSocket(socketUrl)
+  queueSocket.value = socket
+
+  socket.addEventListener('open', () => {
+    stopQueuePolling()
+    clearQueueSocketReconnect()
+  })
+
+  socket.addEventListener('message', (event) => {
+    handleQueueStatusMessage(parseQueueMessage(event.data))
+  })
+
+  socket.addEventListener('close', () => {
+    queueSocket.value = null
+    if (shouldReconnect) {
+      startQueuePolling()
+      scheduleQueueSocketReconnect()
+    }
+  })
+
+  socket.addEventListener('error', (error) => {
+    console.error('[QueueWS] socket error:', error)
+  })
+}
+
+const disconnectQueueSocket = () => {
+  shouldReconnect = false
+  clearQueueSocketReconnect()
+
+  if (queueSocket.value) {
+    queueSocket.value.close()
+    queueSocket.value = null
+  }
+}
+// Queue position fetch (TODO: backend integration)
 const fetchQueuePosition = async () => {
   try {
     // TODO: 백엔드 API 연동
@@ -160,9 +281,10 @@ const fetchQueuePosition = async () => {
 }
 
 // 대기열 순번 업데이트 (외부에서 호출 가능)
-const updateQueuePosition = (newPosition) => {
-  if (newPosition >= 0) {
+const updateQueuePosition = (newPosition, isWaiting = true) => {
+  if (Number.isFinite(newPosition) && newPosition >= 0) {
     queuePosition.value = newPosition
+    customerStore.updateQueueInfo({ position: newPosition, isWaiting })
   }
 }
 
@@ -192,9 +314,8 @@ const closeConfirmModal = () => {
 const confirmEndCall = async () => {
   showConfirmModal.value = false
 
-  if (queuePollingInterval) {
-    clearInterval(queuePollingInterval)
-  }
+  stopQueuePolling()
+  disconnectQueueSocket()
 
   // ARS 음성 정리
   if (arsAudio.value) {
@@ -280,22 +401,16 @@ onMounted(async () => {
   await fetchQueuePosition()
 
   // 주기적으로 대기 순번 업데이트 (5초마다)
-  queuePollingInterval = setInterval(fetchQueuePosition, 5000)
+  startQueuePolling()
 
-  // TODO: WebSocket 연결로 실시간 대기 순번 업데이트
-  // socket.on('queue:update', (data) => {
-  //   updateQueuePosition(data.position)
-  // })
-
-  // TODO: 상담원 연결 이벤트 수신
-  // socket.on('agent:connected', onAgentConnected)
+  // WebSocket 연결로 실시간 대기 순번 업데이트
+  connectQueueSocket()
 })
 
 // 컴포넌트 언마운트 시 정리
 onUnmounted(() => {
-  if (queuePollingInterval) {
-    clearInterval(queuePollingInterval)
-  }
+  stopQueuePolling()
+  disconnectQueueSocket()
 
   // ARS 오디오 정리
   if (arsAudio.value) {
@@ -304,9 +419,6 @@ onUnmounted(() => {
     arsAudio.value = null
   }
 
-  // TODO: WebSocket 이벤트 해제
-  // socket.off('queue:update')
-  // socket.off('agent:connected')
 })
 
 // 외부에서 사용할 수 있도록 노출
@@ -571,3 +683,4 @@ defineExpose({
   background-color: #dc2626;
 }
 </style>
+
