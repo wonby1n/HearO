@@ -4,7 +4,7 @@
       <!-- 좌측: 인사말 + 날짜/시간 -->
       <div>
         <h2 class="text-3xl font-bold text-gray-900">
-          어서오세요, {{ agentStore.agentInfo.name }}
+          어서오세요, {{ authStore.user?.name || '상담원' }}님
         </h2>
         <p class="text-base text-gray-500 mt-2">
           {{ formattedDateTime }}
@@ -50,7 +50,6 @@
             >
               {{ dashboardStore.waitingCustomers }}명
             </span>
-            <!-- 증감 표시 -->
             <Transition name="count-change">
               <span
                 v-if="countChange !== 0"
@@ -72,23 +71,22 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { useAgentStore } from '@/stores/agent'
+import axios from 'axios'
+import { useAuthStore } from '@/stores/auth'
 import { useDashboardStore } from '@/stores/dashboard'
-import { useWebSocket } from '@/composables/useWebSocket'
 
-const agentStore = useAgentStore()
+const authStore = useAuthStore()
 const dashboardStore = useDashboardStore()
 
-// 현재 날짜/시간
 const currentTime = ref(new Date())
-
-// 대기 고객 수 애니메이션
 const isCountAnimating = ref(false)
 const countChange = ref(0)
 let countChangeTimer = null
 let countAnimationTimer = null
+let clockInterval = null
+let heartbeatInterval = null
+let isRequestPending = false // 중복 요청 방지 플래그
 
-// 날짜/시간 포맷팅
 const formattedDateTime = computed(() => {
   const date = currentTime.value
   const year = date.getFullYear()
@@ -98,170 +96,150 @@ const formattedDateTime = computed(() => {
   const weekday = weekdays[date.getDay()]
   const hours = String(date.getHours()).padStart(2, '0')
   const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
 
-  return `${year}년 ${month}월 ${day}일 ${weekday} ${hours}:${minutes}`
+  return `${year}년 ${month}월 ${day}일 ${weekday} ${hours}:${minutes}:${seconds}`
 })
 
-// 상담 상태 텍스트
 const formattedCallStatus = computed(() => {
-  if (dashboardStore.consultationStatus.isActive) {
-    return '통화 대기 중'
-  } else {
-    return '클릭하여 상담 시작'
-  }
+  return dashboardStore.consultationStatus.isActive ? '통화 대기 중' : '클릭하여 상담 시작'
 })
 
-// 상담 상태 토글
-const toggleConsultationStatus = () => {
-  dashboardStore.consultationStatus.isActive = !dashboardStore.consultationStatus.isActive
-
-  // TODO: Heartbeat 기술로 백엔드에 상태 전송
-  // if (dashboardStore.consultationStatus.isActive) {
-  //   startHeartbeat()
-  // } else {
-  //   stopHeartbeat()
-  // }
+/**
+ * 하트비트 전송 함수
+ * @param {boolean} forceStatus - 강제로 보낼 상태값 (없으면 현재 스토어 상태 사용)
+ */
+const sendHeartbeat = async (forceStatus = null) => {
+  if (isRequestPending && forceStatus === null) return // 주기적 호출 시 중복 방지
+  
+  isRequestPending = true
+  try {
+    const status = forceStatus !== null ? forceStatus : !!dashboardStore.consultationStatus.isActive
+    await axios.post('/api/v1/users/me/heartbeat', {
+      isHeartbeatActive: status
+    })
+    console.log(`[Heartbeat] 전송됨: ${status}`)
+  } catch (error) {
+    console.error('[Heartbeat] 전송 실패:', error)
+  } finally {
+    isRequestPending = false
+  }
 }
 
-// 실시간 시계 타이머
-let clockInterval = null
+const startHeartbeat = () => {
+  stopHeartbeat()
+  sendHeartbeat()
+  heartbeatInterval = setInterval(() => sendHeartbeat(), 10000)
+}
 
-// WebSocket 연결 (TODO: 백엔드 엔드포인트 확정 후 활성화)
-// 환경변수 설정: .env 파일에 VITE_WS_URL=ws://your-server/api/v1/dashboard/queue-updates 추가
-// const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8080/api/v1/dashboard/queue-updates'
-// const { connect: connectWS, disconnect: disconnectWS } = useWebSocket(
-//   wsUrl,
-//   {
-//     onMessage: (data) => {
-//       if (data.type === 'waiting_customers_update') {
-//         dashboardStore.updateWaitingCustomers(data.count)
-//       }
-//     },
-//     onOpen: () => {
-//       console.log('[Dashboard] WebSocket 연결 성공')
-//     },
-//     onError: (error) => {
-//       console.error('[Dashboard] WebSocket 에러:', error)
-//     }
-//   }
-// )
+const stopHeartbeat = () => {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval)
+    heartbeatInterval = null
+    console.log('[Heartbeat] 타이머 중지')
+  }
+}
 
-// 대기 고객 수 변경 감지 및 애니메이션 트리거
+/**
+ * 브라우저 종료 대응 로직
+ * 탭을 닫을 때 fetch keepalive를 사용하여 서버에 마지막 OFF 신호를 전송합니다.
+ */
+const handleBeforeUnload = () => {
+  if (dashboardStore.consultationStatus.isActive) {
+    const url = '/api/v1/users/me/heartbeat'
+    const payload = JSON.stringify({ isHeartbeatActive: false })
+    
+    // fetch keepalive는 페이지가 종료되어도 요청이 완료될 때까지 유지됩니다.
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: payload,
+      keepalive: true
+    })
+  }
+}
+
+const toggleConsultationStatus = () => {
+  dashboardStore.consultationStatus.isActive = !dashboardStore.consultationStatus.isActive
+}
+
+// 상담 상태 실시간 감시 (강제 종료 대응)
+watch(
+  () => dashboardStore.consultationStatus.isActive,
+  (isActive) => {
+    if (isActive) {
+      startHeartbeat()
+    } else {
+      sendHeartbeat(false) // 즉시 OFF 신호 전송
+      stopHeartbeat()
+    }
+  }
+)
+
+// 대기 고객 수 애니메이션
 watch(
   () => dashboardStore.waitingCustomers,
   (newCount, oldCount) => {
     if (oldCount !== undefined && newCount !== oldCount) {
-      // 기존 애니메이션 타이머 취소
-      if (countAnimationTimer) {
-        clearTimeout(countAnimationTimer)
-      }
-
-      // 애니메이션 트리거
+      if (countAnimationTimer) clearTimeout(countAnimationTimer)
       isCountAnimating.value = true
-      countAnimationTimer = setTimeout(() => {
-        isCountAnimating.value = false
-      }, 600)
+      countAnimationTimer = setTimeout(() => { isCountAnimating.value = false }, 600)
 
-      // 증감 표시
       const change = newCount - oldCount
       countChange.value = change
-
-      // 기존 타이머 취소
-      if (countChangeTimer) {
-        clearTimeout(countChangeTimer)
-      }
-
-      // 2초 후 증감 표시 제거
-      countChangeTimer = setTimeout(() => {
-        countChange.value = 0
-      }, 2000)
+      if (countChangeTimer) clearTimeout(countChangeTimer)
+      countChangeTimer = setTimeout(() => { countChange.value = 0 }, 2000)
     }
   }
 )
 
 onMounted(() => {
-  // 1초마다 시간 업데이트
   clockInterval = setInterval(() => {
     currentTime.value = new Date()
   }, 1000)
 
-  // TODO: WebSocket 연결 (백엔드 준비 후 활성화)
-  // connectWS()
+  // 윈도우 종료 이벤트 리스너 등록
+  window.addEventListener('beforeunload', handleBeforeUnload)
 
-  // TODO: 초기 대기 고객 수 조회 (백엔드 API 준비 후 활성화)
-  // dashboardStore.fetchWaitingCustomers()
+  if (dashboardStore.consultationStatus.isActive) {
+    startHeartbeat()
+  }
 })
 
 onUnmounted(() => {
-  if (clockInterval) {
-    clearInterval(clockInterval)
-  }
-
-  if (countChangeTimer) {
-    clearTimeout(countChangeTimer)
-  }
-
-  if (countAnimationTimer) {
-    clearTimeout(countAnimationTimer)
-  }
-
-  // TODO: WebSocket 연결 해제 (백엔드 준비 후 활성화)
-  // disconnectWS()
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+  if (clockInterval) clearInterval(clockInterval)
+  stopHeartbeat()
+  if (countChangeTimer) clearTimeout(countChangeTimer)
+  if (countAnimationTimer) clearTimeout(countAnimationTimer)
 })
 </script>
 
 <style scoped>
-/* DashboardHeader 전용 스타일 */
-
-/* 대기 고객 수 변경 시 펄스 애니메이션 */
 .customer-count-pulse {
   animation: customerCountPulse 0.6s ease-out;
 }
 
 @keyframes customerCountPulse {
-  0% {
-    transform: scale(1);
-  }
-  25% {
-    transform: scale(1.2);
-    color: #2563eb;
-  }
-  50% {
-    transform: scale(1.1);
-  }
-  100% {
-    transform: scale(1);
-  }
+  0% { transform: scale(1); }
+  25% { transform: scale(1.2); color: #2563eb; }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
 }
 
-/* 증감 표시 애니메이션 */
 .count-change-enter-active {
   animation: countChangeIn 0.3s ease-out;
 }
-
 .count-change-leave-active {
   animation: countChangeOut 0.3s ease-in;
 }
 
 @keyframes countChangeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.8);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  from { opacity: 0; transform: translateY(10px) scale(0.8); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
-
 @keyframes countChangeOut {
-  from {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(-10px) scale(0.8);
-  }
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(-10px) scale(0.8); }
 }
 </style>
