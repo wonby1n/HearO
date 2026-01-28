@@ -4,7 +4,7 @@
       <!-- 좌측: 인사말 + 날짜/시간 -->
       <div>
         <h2 class="text-3xl font-bold text-gray-900">
-          어서오세요, {{ agentStore.agentInfo.name }}
+          어서오세요, {{ agentStore.agentInfo?.name || '상담원' }}님
         </h2>
         <p class="text-base text-gray-500 mt-2">
           {{ formattedDateTime }}
@@ -50,7 +50,6 @@
             >
               {{ dashboardStore.waitingCustomers }}명
             </span>
-            <!-- 증감 표시 -->
             <Transition name="count-change">
               <span
                 v-if="countChange !== 0"
@@ -72,23 +71,23 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import axios from 'axios'
 import { useAgentStore } from '@/stores/agent'
 import { useDashboardStore } from '@/stores/dashboard'
-import { useWebSocket } from '@/composables/useWebSocket'
 
 const agentStore = useAgentStore()
 const dashboardStore = useDashboardStore()
 
-// 현재 날짜/시간
+// --- 상태 및 타이머 변수 ---
 const currentTime = ref(new Date())
-
-// 대기 고객 수 애니메이션
 const isCountAnimating = ref(false)
 const countChange = ref(0)
 let countChangeTimer = null
 let countAnimationTimer = null
+let clockInterval = null
+let heartbeatInterval = null
 
-// 날짜/시간 포맷팅
+// --- 포맷팅 로직 ---
 const formattedDateTime = computed(() => {
   const date = currentTime.value
   const year = date.getFullYear()
@@ -98,170 +97,142 @@ const formattedDateTime = computed(() => {
   const weekday = weekdays[date.getDay()]
   const hours = String(date.getHours()).padStart(2, '0')
   const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
 
-  return `${year}년 ${month}월 ${day}일 ${weekday} ${hours}:${minutes}`
+  return `${year}년 ${month}월 ${day}일 ${weekday} ${hours}:${minutes}:${seconds}`
 })
 
-// 상담 상태 텍스트
 const formattedCallStatus = computed(() => {
-  if (dashboardStore.consultationStatus.isActive) {
-    return '통화 대기 중'
-  } else {
-    return '클릭하여 상담 시작'
-  }
+  return dashboardStore.consultationStatus.isActive ? '통화 대기 중' : '클릭하여 상담 시작'
 })
 
-// 상담 상태 토글
-const toggleConsultationStatus = () => {
-  dashboardStore.consultationStatus.isActive = !dashboardStore.consultationStatus.isActive
+// --- Heartbeat 핵심 로직 ---
 
-  // TODO: Heartbeat 기술로 백엔드에 상태 전송
-  // if (dashboardStore.consultationStatus.isActive) {
-  //   startHeartbeat()
-  // } else {
-  //   stopHeartbeat()
-  // }
+/**
+ * 서버에 현재 상담 상태를 전송 (true = ON / false = OFF)
+ */
+const sendHeartbeat = async () => {
+  try {
+    const status = !!dashboardStore.consultationStatus.isActive
+    await axios.post('/api/v1/users/me/heartbeat', {
+      isHeartbeatActive: status
+    })
+    console.log(`[Heartbeat] 전송됨: ${status}`)
+  } catch (error) {
+    console.error('[Heartbeat] 전송 실패:', error)
+  }
 }
 
-// 실시간 시계 타이머
-let clockInterval = null
+/**
+ * 10초 주기로 하트비트 타이머 시작
+ */
+const startHeartbeat = () => {
+  stopHeartbeat() // 기존 타이머가 있다면 초기화
+  sendHeartbeat() // 시작 시 즉시 전송
+  heartbeatInterval = setInterval(sendHeartbeat, 10000)
+}
 
-// WebSocket 연결 (TODO: 백엔드 엔드포인트 확정 후 활성화)
-// 환경변수 설정: .env 파일에 VITE_WS_URL=ws://your-server/api/v1/dashboard/queue-updates 추가
-// const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8080/api/v1/dashboard/queue-updates'
-// const { connect: connectWS, disconnect: disconnectWS } = useWebSocket(
-//   wsUrl,
-//   {
-//     onMessage: (data) => {
-//       if (data.type === 'waiting_customers_update') {
-//         dashboardStore.updateWaitingCustomers(data.count)
-//       }
-//     },
-//     onOpen: () => {
-//       console.log('[Dashboard] WebSocket 연결 성공')
-//     },
-//     onError: (error) => {
-//       console.error('[Dashboard] WebSocket 에러:', error)
-//     }
-//   }
-// )
+/**
+ * 하트비트 타이머 정지
+ */
+const stopHeartbeat = () => {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval)
+    heartbeatInterval = null
+    console.log('[Heartbeat] 중지됨')
+  }
+}
 
-// 대기 고객 수 변경 감지 및 애니메이션 트리거
+// --- 감시자 (Watchers) ---
+
+/**
+ * [중요] 상담 상태 감시 (강제 종료 구간 대응)
+ * 버튼 클릭뿐만 아니라 스토어 내부 로직으로 인해 isActive가 변해도 하트비트가 연동됩니다.
+ */
+watch(
+  () => dashboardStore.consultationStatus.isActive,
+  (isActive) => {
+    if (isActive) {
+      startHeartbeat()
+    } else {
+      // 강제로 OFF 되었을 때도 즉시 서버에 알리고 타이머를 끕니다.
+      sendHeartbeat()
+      stopHeartbeat()
+    }
+  },
+  { immediate: false }
+)
+
+/**
+ * 대기 고객 수 변경 감지 및 애니메이션
+ */
 watch(
   () => dashboardStore.waitingCustomers,
   (newCount, oldCount) => {
     if (oldCount !== undefined && newCount !== oldCount) {
-      // 기존 애니메이션 타이머 취소
-      if (countAnimationTimer) {
-        clearTimeout(countAnimationTimer)
-      }
-
-      // 애니메이션 트리거
+      if (countAnimationTimer) clearTimeout(countAnimationTimer)
       isCountAnimating.value = true
-      countAnimationTimer = setTimeout(() => {
-        isCountAnimating.value = false
-      }, 600)
+      countAnimationTimer = setTimeout(() => { isCountAnimating.value = false }, 600)
 
-      // 증감 표시
       const change = newCount - oldCount
       countChange.value = change
-
-      // 기존 타이머 취소
-      if (countChangeTimer) {
-        clearTimeout(countChangeTimer)
-      }
-
-      // 2초 후 증감 표시 제거
-      countChangeTimer = setTimeout(() => {
-        countChange.value = 0
-      }, 2000)
+      if (countChangeTimer) clearTimeout(countChangeTimer)
+      countChangeTimer = setTimeout(() => { countChange.value = 0 }, 2000)
     }
   }
 )
 
+// --- 이벤트 및 생명주기 ---
+
+const toggleConsultationStatus = () => {
+  // 단순히 상태만 바꿉니다. 하트비트 제어는 watch에서 담당합니다.
+  dashboardStore.consultationStatus.isActive = !dashboardStore.consultationStatus.isActive
+}
+
 onMounted(() => {
-  // 1초마다 시간 업데이트
   clockInterval = setInterval(() => {
     currentTime.value = new Date()
   }, 1000)
 
-  // TODO: WebSocket 연결 (백엔드 준비 후 활성화)
-  // connectWS()
-
-  // TODO: 초기 대기 고객 수 조회 (백엔드 API 준비 후 활성화)
-  // dashboardStore.fetchWaitingCustomers()
+  // 컴포넌트 마운트 시 초기 상태가 이미 Active라면 하트비트 시작
+  if (dashboardStore.consultationStatus.isActive) {
+    startHeartbeat()
+  }
 })
 
 onUnmounted(() => {
-  if (clockInterval) {
-    clearInterval(clockInterval)
-  }
-
-  if (countChangeTimer) {
-    clearTimeout(countChangeTimer)
-  }
-
-  if (countAnimationTimer) {
-    clearTimeout(countAnimationTimer)
-  }
-
-  // TODO: WebSocket 연결 해제 (백엔드 준비 후 활성화)
-  // disconnectWS()
+  if (clockInterval) clearInterval(clockInterval)
+  stopHeartbeat()
+  if (countChangeTimer) clearTimeout(countChangeTimer)
+  if (countAnimationTimer) clearTimeout(countAnimationTimer)
 })
 </script>
 
 <style scoped>
-/* DashboardHeader 전용 스타일 */
-
-/* 대기 고객 수 변경 시 펄스 애니메이션 */
 .customer-count-pulse {
   animation: customerCountPulse 0.6s ease-out;
 }
 
 @keyframes customerCountPulse {
-  0% {
-    transform: scale(1);
-  }
-  25% {
-    transform: scale(1.2);
-    color: #2563eb;
-  }
-  50% {
-    transform: scale(1.1);
-  }
-  100% {
-    transform: scale(1);
-  }
+  0% { transform: scale(1); }
+  25% { transform: scale(1.2); color: #2563eb; }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
 }
 
-/* 증감 표시 애니메이션 */
 .count-change-enter-active {
   animation: countChangeIn 0.3s ease-out;
 }
-
 .count-change-leave-active {
   animation: countChangeOut 0.3s ease-in;
 }
 
 @keyframes countChangeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.8);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  from { opacity: 0; transform: translateY(10px) scale(0.8); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
-
 @keyframes countChangeOut {
-  from {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(-10px) scale(0.8);
-  }
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(-10px) scale(0.8); }
 }
 </style>
