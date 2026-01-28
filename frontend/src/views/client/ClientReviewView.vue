@@ -145,8 +145,14 @@ const handleSubmit = async () => {
     // })
     // if (!response.ok) throw new Error('리뷰 제출 실패')
 
-  // 제출 완료 후 감사 페이지로 이동
-  router.push({ name: 'client-final' })
+    // 제출 완료 후 감사 페이지로 이동
+    router.push({ name: 'client-final' })
+  } catch (error) {
+    console.error('리뷰 제출 중 오류:', error)
+    notificationStore.notifyError('리뷰 제출에 실패했습니다')
+  } finally {
+    isLoading.value = false
+  }
 }
 
 </script>
