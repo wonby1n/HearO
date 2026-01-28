@@ -1,5 +1,30 @@
 <template>
   <div class="client-call-view">
+    <!-- 자동 종료 모달 -->
+    <Teleport to="body">
+      <div
+        v-if="showAutoTerminationModal"
+        class="modal-overlay"
+      >
+        <div class="modal-content auto-term">
+          <div class="icon-container warning">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+          </div>
+          <h3 class="modal-title">통화가 종료되었습니다</h3>
+          <p class="modal-message center">
+            서비스 정책에 따라 통화가 종료되었습니다.<br>
+            AI 상담사로 전환됩니다.
+          </p>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- 메인 컨텐츠 -->
     <div class="main-content">
@@ -118,11 +143,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCallStore } from '@/stores/call'
 import { useCustomerStore } from '@/stores/customer'
 import { useLiveKit } from '@/composables/useLiveKit'
+import { AUTO_TERMINATION_REDIRECT_DELAY_MS } from '@/constants/call'
 
 const router = useRouter()
 const callStore = useCallStore()
@@ -161,8 +187,38 @@ const queuePosition = ref(3) // 테스트용 대기 순번
 const isMuted = ref(false)
 const isSpeakerOn = ref(true)
 const showConfirmModal = ref(false)
+const showAutoTerminationModal = ref(false)
 
 let timerInterval = null
+let autoRedirectTimer = null
+
+// 자동 종료 감지
+watch(() => callStore.autoTerminationTriggered, (triggered) => {
+  if (triggered) {
+    showAutoTerminationModal.value = true
+
+    // 설정된 시간 후 자동으로 종료 화면으로 이동
+    autoRedirectTimer = setTimeout(async () => {
+      try {
+        const finalDuration = callDuration.value
+
+        if (timerInterval) {
+          clearInterval(timerInterval)
+        }
+
+        await disconnect()
+        callStore.resetCall()
+
+        router.push({
+          name: 'client-call-end',
+          query: { duration: finalDuration, autoTerminated: 'true' }
+        })
+      } catch (error) {
+        console.error('[ClientCall] 자동 종료 처리 실패:', error)
+      }
+    }, AUTO_TERMINATION_REDIRECT_DELAY_MS)
+  }
+})
 
 // 통화 시간 포맷팅 (mm:ss)
 const formattedCallDuration = computed(() => {
@@ -262,6 +318,10 @@ onMounted(async () => {
 onUnmounted(async () => {
   if (timerInterval) {
     clearInterval(timerInterval)
+  }
+
+  if (autoRedirectTimer) {
+    clearTimeout(autoRedirectTimer)
   }
 
   if (isConnected.value) {
@@ -534,5 +594,33 @@ onUnmounted(async () => {
 
 .modal-btn.confirm:hover {
   background-color: #dc2626;
+}
+
+/* 자동 종료 모달 */
+.modal-content.auto-term {
+  max-width: 360px;
+  text-align: center;
+}
+
+.icon-container.warning {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 20px;
+  background: #fef2f2;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-container.warning svg {
+  width: 32px;
+  height: 32px;
+  color: #dc2626;
+}
+
+.modal-message.center {
+  text-align: center;
+  line-height: 1.6;
 }
 </style>
