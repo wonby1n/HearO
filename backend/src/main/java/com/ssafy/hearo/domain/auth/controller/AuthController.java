@@ -14,7 +14,7 @@ public class AuthController {
     public Map<String, String> authTest() {
         Map<String, String> response = new HashMap<>();
         response.put("status", "success");
-        response.put("message", "Hearo 백엔드 연결 성공! 인증 도메인 정상 작동 중입니다.(pipeline 작동 중1)");
+        response.put("message", "Hearo 백엔드 연결 성공! 인증 도메인 정상 작동 중입니다.(pipeline 작동 중2)");
         return response;
     }
 }
