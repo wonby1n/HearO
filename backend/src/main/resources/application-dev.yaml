@@ -34,6 +34,7 @@ spring:
     hibernate:
       ddl-auto: ${JPA_DDL_AUTO:create}     # 개발 편의,**엔티티가 많이 변경될 거 같으면 환경변수로 create도 권장**
     show-sql: ${JPA_SHOW_SQL:true}
+    defer-datasource-initialization: true
     properties:
       hibernate:
         format_sql: ${JPA_FORMAT_SQL:true}
@@ -44,7 +45,9 @@ spring:
         order_inserts: ${JPA_ORDER_INSERTS:true}
         order_updates: ${JPA_ORDER_UPDATES:true}
         jdbc.batch_versioned_data: ${JPA_BATCH_VERSIONED:true}
-
+  sql:
+    init:
+      mode: always
 # Swagger / OpenAPI (springdoc 사용 시) - 개발 기본 ON
 springdoc:
   api-docs:
@@ -61,7 +64,9 @@ logging:
 
 jwt:
   # 로컬 테스트 편의용 기본값. (가능하면 env로 넣는 걸 권장)
-  secret: ${JWT_SECRET:dev-secret-change-me}
+  secret: ${JWT_SECRET:dev-secret-key-must-be-at-least-32-characters-long}
+  access-token-expiry-ms: ${JWT_ACCESS_TOKEN_EXPIRY_MS:1800000}  # 30분 (30 * 60 * 1000)
+  refresh-token-expiry-ms: ${JWT_REFRESH_TOKEN_EXPIRY_MS:604800000}  # 7일 (7 * 24 * 60 * 60 * 1000)
 
 livekit:
   url: ${LIVEKIT_URL:ws://localhost:7880}

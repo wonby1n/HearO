@@ -67,3 +67,8 @@ replay_pid*
 .tldrignore
 CLAUDE.md
 .claude/
+explain.md
+explainJwtHeartbeat.md
+explainForFront.md
+
+*.sql
