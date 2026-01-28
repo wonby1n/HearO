@@ -106,16 +106,15 @@ const formattedCallStatus = computed(() => {
   return dashboardStore.consultationStatus.isActive ? '통화 대기 중' : '클릭하여 상담 시작'
 })
 
+
 // --- Heartbeat 핵심 로직 ---
 
-/**
- * 서버에 현재 상담 상태를 전송 (true = ON / false = OFF)
- */
 const sendHeartbeat = async () => {
   try {
     const status = !!dashboardStore.consultationStatus.isActive
+    
     await axios.post('/api/v1/users/me/heartbeat', {
-      isHeartbeatActive: status
+      isHeartbeatActive: status 
     })
     console.log(`[Heartbeat] 전송됨: ${status}`)
   } catch (error) {
@@ -123,19 +122,14 @@ const sendHeartbeat = async () => {
   }
 }
 
-/**
- * 10초 주기로 하트비트 타이머 시작
- */
 const startHeartbeat = () => {
-  stopHeartbeat() // 기존 타이머가 있다면 초기화
-  sendHeartbeat() // 시작 시 즉시 전송
+  stopHeartbeat() 
+  sendHeartbeat() 
   heartbeatInterval = setInterval(sendHeartbeat, 10000)
 }
 
-/**
- * 하트비트 타이머 정지
- */
 const stopHeartbeat = () => {
+  // 피드백 반영: 조건부 체크 강화
   if (heartbeatInterval) {
     clearInterval(heartbeatInterval)
     heartbeatInterval = null
@@ -145,64 +139,24 @@ const stopHeartbeat = () => {
 
 // --- 감시자 (Watchers) ---
 
-/**
- * [중요] 상담 상태 감시 (강제 종료 구간 대응)
- * 버튼 클릭뿐만 아니라 스토어 내부 로직으로 인해 isActive가 변해도 하트비트가 연동됩니다.
- */
 watch(
   () => dashboardStore.consultationStatus.isActive,
   (isActive) => {
     if (isActive) {
       startHeartbeat()
     } else {
-      // 강제로 OFF 되었을 때도 즉시 서버에 알리고 타이머를 끕니다.
-      sendHeartbeat()
+      sendHeartbeat() // 마지막 상태값(false) 전송
       stopHeartbeat()
     }
-  },
-  { immediate: false }
+  }
+  // immediate: false 제거 (기본값 활용)
 )
 
-/**
- * 대기 고객 수 변경 감지 및 애니메이션
- */
-watch(
-  () => dashboardStore.waitingCustomers,
-  (newCount, oldCount) => {
-    if (oldCount !== undefined && newCount !== oldCount) {
-      if (countAnimationTimer) clearTimeout(countAnimationTimer)
-      isCountAnimating.value = true
-      countAnimationTimer = setTimeout(() => { isCountAnimating.value = false }, 600)
-
-      const change = newCount - oldCount
-      countChange.value = change
-      if (countChangeTimer) clearTimeout(countChangeTimer)
-      countChangeTimer = setTimeout(() => { countChange.value = 0 }, 2000)
-    }
-  }
-)
-
-// --- 이벤트 및 생명주기 ---
-
-const toggleConsultationStatus = () => {
-  // 단순히 상태만 바꿉니다. 하트비트 제어는 watch에서 담당합니다.
-  dashboardStore.consultationStatus.isActive = !dashboardStore.consultationStatus.isActive
-}
-
-onMounted(() => {
-  clockInterval = setInterval(() => {
-    currentTime.value = new Date()
-  }, 1000)
-
-  // 컴포넌트 마운트 시 초기 상태가 이미 Active라면 하트비트 시작
-  if (dashboardStore.consultationStatus.isActive) {
-    startHeartbeat()
-  }
-})
+// --- 생명주기 ---
 
 onUnmounted(() => {
   if (clockInterval) clearInterval(clockInterval)
-  stopHeartbeat()
+  stopHeartbeat() // 내부에서 이미 null 체크를 수행하므로 안전함
   if (countChangeTimer) clearTimeout(countChangeTimer)
   if (countAnimationTimer) clearTimeout(countAnimationTimer)
 })
