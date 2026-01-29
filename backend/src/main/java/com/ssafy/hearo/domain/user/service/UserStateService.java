@@ -11,6 +11,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
+import com.ssafy.hearo.domain.user.dto.EnergyHistoryResponseDto;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -67,5 +72,25 @@ public class UserStateService {
                 .reason(reason)
                 .build();
         energyHistoryRepository.save(history);
+    }
+
+    /**
+     * [조회] 특정 기간 동안의 에너지 히스토리 가져오기
+     * (startDate가 null이면 '오늘'을 기본값으로 사용)
+     */
+    @Transactional(readOnly = true)
+    public List<EnergyHistoryResponseDto> getEnergyHistory(Long userId, LocalDate date) {
+        // 날짜가 안 들어오면 '오늘'로 설정
+        LocalDate targetDate = (date != null) ? date : LocalDate.now();
+
+        // 해당 날짜의 00:00:00 ~ 23:59:59 설정
+        LocalDateTime start = targetDate.atStartOfDay();
+        LocalDateTime end = targetDate.atTime(23, 59, 59);
+
+        // 조회 및 DTO 변환
+        return energyHistoryRepository.findAllByUserIdAndCreatedAtBetween(userId, start, end)
+                .stream()
+                .map(EnergyHistoryResponseDto::from)
+                .collect(Collectors.toList());
     }
 }

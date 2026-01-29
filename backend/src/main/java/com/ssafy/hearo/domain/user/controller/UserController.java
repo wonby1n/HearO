@@ -1,6 +1,7 @@
 package com.ssafy.hearo.domain.user.controller;
 
 import com.ssafy.hearo.domain.user.dto.EnergyEventRequestDto;
+import com.ssafy.hearo.domain.user.dto.EnergyHistoryResponseDto;
 import com.ssafy.hearo.domain.user.dto.HeartbeatRequest;
 import com.ssafy.hearo.domain.user.dto.StatusChangeRequestDto;
 import com.ssafy.hearo.domain.user.service.HeartbeatService;
@@ -14,6 +15,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import java.time.LocalDate;
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -93,5 +96,22 @@ public class UserController {
 
         // [변경] BaseResponse 사용
         return BaseResponse.success("에너지 차감이 반영되었습니다.", null);
+    }
+
+    /**
+     * 4. 에너지 히스토리 조회 API (그래프/로그용)
+     * GET /api/v1/users/me/energy-history?date=2026-01-29
+     * (date 파라미터 없으면 오늘 날짜 기준 조회)
+     */
+    @GetMapping("/energy-history")
+    public BaseResponse<List<EnergyHistoryResponseDto>> getEnergyHistory(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestParam(required = false) LocalDate date // 날짜 선택 가능
+    ) {
+        Long userId = userDetails.getId();
+
+        List<EnergyHistoryResponseDto> historyList = userStateService.getEnergyHistory(userId, date);
+
+        return BaseResponse.success("에너지 히스토리 조회 성공", historyList);
     }
 }
