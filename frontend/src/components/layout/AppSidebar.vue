@@ -56,7 +56,10 @@
 
     <!-- 푸터 영역: 로그아웃 -->
     <div class="p-6 border-t border-white/10 bg-black/10">
-      <button class="logout-btn w-full flex items-center justify-center gap-2 px-4 py-3 text-white/60 hover:text-white hover:bg-white/10 rounded-xl transition-all duration-300 group">
+      <button
+        @click="handleLogout"
+        class="logout-btn w-full flex items-center justify-center gap-2 px-4 py-3 text-white/60 hover:text-white hover:bg-white/10 rounded-xl transition-all duration-300 group"
+      >
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
         </svg>
@@ -67,7 +70,23 @@
 </template>
 
 <script setup>
-// 네비게이션 로직은 router-link가 관리합니다.
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+
+const router = useRouter()
+const authStore = useAuthStore()
+
+// 로그아웃 핸들러
+const handleLogout = async () => {
+  console.log('[Sidebar] 로그아웃 버튼 클릭')
+
+  // 로그아웃 실행
+  await authStore.logout()
+
+  // 로그인 페이지로 이동
+  console.log('[Sidebar] 로그인 페이지로 이동')
+  router.push('/login')
+}
 </script>
 
 <style scoped>
