@@ -249,22 +249,15 @@ const verifyCode = async () => {
   }
 
   try {
-    // 인증 성공 → 고객 로그인 API 호출
-    console.log('[ClientVerification] 고객 로그인 API 호출:', {
-      name: formData.value.name,
-      phone: formData.value.phone
-    })
 
     const response = await axios.post('/api/v1/auth/customer/login', {
       name: formData.value.name,
       phone: formData.value.phone
     })
 
-    console.log('[ClientVerification] 로그인 성공:', response.data)
-
     // accessToken 저장
     const { accessToken, customerId } = response.data
-    localStorage.setItem('clientAccessToken', accessToken)
+    localStorage.setItem('customerAccessToken', accessToken)
     localStorage.setItem('clientCustomerId', String(customerId))
 
     // 인증 성공 상태 표시
