@@ -1,8 +1,12 @@
 package com.ssafy.hearo.domain.auth.service;
 
+import com.ssafy.hearo.domain.auth.dto.CustomerLoginRequest;
+import com.ssafy.hearo.domain.auth.dto.CustomerLoginResponse;
 import com.ssafy.hearo.domain.auth.dto.LoginRequest;
 import com.ssafy.hearo.domain.auth.dto.LoginResponse;
 import com.ssafy.hearo.domain.auth.dto.RefreshResponse;
+import com.ssafy.hearo.domain.customer.entity.Customer;
+import com.ssafy.hearo.domain.customer.repository.CustomerRepository;
 import com.ssafy.hearo.domain.user.entity.User;
 import com.ssafy.hearo.domain.user.repository.UserRepository;
 import com.ssafy.hearo.global.security.jwt.JwtTokenProvider;
@@ -34,6 +38,7 @@ public class AuthServiceImpl implements AuthService {
     private static final String TOKEN_BLACKLIST_PREFIX = "blacklist:token:";
 
     private final UserRepository userRepository;
+    private final CustomerRepository customerRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
     private final RedisTemplate<String, String> redisTemplate;
@@ -64,6 +69,31 @@ public class AuthServiceImpl implements AuthService {
         log.info("User logged in: userId={}, email={}", user.getId(), user.getEmail());
 
         return LoginResponse.of(accessToken, user);
+    }
+
+    @Override
+    @Transactional
+    public CustomerLoginResponse customerLogin(CustomerLoginRequest request) {
+        // Find or create customer
+        Customer customer = customerRepository.findByNameAndPhone(request.name(), request.phone())
+                .orElseGet(() -> {
+                    Customer newCustomer = Customer.builder()
+                            .name(request.name())
+                            .phone(request.phone())
+                            .build();
+                    return customerRepository.save(newCustomer);
+                });
+
+        // Generate access token for customer
+        String accessToken = jwtTokenProvider.generateCustomerAccessToken(
+                customer.getId(),
+                customer.getName(),
+                customer.getPhone()
+        );
+
+        log.info("Customer logged in: customerId={}, name={}", customer.getId(), customer.getName());
+
+        return CustomerLoginResponse.of(accessToken, customer);
     }
 
     @Override

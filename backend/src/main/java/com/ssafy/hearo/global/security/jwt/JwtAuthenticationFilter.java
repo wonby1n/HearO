@@ -38,7 +38,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // Don't authenticate with refresh tokens
                 if (jwtTokenProvider.isRefreshToken(token)) {
                     log.debug("Refresh token cannot be used for authentication");
+                } else if (jwtTokenProvider.isCustomerToken(token)) {
+                    // Customer token handling
+                    Integer customerId = jwtTokenProvider.extractCustomerId(token);
+                    String name = jwtTokenProvider.extractName(token);
+
+                    // Create simple authentication for Customer (no role, just principal name = customerId)
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
+                                    String.valueOf(customerId),
+                                    null,
+                                    java.util.Collections.emptyList()
+                            );
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    log.debug("Set authentication for customer: {}", customerId);
                 } else {
+                    // User (Counselor) token handling
                     Long userId = jwtTokenProvider.extractUserId(token);
                     String email = jwtTokenProvider.extractEmail(token);
                     UserRole role = jwtTokenProvider.extractRole(token);
