@@ -67,7 +67,7 @@
     <!-- 하단 메시지 섹션: 텍스트 사이즈 소폭 축소 -->
     <div class="mt-4 text-center">
       <div class="status-badge inline-block px-3 py-0.5 rounded-full text-[10px] font-bold mb-2 transition-colors duration-500">
-        ENERGY LEVEL: {{ batteryLevel }}%
+        ENERGY LEVEL
       </div>
       <p class="status-message text-xl font-bold tracking-tight transition-colors duration-500">
         {{ statusContent.message }}
@@ -78,10 +78,22 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { useAgentStore } from '@/stores/agent'
+import { useDashboardStore } from '@/stores/dashboard'
 
 const agentStore = useAgentStore()
+const dashboardStore = useDashboardStore()
+
+// 컴포넌트 마운트 시 에너지 애니메이션 시작
+onMounted(() => {
+  agentStore.startEnergyAnimation()
+})
+
+// 컴포넌트 언마운트 시 에너지 애니메이션 중지
+onUnmounted(() => {
+  agentStore.stopEnergyAnimation()
+})
 
 // [수정] 반지름 100 기준 둘레 계산
 const circumference = 2 * Math.PI * 100
@@ -114,9 +126,8 @@ const statusContent = computed(() => {
 })
 
 const refreshStressLevel = async () => {
-  if (agentStore.fetchStressLevel) {
-    await agentStore.fetchStressLevel()
-  }
+  console.log('[StressChart] 새로고침 버튼 클릭 - 스트레스 데이터만 갱신')
+  await dashboardStore.refreshStressData()
 }
 </script>
 
