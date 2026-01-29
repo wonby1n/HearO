@@ -155,6 +155,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
 
 const router = useRouter()
 
@@ -226,7 +227,7 @@ const resendVerification = () => {
 }
 
 // 인증번호 확인
-const verifyCode = () => {
+const verifyCode = async () => {
   if (formData.value.verificationCode.length !== 6) return
 
   // 인증번호 검증 (961018만 통과)
@@ -236,11 +237,33 @@ const verifyCode = () => {
     return
   }
 
-  // 인증 성공
-  verificationError.value = ''
-  verificationSuccess.value = true
+  try {
+    // 인증 성공 → 고객 로그인 API 호출
+    console.log('[ClientVerification] 고객 로그인 API 호출:', {
+      name: formData.value.name,
+      phone: formData.value.phone
+    })
 
-  console.log('인증 성공:', formData.value)
+    const response = await axios.post('/api/v1/auth/customer/login', {
+      name: formData.value.name,
+      phone: formData.value.phone
+    })
+
+    console.log('[ClientVerification] 로그인 성공:', response.data)
+
+    // accessToken 저장
+    const { accessToken, customerId } = response.data
+    localStorage.setItem('clientAccessToken', accessToken)
+    localStorage.setItem('clientCustomerId', String(customerId))
+
+    // 인증 성공 상태 표시
+    verificationError.value = ''
+    verificationSuccess.value = true
+  } catch (error) {
+    console.error('[ClientVerification] 로그인 실패:', error)
+    verificationError.value = '로그인에 실패했습니다. 다시 시도해주세요.'
+    verificationSuccess.value = false
+  }
 }
 
 // 인증 에러 메시지 초기화
