@@ -17,7 +17,7 @@ public class DashboardController {
 
     private final DashboardService dashboardService;
 
-    @GetMapping("/")
+    @GetMapping
     public BaseResponse<DashboardSummaryResponse> getDashboardSummary(
             @AuthenticationPrincipal UserDetails userDetails // 스프링 시큐리티 사용 가정
     ) {
