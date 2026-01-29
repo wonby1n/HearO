@@ -143,14 +143,47 @@ const stopHeartbeat = () => {
 
 const handleBeforeUnload = () => {
   if (dashboardStore.consultationStatus.isActive) {
+    // 하트비트 종료 전송
     fetch('/api/v1/users/me/heartbeat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ isHeartbeatActive: false }),
       keepalive: true
     })
+
+    // 상담사 상태를 REST로 변경 (TODO: 백엔드 API 준비 후 활성화)
+    /*
+    fetch('/api/v1/users/me/status', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'REST' }),
+      keepalive: true
+    })
+    */
   }
 }
+
+
+// --- 상담사 상태 업데이트 ---
+const updateCounselorStatus = async (status) => {
+  try {
+    const response = await axios.patch('/api/v1/users/me/status', {
+      status: status
+    })
+
+    console.log('[Status Update] 성공:', response.data)
+
+    if (response.data.isSuccess) {
+      console.log('[Status Update]', response.data.message)
+    }
+  } catch (error) {
+    console.error('[Status Update] 실패:', error.response?.data || error.message)
+  }
+}
+
+
+
+
 
 const toggleConsultationStatus = () => {
   const newStatus = !dashboardStore.consultationStatus.isActive
@@ -161,6 +194,11 @@ const toggleConsultationStatus = () => {
 watch(
   () => dashboardStore.consultationStatus.isActive,
   (isActive) => {
+    // 상담사 상태 업데이트 (TODO: 백엔드 API 준비 후 활성화)
+    // const status = isActive ? 'AVAILABLE' : 'REST'
+    // updateCounselorStatus(status)
+
+    // 하트비트 관리
     if (isActive) {
       startHeartbeat()
     } else {
@@ -189,6 +227,11 @@ watch(
 onMounted(() => {
   clockInterval = setInterval(() => { currentTime.value = new Date() }, 1000)
   window.addEventListener('beforeunload', handleBeforeUnload)
+
+  // 초기 상담사 상태 전송 (TODO: 백엔드 API 준비 후 활성화)
+  // const initialStatus = dashboardStore.consultationStatus.isActive ? 'AVAILABLE' : 'REST'
+  // updateCounselorStatus(initialStatus)
+
   if (dashboardStore.consultationStatus.isActive) startHeartbeat()
 })
 
