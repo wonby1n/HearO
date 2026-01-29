@@ -241,7 +241,7 @@ class MatchingSchedulerTest {
             createBlacklist(counselor, customer, "테스트");
             entityManager.flush();
 
-            return new TestData(counselor.getId(), customer.getId());
+            return new TestData(counselor.getId(), customer.getId().longValue());
         });
 
         queueService.enqueue(testData.customerId.toString());
@@ -276,7 +276,7 @@ class MatchingSchedulerTest {
             createBlacklist(counselor1, customer, "테스트");
             entityManager.flush();
 
-            return new TestData(counselor1.getId(), counselor2.getId(), customer.getId());
+            return new TestData(counselor1.getId(), counselor2.getId(), customer.getId().longValue());
         });
 
         queueService.enqueue(testData.customerId.toString());

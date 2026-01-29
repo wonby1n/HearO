@@ -1,5 +1,7 @@
 package com.ssafy.hearo.domain.auth.controller;
 
+import com.ssafy.hearo.domain.auth.dto.CustomerLoginRequest;
+import com.ssafy.hearo.domain.auth.dto.CustomerLoginResponse;
 import com.ssafy.hearo.domain.auth.dto.LoginRequest;
 import com.ssafy.hearo.domain.auth.dto.LoginResponse;
 import com.ssafy.hearo.domain.auth.dto.RefreshResponse;
@@ -39,6 +41,24 @@ public class AuthController {
         log.info("Login request: email={}", request.email());
         LoginResponse loginResponse = authService.login(request, response);
         return ResponseEntity.ok(loginResponse);
+    }
+
+    /**
+     * Customer login endpoint
+     * POST /api/v1/auth/customer/login
+     *
+     * Request Body: { "name": "...", "phone": "..." }
+     * Response Body: { "accessToken": "...", "customerId": ..., "name": "...", "phone": "..." }
+     *
+     * Creates customer if not exists
+     */
+    @PostMapping("/customer/login")
+    public ResponseEntity<CustomerLoginResponse> customerLogin(
+            @Valid @RequestBody CustomerLoginRequest request
+    ) {
+        log.info("Customer login request: name={}, phone={}", request.name(), request.phone());
+        CustomerLoginResponse response = authService.customerLogin(request);
+        return ResponseEntity.ok(response);
     }
 
     /**

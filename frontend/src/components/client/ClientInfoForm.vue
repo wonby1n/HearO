@@ -322,16 +322,16 @@ const handleSubmit = async () => {
   if (!isFormValid.value) return
 
   try {
-    // TODO: API 호출로 제품 정보 저장
-    // const response = await saveProductInfo({ ... })
+    // 대기열 등록 API에 필요한 형식으로 localStorage에 저장
+    const consultationData = {
+      symptom: formData.value.symptomDetail,
+      errorCode: formData.value.errorCode || '',
+      modelCode: props.modelNumber
+    }
 
-    // 임시로 localStorage에 저장
-    localStorage.setItem('clientInfo', JSON.stringify({
-      product: props.productName,
-      model: props.modelNumber,
-      ...formData.value
-    }))
+    localStorage.setItem('clientConsultationData', JSON.stringify(consultationData))
 
+    console.log('[ClientInfoForm] 상담 데이터 저장:', consultationData)
     notificationStore.notifySuccess('정보가 저장되었습니다')
 
     // 다음 단계로 이동 (본인 확인 페이지)

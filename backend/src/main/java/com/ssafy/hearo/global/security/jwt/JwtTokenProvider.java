@@ -32,7 +32,7 @@ public class JwtTokenProvider {
     }
 
     /**
-     * Generate access token
+     * Generate access token for User (Counselor)
      */
     public String generateAccessToken(Long userId, String email, UserRole role) {
         Date now = new Date();
@@ -43,6 +43,26 @@ public class JwtTokenProvider {
                 .subject(String.valueOf(userId))
                 .claim("email", email)
                 .claim("role", role.name())
+                .claim("tokenType", "USER")
+                .issuedAt(now)
+                .expiration(expiry)
+                .signWith(secretKey, Jwts.SIG.HS256)
+                .compact();
+    }
+
+    /**
+     * Generate access token for Customer
+     */
+    public String generateCustomerAccessToken(Integer customerId, String name, String phone) {
+        Date now = new Date();
+        Date expiry = new Date(now.getTime() + jwtProperties.accessTokenExpiryMs());
+
+        return Jwts.builder()
+                .id(UUID.randomUUID().toString())
+                .subject(String.valueOf(customerId))
+                .claim("name", name)
+                .claim("phone", phone)
+                .claim("tokenType", "CUSTOMER")
                 .issuedAt(now)
                 .expiration(expiry)
                 .signWith(secretKey, Jwts.SIG.HS256)
@@ -157,5 +177,47 @@ public class JwtTokenProvider {
 
     public long getRefreshTokenExpiryMs() {
         return jwtProperties.refreshTokenExpiryMs();
+    }
+
+    /**
+     * Check if token is a Customer token
+     */
+    public boolean isCustomerToken(String token) {
+        Claims claims = extractClaims(token);
+        String tokenType = claims.get("tokenType", String.class);
+        return "CUSTOMER".equals(tokenType);
+    }
+
+    /**
+     * Check if token is a User (Counselor) token
+     */
+    public boolean isUserToken(String token) {
+        Claims claims = extractClaims(token);
+        String tokenType = claims.get("tokenType", String.class);
+        return "USER".equals(tokenType) || tokenType == null; // backward compatibility
+    }
+
+    /**
+     * Extract Customer ID from token (for Customer tokens)
+     */
+    public Integer extractCustomerId(String token) {
+        Claims claims = extractClaims(token);
+        return Integer.parseInt(claims.getSubject());
+    }
+
+    /**
+     * Extract name from Customer token
+     */
+    public String extractName(String token) {
+        Claims claims = extractClaims(token);
+        return claims.get("name", String.class);
+    }
+
+    /**
+     * Extract phone from Customer token
+     */
+    public String extractPhone(String token) {
+        Claims claims = extractClaims(token);
+        return claims.get("phone", String.class);
     }
 }

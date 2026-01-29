@@ -76,9 +76,11 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import { useDashboardStore } from '@/stores/dashboard'
+import { useAgentStore } from '@/stores/agent'
 
 const authStore = useAuthStore()
 const dashboardStore = useDashboardStore()
+const agentStore = useAgentStore()
 
 // --- 상태 변수 ---
 const currentTime = ref(new Date())
@@ -201,9 +203,13 @@ watch(
     // 하트비트 관리
     if (isActive) {
       startHeartbeat()
+      // 상담 대기 상태로 변경
+      agentStore.currentStatus = 'AVAILABLE'
     } else {
       sendHeartbeat(false)
       stopHeartbeat()
+      // 휴식 상태로 변경
+      agentStore.currentStatus = 'REST'
     }
   }
 )
@@ -228,9 +234,8 @@ onMounted(() => {
   clockInterval = setInterval(() => { currentTime.value = new Date() }, 1000)
   window.addEventListener('beforeunload', handleBeforeUnload)
 
-  // 초기 상담사 상태 전송 (TODO: 백엔드 API 준비 후 활성화)
-  // const initialStatus = dashboardStore.consultationStatus.isActive ? 'AVAILABLE' : 'REST'
-  // updateCounselorStatus(initialStatus)
+  // 초기 상태 설정
+  agentStore.currentStatus = dashboardStore.consultationStatus.isActive ? 'AVAILABLE' : 'REST'
 
   if (dashboardStore.consultationStatus.isActive) startHeartbeat()
 })
