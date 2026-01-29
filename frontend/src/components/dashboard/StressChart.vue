@@ -78,10 +78,22 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { useAgentStore } from '@/stores/agent'
+import { useDashboardStore } from '@/stores/dashboard'
 
 const agentStore = useAgentStore()
+const dashboardStore = useDashboardStore()
+
+// 컴포넌트 마운트 시 에너지 애니메이션 시작
+onMounted(() => {
+  agentStore.startEnergyAnimation()
+})
+
+// 컴포넌트 언마운트 시 에너지 애니메이션 중지
+onUnmounted(() => {
+  agentStore.stopEnergyAnimation()
+})
 
 // [수정] 반지름 100 기준 둘레 계산
 const circumference = 2 * Math.PI * 100
@@ -114,9 +126,8 @@ const statusContent = computed(() => {
 })
 
 const refreshStressLevel = async () => {
-  if (agentStore.fetchStressLevel) {
-    await agentStore.fetchStressLevel()
-  }
+  console.log('[StressChart] 새로고침 버튼 클릭 - 대시보드 데이터 갱신')
+  await dashboardStore.fetchDashboardData()
 }
 </script>
 

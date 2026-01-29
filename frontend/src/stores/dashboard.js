@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import axios from 'axios'
+import { useAgentStore } from './agent'
 
 export const useDashboardStore = defineStore('dashboard', () => {
   // 개발 환경에서 콘솔 테스트 활성화
@@ -79,6 +80,30 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
         // 사용자 이름
         userName.value = data.userName || ''
+
+        // 현재 에너지 레벨 (currentEnergy -> stressLevel 변환)
+        // 단, 애니메이션이 활성화되어 있으면 초기값만 설정하고 이후엔 애니메이션이 제어
+        if (data.currentEnergy !== undefined) {
+          const agentStore = useAgentStore()
+          // currentEnergy는 100이 최대, stressLevel은 0이 최대이므로 변환
+          const newStressLevel = 100 - data.currentEnergy
+
+          // 처음 로드 시에만 설정 (이후에는 애니메이션이 제어)
+          if (agentStore.stressLevel === null) {
+            agentStore.stressLevel = newStressLevel
+            console.log('[DashboardStore] 초기 에너지 레벨 설정:', newStressLevel)
+          }
+        }
+
+        // 상담원 상태 업데이트
+        // heartbeat가 활성화되어 있으면 로컬 상태를 우선시 (백엔드 status 무시)
+        if (data.status && !consultationStatus.value.isActive) {
+          const agentStore = useAgentStore()
+          agentStore.currentStatus = data.status
+          console.log('[DashboardStore] 상담원 상태 업데이트:', data.status)
+        } else if (consultationStatus.value.isActive) {
+          console.log('[DashboardStore] heartbeat 활성화 중 - 로컬 상태(AVAILABLE) 유지')
+        }
 
         // 스트레스 지수
         stressIndex.value = data.stressIndex || 0
