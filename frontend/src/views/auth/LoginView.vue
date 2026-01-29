@@ -86,7 +86,7 @@ const handleLogin = async () => {
     const result = await authStore.login(email.value, password.value)
 
     if (result.success) {
-      const redirect = router.currentRoute.value.query.redirect || '/'
+      const redirect = router.currentRoute.value.query.redirect || '/dashboard'
       router.push(redirect)
     } else {
       errorMessage.value = result.error

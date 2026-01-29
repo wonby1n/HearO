@@ -80,12 +80,8 @@ const authStore = useAuthStore()
 const handleLogout = async () => {
   console.log('[Sidebar] 로그아웃 버튼 클릭')
 
-  // 로그아웃 실행
+  // 로그아웃 실행 (auth store에서 자동으로 로그인 페이지로 리다이렉트)
   await authStore.logout()
-
-  // 로그인 페이지로 이동
-  console.log('[Sidebar] 로그인 페이지로 이동')
-  router.push('/login')
 }
 </script>
 

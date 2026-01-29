@@ -3,6 +3,11 @@ import { createRouter, createWebHistory } from 'vue-router'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    // 루트 경로 - 로그인 페이지로 리다이렉트
+    {
+      path: '/',
+      redirect: '/login'
+    },
     // 로그인 페이지
     {
       path: '/login',
@@ -13,8 +18,9 @@ const router = createRouter({
         requiresAuth: false
       }
     },
+    // 대시보드
     {
-      path: '/',
+      path: '/dashboard',
       name: 'dashboard',
       component: () => import('@/views/dashboard/DashboardView.vue'),
       meta: {
@@ -159,23 +165,17 @@ router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('accessToken')
   const requiresAuth = to.meta.requiresAuth
 
-  /** * 로그인 DB 미구현으로 인한 인증 체크 일시 중단
-   * 추후 DB 연결 시 아래 if-else if 블록의 주석을 해제
-   */
-  /*
   if (requiresAuth && !token) {
     // 인증 필요한데 토큰 없으면 로그인 페이지로
+    console.log('[Router Guard] 인증 필요 - 로그인 페이지로 리다이렉트')
     next({ name: 'login', query: { redirect: to.fullPath } })
   } else if (to.name === 'login' && token) {
     // 이미 로그인된 상태에서 로그인 페이지 접근 시 대시보드로
+    console.log('[Router Guard] 이미 로그인됨 - 대시보드로 리다이렉트')
     next({ name: 'dashboard' })
   } else {
     next()
   }
-  */
-
-  // 임시: 모든 접근 허용
-  next()
 })
 
 export default router
