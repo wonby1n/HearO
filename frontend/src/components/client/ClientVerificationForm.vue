@@ -198,37 +198,48 @@ const handlePhoneInput = (event) => {
 }
 
 // 인증번호 발송
-const sendVerification = () => {
+const sendVerification = async () => {
   if (!isPhoneValid.value) return
 
-  // TODO: 실제 API 호출
-  // 현재는 발송만 시뮬레이션
-  verificationSent.value = true
-  console.log('인증번호 발송:', {
-    carrier: formData.value.carrier,
-    name: formData.value.name,
-    phone: formData.value.phone
-  })
+  try {
+    const response = await axios.post('/api/v1/auth/customer/login', {
+      name: formData.value.name,
+      phone: formData.value.phone
+    })
+
+    if (response.data.accessToken) {
+      // JWT 토큰을 localStorage에 저장
+      localStorage.setItem('customerAccessToken', response.data.accessToken)
+      localStorage.setItem('customerId', response.data.customerId)
+    }
+
+    // 인증번호 입력 화면 표시
+    verificationSent.value = true
+
+  } catch (error) {
+    console.error('❌ API 호출 실패!')
+
+    alert('본인 인증에 실패했습니다. 다시 시도해주세요.')
+  }
+
 }
 
 // 인증번호 재발송
-const resendVerification = () => {
+const resendVerification = async () => {
   // 인증 상태 초기화
   verificationError.value = ''
   verificationSuccess.value = false
   formData.value.verificationCode = ''
 
-  // TODO: 실제 API 호출
-  console.log('인증번호 재발송:', {
-    carrier: formData.value.carrier,
-    name: formData.value.name,
-    phone: formData.value.phone
-  })
+
+  // 기존 sendVerification 로직 재사용
+  await sendVerification()
 }
 
 // 인증번호 확인
 const verifyCode = async () => {
   if (formData.value.verificationCode.length !== 6) return
+
 
   // 인증번호 검증 (961018만 통과)
   if (formData.value.verificationCode !== '961018') {
@@ -280,11 +291,9 @@ const handleBack = () => {
 const handleSubmit = () => {
   if (!isFormComplete.value) return
 
-  // TODO: 실제 API 호출
-  console.log('인증 완료:', formData.value)
-
-  // 임시로 localStorage에 저장
+  // 인증 정보를 localStorage에 저장
   localStorage.setItem('clientVerification', JSON.stringify(formData.value))
+
 
   // 다음 단계로 이동 (3/3 단계 - 약관 동의)
   router.push({ name: 'client-consultation-consent' })
