@@ -33,12 +33,9 @@ export const useAuthStore = defineStore('auth', () => {
     requestInterceptorId = axios.interceptors.request.use(
       (config) => {
         const token = accessToken.value
-        console.log('[Axios Interceptor] Request to:', config.url)
-        console.log('[Axios Interceptor] Token exists:', !!token)
 
         if (token) {
           config.headers.Authorization = `Bearer ${token}`
-          console.log('[Axios Interceptor] Added Authorization header')
         }
         return config
       },
@@ -55,11 +52,24 @@ export const useAuthStore = defineStore('auth', () => {
         console.error('[Axios Interceptor] Response error:', error.response?.status, error.config?.url)
 
         if (error.response?.status === 401) {
-          // 로그인/리프레시 요청이 아닌 경우에만 로그아웃
-          const isAuthEndpoint = error.config?.url?.includes('/api/v1/auth/')
-          if (!isAuthEndpoint) {
+          // 공개 엔드포인트 목록 (인증 없이 접근 가능)
+          const publicEndpoints = [
+            '/api/v1/auth/',
+            '/api/v1/products/',
+            '/api/v1/queue/',
+            '/api/v1/calls/'
+          ]
+
+          // 공개 엔드포인트인 경우 자동 로그아웃하지 않음
+          const isPublicEndpoint = publicEndpoints.some(endpoint =>
+            error.config?.url?.includes(endpoint)
+          )
+
+          if (!isPublicEndpoint) {
             console.warn('[Axios Interceptor] 401 Unauthorized - logging out')
             logout()
+          } else {
+            console.warn('[Axios Interceptor] 401 on public endpoint - not logging out')
           }
         }
         return Promise.reject(error)

@@ -23,12 +23,23 @@
           <p class="section-description">아래 자동 인식된 모델이 맞는지 확인해주세요.</p>
 
           <div class="device-card">
-            <div class="device-icon">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="6" y="2" width="12" height="20" rx="2" stroke="white" stroke-width="2"/>
-                <path d="M10 19H14" stroke="white" stroke-width="2" stroke-linecap="round"/>
-              </svg>
+            <div class="device-visual">
+              <img v-if="productImg" :src="productImg" :alt="productName" class="product-image" />
+              
+              <div v-else class="device-icon">
+                <svg v-if="category === 'REFRIGERATOR'" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M5 2H19V22H5V2Z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+                  <path d="M5 10H19" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                  <path d="M9 6V8" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                  <path d="M9 14V18" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <svg v-else viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="6" y="2" width="12" height="20" rx="2" stroke="white" stroke-width="2"/>
+                  <path d="M10 19H14" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </div>
             </div>
+
             <div class="device-details">
               <p class="device-label">자동 인식된 모델</p>
               <p class="device-model">{{ productName }}</p>
@@ -161,15 +172,20 @@ import { useNotificationStore } from '@/stores/notification'
 import BrowserNotice from '@/components/common/BrowserNotice.vue'
 
 const props = defineProps({
-  productName: {
-    type: String,
-    required: true
-  },
-  modelNumber: {
-    type: String,
-    required: true
-  }
+  productName: { type: String, required: true },
+  modelNumber: { type: String, required: true },
+  imageUrl: { type: String, default: '' }, // 이미지 URL 추가
+  category: { type: String, default: '' }   // 카테고리 추가
 })
+
+// Vite 환경에서 public 폴더나 외부 URL 이미지를 처리
+const productImg = computed(() => {
+  if (!props.imageUrl) return null;
+  // 상대 경로인 경우 처리 (필요에 따라 base URL 추가)
+  return props.imageUrl;
+})
+
+
 
 const router = useRouter()
 const notificationStore = useNotificationStore()
@@ -820,5 +836,28 @@ const handleSubmit = async () => {
   .section-title {
     font-size: 20px;
   }
+}
+
+.device-visual {
+  width: 64px;
+  height: 64px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden; /* 이미지 오버플로우 방지 */
+}
+
+.product-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* 카드 크기에 맞게 이미지 조절 */
+}
+
+.device-icon svg {
+  width: 32px;
+  height: 32px;
 }
 </style>
