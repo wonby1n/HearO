@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.TextStyle;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
@@ -38,8 +39,7 @@ public class DashboardService {
 
         // 1. 스트레스 지수 계산 (User 엔티티 메서드 활용)
         // getDailyAvgStress()는 0.0~1.0을 반환하므로 * 100
-        BigDecimal stressScore = user.getDailyAvgStress().multiply(BigDecimal.valueOf(100));
-        int stressIndex = stressScore.intValue();
+        int currentEnergy = user.calculateRealTimeEnergy(LocalDateTime.now());
 
         // 2. 주간 차트 데이터 (이번 주 월~일)
         List<WeeklyChartDto> weeklyChart = getWeeklyChartData(userId);
@@ -56,7 +56,8 @@ public class DashboardService {
 
         return DashboardSummaryResponse.builder()
                 .userName(user.getName())
-                .stressIndex(stressIndex)
+                .currentEnergy(currentEnergy)
+                .status(user.getStatus())
                 .weeklyChart(weeklyChart)
                 .totalDuration(formattedDuration)
                 .customerSatisfaction(customerSatisfaction)
