@@ -145,21 +145,21 @@ const stopHeartbeat = () => {
 
 const handleBeforeUnload = () => {
   if (dashboardStore.consultationStatus.isActive) {
-    // 하트비트 종료 전송
-    fetch('/api/v1/users/me/heartbeat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ isHeartbeatActive: false }),
-      keepalive: true
-    })
-
-    // 상담사 상태를 REST로 변경
-    fetch('/api/v1/users/me/status', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'REST' }),
-      keepalive: true
-    })
+    // 병렬 처리로 페이지 종료 전 완료 확률 향상
+    Promise.all([
+      fetch('/api/v1/users/me/heartbeat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isHeartbeatActive: false }),
+        keepalive: true
+      }),
+      fetch('/api/v1/users/me/status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'REST' }),
+        keepalive: true
+      })
+    ]).catch(err => console.error('[BeforeUnload] 요청 실패:', err))
   }
 }
 
@@ -177,7 +177,12 @@ const updateCounselorStatus = async (status) => {
       console.log('[Status Update]', response.data.message)
     }
   } catch (error) {
-    console.error('[Status Update] 실패:', error.response?.data || error.message)
+    // 401은 interceptor가 처리하므로 여기서는 다른 에러만 처리
+    if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') {
+      console.error('[Status Update] 네트워크 연결 불안정:', error.message)
+    } else if (error.response?.status !== 401) {
+      console.error('[Status Update] 실패:', error.response?.data || error.message)
+    }
   }
 }
 
