@@ -71,3 +71,10 @@ livekit:
   url: ${LIVEKIT_URL}
   api-key: ${LIVEKIT_API_KEY}
   api-secret: ${LIVEKIT_API_SECRET}
+
+chromadb :
+  url : ${CHROMA_DB_URL}
+
+gms :
+  url : ${GMS_URL}
+  api-key: ${GMS_KEY}
