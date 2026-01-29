@@ -78,6 +78,10 @@ const loadProductInfo = async (productId) => {
     const productData = await fetchProductById(productId)
     productName.value = productData.name
     modelNumber.value = productData.code
+
+    // productId를 localStorage에 저장 (나중에 registration API에서 사용)
+    localStorage.setItem('clientProductId', productId)
+    console.log('[ClientLandingView] productId 저장:', productId)
   } catch (error) {
     console.error('제품 정보 로드 실패:', error)
     errorMessage.value = '제품 정보를 불러오는데 실패했습니다.'

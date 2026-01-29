@@ -6,65 +6,45 @@
 import axios from 'axios'
 import { mockCustomerInfo } from '@/mocks/counselor'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
-
 /**
  * JWT 토큰 가져오기
- * @returns {string|null} JWT 토큰
  */
 const getAuthToken = () => {
-  // TODO: 실제 토큰 저장소에서 가져오기 (localStorage, Pinia store 등)
-  return localStorage.getItem('accessToken')
+  return localStorage.getItem('customerAccessToken')
 }
 
 /**
- * 고객 접수 정보 조회
- * API: GET /api/v1/registerations/{registrationId}/product-info
- *
- * @param {number} registrationId - 접수 ID
- * @returns {Promise<Object>} 고객 정보 객체
+ * 대기열 등록 (고객 접수)
+ * API: POST /api/v1/queue/register
  */
-export const fetchCustomerInfo = async (registrationId) => {
+export const registerQueue = async (payload) => {
   try {
-    // TODO: 백엔드 API 준비되면 주석 해제
-    // const token = getAuthToken()
-    // const response = await axios.get(
-    //   `${API_BASE_URL}/registerations/${registrationId}/product-info`,
-    //   {
-    //     headers: {
-    //       Authorization: `Bearer ${token}`
-    //     }
-    //   }
-    // )
-    // const { registration } = response.data
-    //
-    // // 명세에 맞춰 데이터 매핑
-    // return {
-    //   phone: registration.phone || '010-****-****',
-    //   productName: registration.productCategory || '',
-    //   modelNumber: registration.modelCode || '',
-    //   purchaseDate: registration.boughtAt || '',
-    //   warrantyStatus: registration.warrantyStatus === 'ACTIVE' ? '이내' : '만료',
-    //   productImage: null,
-    //   symptoms: [registration.symptom, registration.errorCode].filter(Boolean)
-    // }
+    const token = getAuthToken()
+    
+    const response = await axios.post(
+      `api/v1/registrations`, 
+      {
+        symptom: payload.symptom,
+        productId: payload.productId,
+        errorCode: payload.errorCode,
+        manufacturedAt: payload.manufacturedAt,
+        warrantyEndsAt: payload.warrantyEndsAt
+      },
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    )
 
-    // 개발용: Mock 데이터 반환
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          phone: mockCustomerInfo.phone,
-          productName: mockCustomerInfo.productName,
-          modelNumber: mockCustomerInfo.modelNumber,
-          purchaseDate: mockCustomerInfo.purchaseDate,
-          warrantyStatus: mockCustomerInfo.warrantyStatus,
-          productImage: mockCustomerInfo.productImage,
-          symptoms: mockCustomerInfo.symptoms
-        })
-      }, 500) // 네트워크 지연 시뮬레이션
-    })
+    const { isSuccess, data, message } = response.data
+
+    if (isSuccess) {
+      console.log('✅ 대기열 등록 성공:', message)
+      return data // registrationId, waitingRank, websocketTopic 반환
+    } else {
+      throw new Error(message || '대기열 등록에 실패했습니다.')
+    }
   } catch (error) {
-    console.error('고객 정보 조회 실패:', error)
+    console.error('❌ 대기열 등록 에러:', error.response?.data || error.message)
     throw error
   }
 }
