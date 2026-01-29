@@ -1,4 +1,4 @@
-package com.ssafy.hearo.domain.calls;
+package com.ssafy.hearo.domain.calls.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;

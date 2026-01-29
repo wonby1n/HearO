@@ -1,9 +1,10 @@
-package com.ssafy.hearo.domain.calls;
+package com.ssafy.hearo.domain.calls.service;
 
 
 import io.livekit.server.AccessToken;
 import io.livekit.server.RoomJoin;
 import io.livekit.server.RoomName;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -11,13 +12,16 @@ import java.time.Duration;
 @Service
 public class CallsServiceImpl implements CallsService {
 
-    private static final String LIVEKIT_API_KEY = "";
-    private static final String LIVEKIT_API_SECRET = "";
+    @Value("${livekit.api-key}")
+    private String livekitApiKey;
+
+    @Value("${livekit.api-secret}")
+    private String livekitApiSecret;
 
     @Override
     public String createToken(String identity, String roomName){
 
-        AccessToken token = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
+        AccessToken token = new AccessToken(livekitApiKey, livekitApiSecret);
         token.setIdentity(identity);
         token.setTtl(Duration.ofMinutes(30).toMillis());
         token.addGrants(
