@@ -293,7 +293,7 @@ class QueueServiceIntegrationTest {
             entityManager.flush();
 
             return new TestData(counselor1.getId(), counselor2.getId(),
-                    customer1.getId(), customer2.getId(), null);
+                    customer1.getId().longValue(), customer2.getId().longValue(), null);
         });
 
         // Redis에 대기열 등록
@@ -338,7 +338,7 @@ class QueueServiceIntegrationTest {
             entityManager.flush();
 
             return new TestData(counselor1.getId(), null,
-                    customer1.getId(), customer2.getId(), null);
+                    customer1.getId().longValue(), customer2.getId().longValue(), null);
         });
 
         // Normal Queue에 customer1, customer2 순서로 추가
@@ -380,7 +380,7 @@ class QueueServiceIntegrationTest {
             entityManager.flush();
 
             return new TestData(counselor1.getId(), null,
-                    customer1.getId(), customer2.getId(), null);
+                    customer1.getId().longValue(), customer2.getId().longValue(), null);
         });
 
         // Normal Queue에 추가
@@ -422,7 +422,7 @@ class QueueServiceIntegrationTest {
             entityManager.flush();
 
             return new TestData(counselor1.getId(), null,
-                    blacklistCustomer.getId(), normalCustomer.getId(), null);
+                    blacklistCustomer.getId().longValue(), normalCustomer.getId().longValue(), null);
         });
 
         // Blacklist Queue에 blacklistCustomer 추가
