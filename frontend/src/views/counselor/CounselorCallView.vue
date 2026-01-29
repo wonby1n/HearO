@@ -383,7 +383,7 @@ const handleEndCall = async () => {
       skipDraftSaveOnUnmount = true
     }
     // TODO: await livekitService.disconnect()
-    // TODO: router.push('/counselor/call-summary')
+    router.push({ name: 'dashboard' })
     console.log('통화 종료')
   } catch (error) {
     console.error('통화 종료 실패:', error)
@@ -431,7 +431,7 @@ const handleAutoTerminationConfirm = async () => {
     callStore.resetCall()
 
     // 대시보드로 이동
-    router.push({ name: 'counselor-dashboard' })
+    router.push({ name: 'dashboard' })
 
     notificationStore.notifyInfo('고객이 블랙리스트에 등록되었습니다')
   } catch (error) {
