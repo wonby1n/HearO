@@ -153,15 +153,13 @@ const handleBeforeUnload = () => {
       keepalive: true
     })
 
-    // 상담사 상태를 REST로 변경 (TODO: 백엔드 API 준비 후 활성화)
-    /*
+    // 상담사 상태를 REST로 변경
     fetch('/api/v1/users/me/status', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: 'REST' }),
       keepalive: true
     })
-    */
   }
 }
 
@@ -196,9 +194,9 @@ const toggleConsultationStatus = () => {
 watch(
   () => dashboardStore.consultationStatus.isActive,
   (isActive) => {
-    // 상담사 상태 업데이트 (TODO: 백엔드 API 준비 후 활성화)
-    // const status = isActive ? 'AVAILABLE' : 'REST'
-    // updateCounselorStatus(status)
+    // 상담사 상태 업데이트
+    const status = isActive ? 'AVAILABLE' : 'REST'
+    updateCounselorStatus(status)
 
     // 하트비트 관리
     if (isActive) {
@@ -235,7 +233,9 @@ onMounted(() => {
   window.addEventListener('beforeunload', handleBeforeUnload)
 
   // 초기 상태 설정
-  agentStore.currentStatus = dashboardStore.consultationStatus.isActive ? 'AVAILABLE' : 'REST'
+  const initialStatus = dashboardStore.consultationStatus.isActive ? 'AVAILABLE' : 'REST'
+  agentStore.currentStatus = initialStatus
+  updateCounselorStatus(initialStatus)
 
   if (dashboardStore.consultationStatus.isActive) startHeartbeat()
 })
