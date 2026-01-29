@@ -1,20 +1,98 @@
 package com.ssafy.hearo.domain.auth.controller;
 
-import org.springframework.web.bind.annotation.GetMapping;
+import com.ssafy.hearo.domain.auth.dto.CustomerLoginRequest;
+import com.ssafy.hearo.domain.auth.dto.CustomerLoginResponse;
+import com.ssafy.hearo.domain.auth.dto.LoginRequest;
+import com.ssafy.hearo.domain.auth.dto.LoginResponse;
+import com.ssafy.hearo.domain.auth.dto.RefreshResponse;
+import com.ssafy.hearo.domain.auth.service.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import java.util.HashMap;
-import java.util.Map;
 
+@Slf4j
 @RestController
-@RequestMapping("api/auth") // Nginx에서 /api를 떼고 넘겨주므로 /auth만 적으면 돼
+@RequestMapping("/api/v1/auth")
+@RequiredArgsConstructor
 public class AuthController {
 
-    @GetMapping("/test")
-    public Map<String, String> authTest() {
-        Map<String, String> response = new HashMap<>();
-        response.put("status", "success");
-        response.put("message", "Hearo 백엔드 연결 성공! 인증 도메인 정상 작동 중입니다.(pipeline 작동 중2)");
-        return response;
+    private final AuthService authService;
+
+    /**
+     * Login endpoint
+     * POST /api/v1/auth/login
+     *
+     * Request Body: { "email": "...", "password": "..." }
+     * Response Body: { "accessToken": "...", "userId": ..., "username": "...", "userRole": "..." }
+     * Cookie: refreshToken (HttpOnly, Secure, SameSite=None)
+     */
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponse> login(
+            @Valid @RequestBody LoginRequest request,
+            HttpServletResponse response
+    ) {
+        log.info("Login request: email={}", request.email());
+        LoginResponse loginResponse = authService.login(request, response);
+        return ResponseEntity.ok(loginResponse);
+    }
+
+    /**
+     * Customer login endpoint
+     * POST /api/v1/auth/customer/login
+     *
+     * Request Body: { "name": "...", "phone": "..." }
+     * Response Body: { "accessToken": "...", "customerId": ..., "name": "...", "phone": "..." }
+     *
+     * Creates customer if not exists
+     */
+    @PostMapping("/customer/login")
+    public ResponseEntity<CustomerLoginResponse> customerLogin(
+            @Valid @RequestBody CustomerLoginRequest request
+    ) {
+        log.info("Customer login request: name={}, phone={}", request.name(), request.phone());
+        CustomerLoginResponse response = authService.customerLogin(request);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Refresh access token endpoint
+     * POST /api/v1/auth/refresh
+     *
+     * Cookie: refreshToken (required)
+     * Response Body: { "accessToken": "..." }
+     */
+    @PostMapping("/refresh")
+    public ResponseEntity<RefreshResponse> refresh(
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        log.info("Refresh token request");
+        RefreshResponse refreshResponse = authService.refresh(request, response);
+        return ResponseEntity.ok(refreshResponse);
+    }
+
+    /**
+     * Logout endpoint
+     * POST /api/v1/auth/logout
+     *
+     * Cookie: refreshToken (optional - will be cleared)
+     * Response: 204 No Content
+     */
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        log.info("Logout request");
+        authService.logout(request, response);
+        return ResponseEntity.noContent().build();
     }
 }
+

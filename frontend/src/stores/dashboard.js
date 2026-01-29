@@ -1,11 +1,19 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
+import axios from 'axios'
+import { useAgentStore } from './agent'
 
 export const useDashboardStore = defineStore('dashboard', () => {
   // 개발 환경에서 콘솔 테스트 활성화
   if (import.meta.env.DEV) {
     // 나중에 window에 노출
   }
+
+  // 사용자 이름
+  const userName = ref('')
+
+  // 스트레스 지수
+  const stressIndex = ref(0)
 
   // 주간 실적 데이터 (월~금)
   const weeklyPerformance = ref([
@@ -62,33 +70,105 @@ export const useDashboardStore = defineStore('dashboard', () => {
     return `${totalCallTime.value.hours}:${String(totalCallTime.value.minutes).padStart(2, '0')}`
   })
 
-  // Actions - API 연동 준비 (현재는 더미 데이터 사용)
-  const fetchWeeklyPerformance = async () => {
+  // Actions - 대시보드 데이터 조회 (통합)
+  const fetchDashboardData = async () => {
     try {
-      // TODO: API 연동
-      // const response = await fetch('/api/dashboard/weekly-performance')
-      // if (!response.ok) throw new Error('데이터를 불러오지 못했습니다')
-      // const data = await response.json()
-      // weeklyPerformance.value = data
-      console.log('fetchWeeklyPerformance - API 연동 대기 중')
+      const response = await axios.get('/api/v1/dashboard')
+
+      if (response.data.isSuccess) {
+        const data = response.data.data
+
+        // 사용자 이름
+        userName.value = data.userName || ''
+
+        // 현재 에너지 레벨 (currentEnergy -> stressLevel 변환)
+        // 단, 애니메이션이 활성화되어 있으면 초기값만 설정하고 이후엔 애니메이션이 제어
+        if (data.currentEnergy !== undefined) {
+          const agentStore = useAgentStore()
+          // currentEnergy는 100이 최대, stressLevel은 0이 최대이므로 변환
+          const newStressLevel = 100 - data.currentEnergy
+
+          // 처음 로드 시에만 설정 (이후에는 애니메이션이 제어)
+          if (agentStore.stressLevel === null) {
+            agentStore.stressLevel = newStressLevel
+            console.log('[DashboardStore] 초기 에너지 레벨 설정:', newStressLevel)
+          }
+        }
+
+        // 상담원 상태 업데이트
+        // heartbeat가 활성화되어 있으면 로컬 상태를 우선시 (백엔드 status 무시)
+        if (data.status && !consultationStatus.value.isActive) {
+          const agentStore = useAgentStore()
+          agentStore.currentStatus = data.status
+          console.log('[DashboardStore] 상담원 상태 업데이트:', data.status)
+        } else if (consultationStatus.value.isActive) {
+          console.log('[DashboardStore] heartbeat 활성화 중 - 로컬 상태(AVAILABLE) 유지')
+        }
+
+        // 스트레스 지수
+        stressIndex.value = data.stressIndex || 0
+
+        // 주간 실적 데이터 매핑 (백엔드: dayOfWeek/count -> 프론트: day/calls)
+        if (data.weeklyChart && Array.isArray(data.weeklyChart)) {
+          weeklyPerformance.value = data.weeklyChart.map(item => ({
+            day: item.dayOfWeek,
+            calls: item.count
+          }))
+        }
+
+        // 총 상담 시간 파싱 ("135:12" -> {hours: 135, minutes: 12})
+        if (data.totalDuration) {
+          const [hours, minutes] = data.totalDuration.split(':').map(Number)
+          totalCallTime.value = { hours, minutes }
+        }
+
+        // 고객 만족도
+        customerSatisfaction.value = data.customerSatisfaction || 0
+
+        console.log('대시보드 데이터 로드 성공:', data)
+      } else {
+        throw new Error(response.data.message || '데이터를 불러오지 못했습니다')
+      }
     } catch (error) {
-      console.error('주간 실적 조회 실패:', error)
+      console.error('대시보드 조회 실패:', error)
       // TODO: 사용자에게 에러 메시지 표시 (Toast/Snackbar 등)
     }
   }
 
-  const fetchStats = async () => {
+  // 호환성을 위해 기존 함수명 유지 (내부적으로 fetchDashboardData 호출)
+  const fetchWeeklyPerformance = fetchDashboardData
+  const fetchStats = fetchDashboardData
+
+  /**
+   * 스트레스 차트 전용 새로고침 (경량화)
+   * status와 currentEnergy만 가져와서 agentStore 업데이트
+   * 다른 데이터(weeklyChart, totalDuration 등)는 건드리지 않음
+   */
+  const refreshStressData = async () => {
     try {
-      // TODO: API 연동
-      // const response = await fetch('/api/dashboard/stats')
-      // if (!response.ok) throw new Error('통계 데이터를 불러오지 못했습니다')
-      // const data = await response.json()
-      // totalCallTime.value = data.totalCallTime
-      // customerSatisfaction.value = data.satisfaction
-      console.log('fetchStats - API 연동 대기 중')
+      const response = await axios.get('/api/v1/dashboard')
+
+      if (response.data.isSuccess) {
+        const data = response.data.data
+        const agentStore = useAgentStore()
+
+        // status 업데이트 (heartbeat 비활성화 시에만)
+        if (data.status && !consultationStatus.value.isActive) {
+          agentStore.currentStatus = data.status
+          console.log('[DashboardStore] 스트레스 차트 새로고침 - status:', data.status)
+        }
+
+        // currentEnergy를 stressLevel로 변환하여 강제 동기화
+        if (data.currentEnergy !== undefined) {
+          const newStressLevel = 100 - data.currentEnergy
+          agentStore.stressLevel = newStressLevel
+          console.log('[DashboardStore] 스트레스 차트 새로고침 - stressLevel:', newStressLevel)
+        }
+
+        console.log('[DashboardStore] 스트레스 차트 새로고침 완료')
+      }
     } catch (error) {
-      console.error('통계 조회 실패:', error)
-      // TODO: 사용자에게 에러 메시지 표시 (Toast/Snackbar 등)
+      console.error('[DashboardStore] 스트레스 차트 새로고침 실패:', error)
     }
   }
 
@@ -230,6 +310,8 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
   const store = {
     // State
+    userName,
+    stressIndex,
     weeklyPerformance,
     totalCallTime,
     customerSatisfaction,
@@ -239,6 +321,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
     // Computed
     formattedCallTime,
     // Actions
+    fetchDashboardData,
     fetchWeeklyPerformance,
     fetchStats,
     fetchWaitingCustomers,
@@ -246,7 +329,8 @@ export const useDashboardStore = defineStore('dashboard', () => {
     fetchTodos,
     toggleTodo,
     addTodo,
-    deleteTodo
+    deleteTodo,
+    refreshStressData
   }
 
   // 개발 환경에서 콘솔 테스트용으로 store 노출

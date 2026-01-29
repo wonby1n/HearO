@@ -54,6 +54,7 @@
 </template>
 
 <script setup>
+import { onMounted } from 'vue'
 import { useDashboardStore } from '@/stores/dashboard'
 import DashboardLayout from '@/components/layout/DashboardLayout.vue'
 import DashboardHeader from '@/components/dashboard/DashboardHeader.vue'
@@ -63,6 +64,12 @@ import StatsCard from '@/components/dashboard/StatsCard.vue'
 import TodoList from '@/components/dashboard/TodoList.vue'
 
 const dashboardStore = useDashboardStore()
+
+// 컴포넌트 마운트 시 대시보드 데이터 로드
+onMounted(async () => {
+  console.log('[Dashboard] 마운트 - 데이터 로드')
+  await dashboardStore.fetchDashboardData()
+})
 </script>
 
 <style scoped>

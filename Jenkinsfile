@@ -65,6 +65,18 @@ pipeline {
                                     docker-compose -f docker-compose-prod.yaml pull backend
                                     docker-compose -f docker-compose-prod.yaml up -d backend
                                     docker image prune -f
+                                    # ⏳ 1. 앱 구동 대기 (스프링이 켜질 때까지 15~20초 기다림)
+                                    echo "⏳ 백엔드 앱 구동 대기 중..."
+                                    sleep 20
+                                    LOGS=\$(docker-compose -f docker-compose-prod.yaml logs --tail=100 backend 2>&1)
+
+                                    if echo "\$LOGS" | grep -iE "Error|Exception|Fail"; then
+                                        echo "🚨 배포 직후 애플리케이션 에러 감지됨!"
+                                        echo "\$LOGS" 
+                                        exit 1
+                                    else
+                                        echo "✅ 배포 후 초기 구동 정상 확인"
+                                    fi
                                 '
                             """
                         }

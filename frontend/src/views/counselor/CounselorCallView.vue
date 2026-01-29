@@ -1,5 +1,20 @@
 <template>
   <div class="min-h-screen bg-gray-50">
+    <!-- 자동 종료 모달 -->
+    <AutoTerminationModal
+      :show="showAutoTerminationModal"
+      :ai-summary="aiSummary"
+      v-model:memo="memo"
+      @confirm="handleAutoTerminationConfirm"
+    />
+
+    <ManualEndCallModal
+      :show="showManualEndModal"
+      :ai-summary="aiSummary"
+      v-model:memo="memo"
+      @confirm="handleManualEndConfirm"
+    />
+
     <!-- 상단 헤더 -->
     <header class="bg-white shadow-sm border-b border-gray-200">
       <div class="max-w-[1920px] mx-auto px-6 py-4">
@@ -18,7 +33,7 @@
             :isPaused="isPaused"
             @mute-changed="handleMuteChanged"
             @pause-changed="handlePauseChanged"
-            @call-ended="handleEndCall"
+            @call-end-requested="handleManualEndRequest"
           />
         </div>
       </div>
@@ -113,7 +128,7 @@
               <h4 class="text-sm font-semibold text-gray-900 mb-3">메모</h4>
               <textarea
                 v-model="memo"
-                placeholder="상담 메모를 입력하세요..."
+                placeholder="상담 메모를 입력하세요."
                 class="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
               ></textarea>
             </section>
@@ -125,22 +140,40 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import CallTimer from '@/components/counselor/CallTimer.vue'
 import CustomerInfoPanel from '@/components/counselor/CustomerInfoPanel.vue'
 import STTChatPanel from '@/components/counselor/STTChatPanel.vue'
 import CounselorCallControls from '@/components/counselor/CounselorCallControls.vue'
+import AutoTerminationModal from '@/components/call/AutoTerminationModal.vue'
+import ManualEndCallModal from '@/components/call/ManualEndCallModal.vue'
 import { mockCustomerInfo, mockSttMessages } from '@/mocks/counselor'
 import { fetchCustomerData } from '@/services/customerService'
 import { useNotificationStore } from '@/stores/notification'
+import { useCallStore } from '@/stores/call'
 
-// 알림 스토어
+const router = useRouter()
+
+// 스토어
 const notificationStore = useNotificationStore()
+const callStore = useCallStore()
 
 // 통화 상태
 const isCallActive = ref(true)
 const isMuted = ref(false)
 const isPaused = ref(false)
+
+// 자동 종료 모달
+const showAutoTerminationModal = ref(false)
+const showManualEndModal = ref(false)
+
+// 자동 종료 감지
+watch(() => callStore.autoTerminationTriggered, (triggered) => {
+  if (triggered) {
+    showAutoTerminationModal.value = true
+  }
+})
 
 // 고객 정보
 const customerInfo = ref(mockCustomerInfo)
@@ -153,6 +186,7 @@ const sttMessages = ref(mockSttMessages)
 // AI 가이드
 const searchQuery = ref('')
 const memo = ref('')
+const aiSummary = ref('')
 
 // 고객 정보 로드
 const loadCustomerData = async () => {
@@ -197,6 +231,49 @@ const handleEndCall = async () => {
     console.error('통화 종료 실패:', error)
     // TODO: 에러 토스트 표시
   }
+
+}
+
+// Manual end modal request
+const handleManualEndRequest = () => {
+  showManualEndModal.value = true
+}
+
+// Manual end modal confirm
+const handleManualEndConfirm = async () => {
+  showManualEndModal.value = false
+  await handleEndCall()
+}
+
+
+// 자동 종료 모달 확인 핸들러
+const handleAutoTerminationConfirm = async () => {
+  showAutoTerminationModal.value = false
+
+  try {
+    // 통화 종료 처리
+    const callData = callStore.endCall()
+
+    // TODO: API 호출 - 블랙리스트 등록
+    // await addToBlacklist(callData.customerId, callStore.currentCall.agentId)
+
+    // TODO: 통화 기록 저장
+    // await saveCallRecord(callData)
+
+    // LiveKit 연결 종료
+    // TODO: await livekitService.disconnect()
+
+    // 상태 초기화
+    callStore.resetCall()
+
+    // 대시보드로 이동
+    router.push({ name: 'counselor-dashboard' })
+
+    notificationStore.notifyInfo('고객이 블랙리스트에 등록되었습니다')
+  } catch (error) {
+    console.error('자동 종료 처리 실패:', error)
+    notificationStore.notifyError('통화 종료 처리에 실패했습니다')
+  }
 }
 
 // 욕설 표시/숨기기 토글
@@ -225,10 +302,15 @@ const addSttMessage = (message) => {
     showOriginal: false
   })
 
-  // 마스킹(폭언) 감지 시 알림 표시
+  // 마스킹(폭언) 감지 시 알림 표시 및 카운트 증가
   if (message.hasProfanity) {
-    const newCount = notificationStore.profanityCount + 1
+    // callStore에서 폭언 카운트 증가 (3회 도달 시 자동 종료 트리거)
+    const newCount = callStore.incrementProfanityCount()
+
+    // 알림 표시
     notificationStore.notifyProfanity(newCount)
+
+    console.log(`[CounselorCall] 폭언 감지 (${newCount}/3회)`)
   }
 }
 

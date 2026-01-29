@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import axios from 'axios'
 
 // 스트레스 임계값 상수
 const STRESS_THRESHOLDS = {
@@ -14,6 +15,14 @@ const STRESS_COLORS = {
   low: '#22c55e'      // green-500
 }
 
+// 에너지 변화 속도 (stressLevel 증감/초)
+// stressLevel 0 → 100까지 소요 시간 또는 100 → 0까지 회복 시간
+const ENERGY_CHANGE_RATES = {
+  AVAILABLE: 0.028,  // 상담 대기 중: +0.028/초 → 1시간(3600초)에 완전 소진
+  IN_CALL: 0.014,    // 통화 중: +0.014/초 → 2시간(7200초)에 완전 소진
+  REST: -0.5         // 휴식 중: -0.5/초 → 약 3분 20초(200초)에 완전 회복
+}
+
 export const useAgentStore = defineStore('agent', () => {
   // 상담원 정보
   const agentInfo = ref({
@@ -25,9 +34,14 @@ export const useAgentStore = defineStore('agent', () => {
   })
 
   // 상담원 상태
-  const stressLevel = ref(0) // 스트레스 지수 (0-100)
+  const stressLevel = ref(null) // 스트레스 지수 (0-100), null이면 초기화 전
   const consecutiveCalls = ref(0)
   const totalCallTime = ref(0)
+  const currentStatus = ref('REST') // 현재 상태: AVAILABLE, IN_CALL, REST
+
+  // 에너지 애니메이션 타이머
+  let energyAnimationInterval = null
+  let isInitialized = false // 초기 데이터 로드 완료 여부
 
   // 통화 가능 여부
   const isAvailable = computed(() => {
@@ -118,12 +132,46 @@ export const useAgentStore = defineStore('agent', () => {
     totalCallTime.value += duration
   }
 
+  // 에너지 자동 증감 애니메이션 시작
+  const startEnergyAnimation = () => {
+    // 기존 타이머가 있으면 정리
+    stopEnergyAnimation()
+
+    // 에너지 증감 애니메이션 (1초마다)
+    energyAnimationInterval = setInterval(() => {
+      // stressLevel이 초기화되지 않았으면 스킵
+      if (stressLevel.value === null) {
+        console.log('[AgentStore] 에너지 레벨 초기화 대기 중...')
+        return
+      }
+
+      const rate = ENERGY_CHANGE_RATES[currentStatus.value] || 0
+
+      // stressLevel 업데이트 (0-100 범위 유지)
+      stressLevel.value = Math.max(0, Math.min(100, stressLevel.value + rate))
+
+      console.log(`[AgentStore] 에너지 변화 - Status: ${currentStatus.value}, StressLevel: ${stressLevel.value.toFixed(1)}`)
+    }, 1000)
+
+    console.log('[AgentStore] 에너지 애니메이션 시작')
+  }
+
+  // 에너지 애니메이션 중지
+  const stopEnergyAnimation = () => {
+    if (energyAnimationInterval) {
+      clearInterval(energyAnimationInterval)
+      energyAnimationInterval = null
+    }
+    console.log('[AgentStore] 에너지 애니메이션 중지')
+  }
+
   return {
     // State
     agentInfo,
     stressLevel,
     consecutiveCalls,
     totalCallTime,
+    currentStatus,
     // Getters
     isAvailable,
     stressStatus,
@@ -135,6 +183,8 @@ export const useAgentStore = defineStore('agent', () => {
     fetchStressLevel,
     updateStressLevel,
     resetStats,
-    incrementCallStats
+    incrementCallStats,
+    startEnergyAnimation,
+    stopEnergyAnimation
   }
 })
