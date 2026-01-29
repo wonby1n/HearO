@@ -65,6 +65,15 @@ const handleOverlayClick = () => {
 </script>
 
 <style scoped>
+/* CSS 변수 정의 */
+:root {
+  --shadow-modal: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  --shadow-icon: 0 10px 30px rgba(129, 140, 248, 0.4), 0 0 0 8px rgba(129, 140, 248, 0.2);
+  --shadow-button: 0 4px 12px rgba(31, 58, 140, 0.3);
+  --shadow-button-hover: 0 6px 16px rgba(31, 58, 140, 0.4);
+  --shadow-button-active: 0 2px 8px rgba(31, 58, 140, 0.3);
+}
+
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -85,7 +94,7 @@ const handleOverlayClick = () => {
   padding: 48px 40px;
   max-width: 480px;
   width: 100%;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-modal);
   animation: modalSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
@@ -165,8 +174,7 @@ const handleOverlayClick = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 10px 30px rgba(129, 140, 248, 0.4),
-              0 0 0 8px rgba(129, 140, 248, 0.2);
+  box-shadow: var(--shadow-icon);
   z-index: 1;
 }
 
@@ -204,18 +212,18 @@ const handleOverlayClick = () => {
   cursor: pointer;
   transition: all 0.2s ease;
   min-width: 140px;
-  box-shadow: 0 4px 12px rgba(31, 58, 140, 0.3);
+  box-shadow: var(--shadow-button);
 }
 
 .confirm-button:hover {
   background: #1a3278;
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(31, 58, 140, 0.4);
+  box-shadow: var(--shadow-button-hover);
 }
 
 .confirm-button:active {
   transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(31, 58, 140, 0.3);
+  box-shadow: var(--shadow-button-active);
 }
 
 /* 모달 트랜지션 */
