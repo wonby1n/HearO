@@ -7,15 +7,11 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.LocalDate;
+import java.time.Duration;
+import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "users", indexes = {
-        @Index(name = "idx_users_role", columnList = "role"),
-        @Index(name = "idx_users_stress_reset_date", columnList = "stress_reset_date")
-})
+@Table(name = "users")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User extends BaseTimeEntity {
@@ -37,98 +33,82 @@ public class User extends BaseTimeEntity {
     @Column(nullable = false, length = 10)
     private UserRole role = UserRole.USER;
 
-    // ========== 일일 스트레스 관리 필드 ==========
-    
-    @Column(name = "daily_profanity_count", nullable = false)
-    private Integer dailyProfanityCount = 0;
+    // ========== 에너지 관리 (Anchor Fields) ==========
 
-    @Column(name = "daily_aggression_sum", nullable = false, precision = 10, scale = 2)
-    private BigDecimal dailyAggressionSum = BigDecimal.ZERO;
+    // 마지막으로 상태가 변경되거나 이벤트가 발생했을 때의 에너지 값 (0~100)
+    @Column(name = "last_energy_value", nullable = false)
+    private Integer lastEnergyValue = 100;
 
-    @Column(name = "daily_call_count", nullable = false)
-    private Integer dailyCallCount = 0;
+    // 마지막 상태 변경 시간 (기준 시간)
+    @Column(name = "last_status_change_time", nullable = false)
+    private LocalDateTime lastStatusChangeTime = LocalDateTime.now();
 
-    @Column(name = "stress_reset_date", nullable = false)
-    private LocalDate stressResetDate = LocalDate.now();
+    // 현재 상담원 상태
+    @Enumerated(EnumType.STRING)
+    @Column(name = "current_status", nullable = false)
+    private UserStatus status = UserStatus.OFFLINE;
 
     // ========== 생성자 ==========
-
     @Builder
     public User(String email, String password, String name, UserRole role) {
         this.email = email;
         this.password = password;
         this.name = name;
         this.role = role != null ? role : UserRole.USER;
-        this.dailyProfanityCount = 0;
-        this.dailyAggressionSum = BigDecimal.ZERO;
-        this.dailyCallCount = 0;
-        this.stressResetDate = LocalDate.now();
+        this.lastEnergyValue = 100;
+        this.status = UserStatus.REST;
+        this.lastStatusChangeTime = LocalDateTime.now();
     }
 
-    // ========== 비즈니스 메서드 ==========
+    // ========== 비즈니스 메서드 (핵심 로직) ==========
 
     /**
-     * 일일 평균 스트레스 점수 계산 (0.00 ~ 1.00)
+     * [조회용] 현재 시간 기준으로 실시간 에너지를 계산해서 반환
+     * DB를 업데이트하지 않고 계산값만 리턴함 (Lazy Calculation)
      */
-    public BigDecimal getDailyAvgStress() {
-        if (dailyCallCount == 0) {
-            return BigDecimal.ZERO;
+    public int calculateRealTimeEnergy(LocalDateTime now) {
+        if (this.status == UserStatus.OFFLINE) {
+            return this.lastEnergyValue; // 오프라인이면 변화 없음 (정책에 따라 변경 가능)
         }
-        return dailyAggressionSum.divide(
-                BigDecimal.valueOf(dailyCallCount), 
-                2, 
-                RoundingMode.HALF_UP
-        );
+
+        // 1. 흐른 시간(분) 계산
+        long minutesPassed = Duration.between(this.lastStatusChangeTime, now).toMinutes();
+
+        // 2. 변화량 계산 (시간 * 분당 증감률)
+        double change = minutesPassed * this.status.getEnergyRatePerMinute();
+
+        // 3. 결과 계산 (0 ~ 100 클램핑)
+        int currentEnergy = (int) (this.lastEnergyValue + change);
+        return Math.max(0, Math.min(100, currentEnergy));
     }
 
     /**
-     * 상담 종료 후 스트레스 데이터 업데이트
+     * [변경용] 상태 변경 또는 이벤트 발생 시 DB 필드 업데이트 (Anchor 갱신)
+     * Service에서 호출됨
      */
-    public void addConsultationStress(int profanityCount, BigDecimal avgAggressionScore) {
-        checkAndResetDaily();
-        this.dailyProfanityCount += profanityCount;
-        this.dailyAggressionSum = this.dailyAggressionSum.add(
-                avgAggressionScore != null ? avgAggressionScore : BigDecimal.ZERO
-        );
-        this.dailyCallCount++;
+    public void updateEnergyAnchor(UserStatus newStatus, int calculatedCurrentEnergy) {
+        this.lastEnergyValue = calculatedCurrentEnergy;
+        this.status = newStatus;
+        this.lastStatusChangeTime = LocalDateTime.now();
     }
 
     /**
-     * 날짜가 바뀌었으면 일일 스트레스 초기화
+     * [변경용] 욕설 감지 등 즉시 차감 이벤트 발생 시
      */
-    public void checkAndResetDaily() {
-        if (!LocalDate.now().equals(this.stressResetDate)) {
-            resetDailyStress();
-        }
+    public void decreaseEnergyImmediately(int amount) {
+        // 현재까지 흐른 시간 반영하여 최신화
+        int current = calculateRealTimeEnergy(LocalDateTime.now());
+
+        // 데미지 적용
+        this.lastEnergyValue = Math.max(0, current - amount);
+        this.lastStatusChangeTime = LocalDateTime.now(); // 기준 시간 갱신
+        // 상태는 그대로 유지
     }
 
-    /**
-     * 일일 스트레스 수동 초기화
-     */
-    public void resetDailyStress() {
-        this.dailyProfanityCount = 0;
-        this.dailyAggressionSum = BigDecimal.ZERO;
-        this.dailyCallCount = 0;
-        this.stressResetDate = LocalDate.now();
-    }
-
-    /**
-     * 비밀번호 변경
-     */
     public void updatePassword(String encodedPassword) {
         this.password = encodedPassword;
     }
 
-    /**
-     * 역할 변경 (관리자용)
-     */
-    public void updateRole(UserRole role) {
-        this.role = role;
-    }
-
-    /**
-     * 프로필 수정
-     */
     public void updateProfile(String name) {
         this.name = name;
     }

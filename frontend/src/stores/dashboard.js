@@ -72,7 +72,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
   // Actions - 대시보드 데이터 조회 (통합)
   const fetchDashboardData = async () => {
     try {
-      const response = await axios.get('/api/v1/dashboard/')
+      const response = await axios.get('/api/v1/dashboard')
 
       if (response.data.isSuccess) {
         const data = response.data.data

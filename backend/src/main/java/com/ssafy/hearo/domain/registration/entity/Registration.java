@@ -28,7 +28,7 @@ public class Registration extends BaseTimeEntity {
     @JoinColumn(name = "customer_id", nullable = false)
     private Customer customer;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(columnDefinition = "TEXT")
     private String symptom;
 
     @Column(name = "error_code", length = 30)
@@ -37,10 +37,10 @@ public class Registration extends BaseTimeEntity {
     @Column(name = "model_code", length = 50)
     private String modelCode;
 
-    @Column(name = "product_category", nullable = false, length = 30)
+    @Column(name = "product_category", length = 30)
     private String productCategory;
 
-    @Column(name = "bought_at", nullable = false)
+    @Column(name = "bought_at")
     private LocalDateTime boughtAt;
 
     @Builder
