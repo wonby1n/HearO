@@ -9,12 +9,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "blacklists", 
+@Table(name = "blacklists",
         uniqueConstraints = {
-            @UniqueConstraint(name = "uk_blacklists_user_customer", columnNames = {"user_id", "customer_id"})
+                @UniqueConstraint(name = "uk_blacklists_user_customer", columnNames = {"user_id", "customer_id"})
         },
         indexes = {
-            @Index(name = "idx_blacklists_customer_id", columnList = "customer_id")
+                @Index(name = "idx_blacklists_customer_id", columnList = "customer_id"),
+                @Index(name = "idx_blacklists_user_id", columnList = "user_id") // 상담원 기준 조회용 인덱스 추가
         }
 )
 @Getter
@@ -23,7 +24,7 @@ public class Blacklist extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    private Long id; // [변경] Integer -> Long
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -43,17 +44,7 @@ public class Blacklist extends BaseTimeEntity {
         this.reason = reason;
     }
 
-    // ========== 연관관계 편의 메서드 ==========
-
-    public void setCustomer(Customer customer) {
-        this.customer = customer;
-        if (!customer.getBlacklists().contains(this)) {
-            customer.getBlacklists().add(this);
-        }
-    }
-
-    // ========== 비즈니스 메서드 ==========
-
+    // 비즈니스 메서드
     public void updateReason(String reason) {
         this.reason = reason;
     }
