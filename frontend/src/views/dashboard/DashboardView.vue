@@ -58,9 +58,9 @@
       </div> -->
     </div>
 
-    <!-- 🔹 MachingModal 연결 -->
+    <!-- 🔹 MatchingModal 연결 -->
     <!-- isOpen 프로퍼티와 close 이벤트를 바인딩했습니다. -->
-    <MachingModal 
+    <MatchingModal 
       :is-open="isModalOpen" 
       @close="isModalOpen = false" 
     />
@@ -76,7 +76,7 @@ import StressChart from '@/components/dashboard/StressChart.vue'
 import WeeklyPerformanceChart from '@/components/dashboard/WeeklyPerformanceChart.vue'
 import StatsCard from '@/components/dashboard/StatsCard.vue'
 import TodoList from '@/components/dashboard/TodoList.vue'
-import MachingModal from '@/components/dashboard/MachingModal.vue'
+import MatchingModal from '@/components/dashboard/MatchingModal.vue'
 
 const dashboardStore = useDashboardStore()
 
