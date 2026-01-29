@@ -61,7 +61,7 @@ export const useAuthStore = defineStore('auth', () => {
       // 토큰 및 사용자 정보 저장
       accessToken.value = token
       user.value = userData
-      console.log(token)
+      
       localStorage.setItem('accessToken', token)
       localStorage.setItem('user', JSON.stringify(userData))
 
@@ -75,10 +75,17 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   // 로그아웃
-  const logout = () => {
+  const logout = async () => {
+
+    try {
+      // 백엔드 로그아웃 API 호출 (refreshToken 쿠키 삭제)
+      await axios.post('/api/v1/auth/logout')
+    } catch (err) {
+    }
+
+    // 프론트엔드 상태 및 localStorage 정리
     accessToken.value = null
     user.value = null
-
     localStorage.removeItem('accessToken')
     localStorage.removeItem('user')
   }

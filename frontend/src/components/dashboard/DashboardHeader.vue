@@ -114,22 +114,28 @@ const sendHeartbeat = async (forceStatus = null) => {
   isRequestPending = true
   try {
     const status = forceStatus !== null ? forceStatus : !!dashboardStore.consultationStatus.isActive
-    await axios.post('/api/v1/users/me/heartbeat', { isHeartbeatActive: status })
+    const response = await axios.post('/api/v1/users/me/heartbeat', { isHeartbeatActive: status })
+
+    console.log('[Heartbeat] 응답 성공:', response.data)
   } catch (error) {
-    console.error('[Heartbeat] Failed:', error)
+    console.error('[Heartbeat] 전송 실패:', error.response?.data || error.message)
   } finally {
     isRequestPending = false
   }
 }
 
 const startHeartbeat = () => {
-  stopHeartbeat()
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval)
+    heartbeatInterval = null
+  }
   sendHeartbeat()
   heartbeatInterval = setInterval(() => sendHeartbeat(), 10000)
 }
 
 const stopHeartbeat = () => {
   if (heartbeatInterval) {
+    console.log('[Heartbeat] 중지')
     clearInterval(heartbeatInterval)
     heartbeatInterval = null
   }
@@ -147,15 +153,20 @@ const handleBeforeUnload = () => {
 }
 
 const toggleConsultationStatus = () => {
-  dashboardStore.consultationStatus.isActive = !dashboardStore.consultationStatus.isActive
+  const newStatus = !dashboardStore.consultationStatus.isActive
+  dashboardStore.consultationStatus.isActive = newStatus
 }
 
 // --- Watchers ---
 watch(
   () => dashboardStore.consultationStatus.isActive,
   (isActive) => {
-    if (isActive) startHeartbeat()
-    else { sendHeartbeat(false); stopHeartbeat() }
+    if (isActive) {
+      startHeartbeat()
+    } else {
+      sendHeartbeat(false)
+      stopHeartbeat()
+    }
   }
 )
 

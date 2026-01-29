@@ -67,6 +67,7 @@ const dashboardStore = useDashboardStore()
 
 // 컴포넌트 마운트 시 대시보드 데이터 로드
 onMounted(async () => {
+  console.log('[Dashboard] 마운트 - 데이터 로드')
   await dashboardStore.fetchDashboardData()
 })
 </script>
