@@ -155,6 +155,7 @@ const handleDeleteTodo = (id) => {
 /* 추가 버튼 스타일 */
 .todo-add-btn {
   background-color: var(--todo-primary);
+  font-size: 12px;
 }
 
 .todo-add-btn:hover:not(:disabled) {

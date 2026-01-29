@@ -163,6 +163,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCustomerStore } from '@/stores/customer'
 import { useNotificationStore } from '@/stores/notification'
+import axios from 'axios'
 
 const router = useRouter()
 const customerStore = useCustomerStore()
@@ -203,18 +204,66 @@ const handleBack = () => {
   router.push({ name: 'client-consultation-verification' })
 }
 
-const handleSubmit = () => {
+const handleSubmit = async () => {
   if (!isFormComplete.value) return
 
-  // 약관 동의 정보 저장
-  customerStore.saveConsent(agreements.value)
+  try {
+    // 1단계에서 저장한 상담 데이터 가져오기
+    const consultationDataStr = localStorage.getItem('clientConsultationData')
+    if (!consultationDataStr) {
+      notificationStore.notifyWarning('상담 정보가 없습니다. 처음부터 다시 시작해주세요.')
+      router.push({ name: 'client-landing' })
+      return
+    }
 
-  // 성공 알림
-  notificationStore.notifySuccess('약관 동의가 완료되었습니다')
+    const consultationData = JSON.parse(consultationDataStr)
 
-  // 상담사 연결 (추후 구현)
-  // TODO: 상담사 연결 로직 구현 후 주석 해제
-  // router.push({ name: 'client-call' })
+    // 2단계에서 받은 accessToken 가져오기
+    const accessToken = localStorage.getItem('customerAccessToken')
+    if (!accessToken) {
+      notificationStore.notifyWarning('인증 정보가 없습니다. 본인 인증을 다시 진행해주세요.')
+      router.push({ name: 'client-consultation-verification' })
+      return
+    }
+
+    console.log('🔑 Authorization 헤더:', `Bearer ${accessToken.substring(0, 20)}...`)
+
+    // 대기열 등록 API 호출
+    const response = await axios.post('/api/v1/queue/register', {
+      symptom: consultationData.symptom,
+      errorCode: consultationData.errorCode,
+      modelCode: consultationData.modelCode
+    }, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      }
+    })
+
+
+    console.log('📦 응답 데이터:', response.data)
+
+    // 약관 동의 정보 저장
+    customerStore.saveConsent(agreements.value)
+
+    // 성공 알림
+    notificationStore.notifySuccess('상담 접수가 완료되었습니다')
+
+    // localStorage 정리
+    localStorage.removeItem('clientConsultationData')
+
+    // 대기 페이지로 이동
+    router.push({ name: 'client-waiting' })
+
+  } catch (error) {
+    console.error('❌ 대기열 등록 실패!')
+
+    if (error.response?.status === 401) {
+      notificationStore.notifyWarning('인증이 만료되었습니다. 본인 인증을 다시 진행해주세요.')
+      router.push({ name: 'client-consultation-verification' })
+    } else {
+      notificationStore.notifyWarning('접수 중 오류가 발생했습니다. 다시 시도해주세요.')
+    }
+  }
 }
 </script>
 
