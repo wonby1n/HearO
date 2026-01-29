@@ -87,7 +87,9 @@ const agentStore = useAgentStore()
 const circumference = 2 * Math.PI * 100
 
 const batteryLevel = computed(() => {
-  return Math.max(0, Math.min(100, 100 - (agentStore.stressLevel || 0)))
+  // return Math.max(0, Math.min(100, 100 - (agentStore.stressLevel || 0)))
+  return Math.max(0, Math.min(100, 100 - (80 || 0)))
+
 })
 
 const statusKey = computed(() => {
