@@ -16,10 +16,11 @@ const STRESS_COLORS = {
 }
 
 // 에너지 변화 속도 (stressLevel 증감/초)
+// stressLevel 0 → 100까지 소요 시간 또는 100 → 0까지 회복 시간
 const ENERGY_CHANGE_RATES = {
-  AVAILABLE: 0.1,   // 상담 대기 중 - 스트레스 증가 (약 16분 40초에 100 도달)
-  IN_CALL: 0.05,    // 통화 중 - 천천히 증가 (약 33분에 100 도달)
-  REST: -0.5        // 휴식 중 - 회복 (약 3분 20초에 0 도달)
+  AVAILABLE: 0.028,  // 상담 대기 중: +0.028/초 → 1시간(3600초)에 완전 소진
+  IN_CALL: 0.014,    // 통화 중: +0.014/초 → 2시간(7200초)에 완전 소진
+  REST: -0.5         // 휴식 중: -0.5/초 → 약 3분 20초(200초)에 완전 회복
 }
 
 export const useAgentStore = defineStore('agent', () => {

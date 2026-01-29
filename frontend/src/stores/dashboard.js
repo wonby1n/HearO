@@ -139,6 +139,39 @@ export const useDashboardStore = defineStore('dashboard', () => {
   const fetchWeeklyPerformance = fetchDashboardData
   const fetchStats = fetchDashboardData
 
+  /**
+   * 스트레스 차트 전용 새로고침 (경량화)
+   * status와 currentEnergy만 가져와서 agentStore 업데이트
+   * 다른 데이터(weeklyChart, totalDuration 등)는 건드리지 않음
+   */
+  const refreshStressData = async () => {
+    try {
+      const response = await axios.get('/api/v1/dashboard')
+
+      if (response.data.isSuccess) {
+        const data = response.data.data
+        const agentStore = useAgentStore()
+
+        // status 업데이트 (heartbeat 비활성화 시에만)
+        if (data.status && !consultationStatus.value.isActive) {
+          agentStore.currentStatus = data.status
+          console.log('[DashboardStore] 스트레스 차트 새로고침 - status:', data.status)
+        }
+
+        // currentEnergy를 stressLevel로 변환하여 강제 동기화
+        if (data.currentEnergy !== undefined) {
+          const newStressLevel = 100 - data.currentEnergy
+          agentStore.stressLevel = newStressLevel
+          console.log('[DashboardStore] 스트레스 차트 새로고침 - stressLevel:', newStressLevel)
+        }
+
+        console.log('[DashboardStore] 스트레스 차트 새로고침 완료')
+      }
+    } catch (error) {
+      console.error('[DashboardStore] 스트레스 차트 새로고침 실패:', error)
+    }
+  }
+
   const fetchWaitingCustomers = async () => {
     try {
       // TODO: REST API로 초기 대기 고객 수 조회
@@ -296,7 +329,8 @@ export const useDashboardStore = defineStore('dashboard', () => {
     fetchTodos,
     toggleTodo,
     addTodo,
-    deleteTodo
+    deleteTodo,
+    refreshStressData
   }
 
   // 개발 환경에서 콘솔 테스트용으로 store 노출

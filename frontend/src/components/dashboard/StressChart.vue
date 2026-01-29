@@ -67,7 +67,7 @@
     <!-- 하단 메시지 섹션: 텍스트 사이즈 소폭 축소 -->
     <div class="mt-4 text-center">
       <div class="status-badge inline-block px-3 py-0.5 rounded-full text-[10px] font-bold mb-2 transition-colors duration-500">
-        ENERGY LEVEL: {{ batteryLevel }}%
+        ENERGY LEVEL
       </div>
       <p class="status-message text-xl font-bold tracking-tight transition-colors duration-500">
         {{ statusContent.message }}
@@ -126,8 +126,8 @@ const statusContent = computed(() => {
 })
 
 const refreshStressLevel = async () => {
-  console.log('[StressChart] 새로고침 버튼 클릭 - 대시보드 데이터 갱신')
-  await dashboardStore.fetchDashboardData()
+  console.log('[StressChart] 새로고침 버튼 클릭 - 스트레스 데이터만 갱신')
+  await dashboardStore.refreshStressData()
 }
 </script>
 
