@@ -145,14 +145,50 @@ const stopHeartbeat = () => {
 
 const handleBeforeUnload = () => {
   if (dashboardStore.consultationStatus.isActive) {
-    fetch('/api/v1/users/me/heartbeat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ isHeartbeatActive: false }),
-      keepalive: true
-    })
+    // 병렬 처리로 페이지 종료 전 완료 확률 향상
+    Promise.all([
+      fetch('/api/v1/users/me/heartbeat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isHeartbeatActive: false }),
+        keepalive: true
+      }),
+      fetch('/api/v1/users/me/status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'REST' }),
+        keepalive: true
+      })
+    ]).catch(err => console.error('[BeforeUnload] 요청 실패:', err))
   }
 }
+
+
+// --- 상담사 상태 업데이트 ---
+const updateCounselorStatus = async (status) => {
+  try {
+    const response = await axios.patch('/api/v1/users/me/status', {
+      status: status
+    })
+
+    console.log('[Status Update] 성공:', response.data)
+
+    if (response.data.isSuccess) {
+      console.log('[Status Update]', response.data.message)
+    }
+  } catch (error) {
+    // 401은 interceptor가 처리하므로 여기서는 다른 에러만 처리
+    if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') {
+      console.error('[Status Update] 네트워크 연결 불안정:', error.message)
+    } else if (error.response?.status !== 401) {
+      console.error('[Status Update] 실패:', error.response?.data || error.message)
+    }
+  }
+}
+
+
+
+
 
 const toggleConsultationStatus = () => {
   const newStatus = !dashboardStore.consultationStatus.isActive
@@ -163,6 +199,11 @@ const toggleConsultationStatus = () => {
 watch(
   () => dashboardStore.consultationStatus.isActive,
   (isActive) => {
+    // 상담사 상태 업데이트
+    const status = isActive ? 'AVAILABLE' : 'REST'
+    updateCounselorStatus(status)
+
+    // 하트비트 관리
     if (isActive) {
       startHeartbeat()
       // 상담 대기 상태로 변경
@@ -197,7 +238,9 @@ onMounted(() => {
   window.addEventListener('beforeunload', handleBeforeUnload)
 
   // 초기 상태 설정
-  agentStore.currentStatus = dashboardStore.consultationStatus.isActive ? 'AVAILABLE' : 'REST'
+  const initialStatus = dashboardStore.consultationStatus.isActive ? 'AVAILABLE' : 'REST'
+  agentStore.currentStatus = initialStatus
+  updateCounselorStatus(initialStatus)
 
   if (dashboardStore.consultationStatus.isActive) startHeartbeat()
 })
