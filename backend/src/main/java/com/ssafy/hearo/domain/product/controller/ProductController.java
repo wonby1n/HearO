@@ -2,6 +2,7 @@ package com.ssafy.hearo.domain.product.controller;
 
 import com.ssafy.hearo.domain.product.dto.ProductResponse;
 import com.ssafy.hearo.domain.product.service.ProductService;
+import com.ssafy.hearo.global.common.response.BaseResponse; // BaseResponse 임포트!
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,11 +16,12 @@ public class ProductController {
 
     /**
      * 상품 ID로 상세 정보 조회
-     * 예: GET /api/v1/products/1
      */
     @GetMapping("/{productId}")
-    public ResponseEntity<ProductResponse> getProductDetail(@PathVariable("productId") Integer productId) {
+    public ResponseEntity<BaseResponse<ProductResponse>> getProductDetail(@PathVariable("productId") Integer productId) {
         ProductResponse response = productService.getProductDetail(productId);
-        return ResponseEntity.ok(response);
+
+        // [수정] BaseResponse.success()로 감싸기
+        return ResponseEntity.ok(BaseResponse.success(response));
     }
 }
