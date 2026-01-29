@@ -1,4 +1,4 @@
-package com.ssafy.hearo.domain.calls;
+package com.ssafy.hearo.domain.calls.dto;
 
 
 import lombok.Builder;
