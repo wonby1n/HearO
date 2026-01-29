@@ -133,7 +133,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import CallTimer from '@/components/counselor/CallTimer.vue'
 import CustomerInfoPanel from '@/components/counselor/CustomerInfoPanel.vue'
@@ -179,7 +179,12 @@ const sttMessages = ref(mockSttMessages)
 
 // AI 가이드
 const searchQuery = ref('')
-const memo = ref('')
+const memo = computed({
+  get: () => callStore.callMemo,
+  set: (value) => {
+    callStore.updateMemo(value)
+  }
+})
 const aiSummary = ref('')
 
 // 고객 정보 로드
