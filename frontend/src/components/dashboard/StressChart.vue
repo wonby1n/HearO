@@ -99,8 +99,8 @@ onUnmounted(() => {
 const circumference = 2 * Math.PI * 100
 
 const batteryLevel = computed(() => {
-  // return Math.max(0, Math.min(100, 100 - (agentStore.stressLevel || 0)))
-  return Math.max(0, Math.min(100, 100 - (80 || 0)))
+  return Math.max(0, Math.min(100, 100 - (agentStore.stressLevel || 0)))
+  // return Math.max(0, Math.min(100, 100 - (80 || 0)))
 
 })
 
@@ -128,6 +128,7 @@ const statusContent = computed(() => {
 })
 
 const refreshStressLevel = async () => {
+
   console.log('[StressChart] 새로고침 버튼 클릭 - 스트레스 데이터만 갱신')
   await dashboardStore.refreshStressData()
 }
