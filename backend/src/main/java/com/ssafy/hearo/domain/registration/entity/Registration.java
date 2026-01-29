@@ -1,6 +1,7 @@
 package com.ssafy.hearo.domain.registration.entity;
 
 import com.ssafy.hearo.domain.customer.entity.Customer;
+import com.ssafy.hearo.domain.product.entity.Product;
 import com.ssafy.hearo.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -8,12 +9,12 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "registrations", indexes = {
         @Index(name = "idx_registrations_customer_id", columnList = "customer_id"),
-        @Index(name = "idx_registrations_product_category", columnList = "product_category"),
+        @Index(name = "idx_registrations_product_id", columnList = "product_id"),
         @Index(name = "idx_registrations_created_at", columnList = "created_at")
 })
 @Getter
@@ -28,30 +29,37 @@ public class Registration extends BaseTimeEntity {
     @JoinColumn(name = "customer_id", nullable = false)
     private Customer customer;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id", nullable = false)
+    private Product product;
+
     @Column(columnDefinition = "TEXT")
-    private String symptom;
+    private String symptom; // 증상
 
     @Column(name = "error_code", length = 30)
     private String errorCode;
 
-    @Column(name = "model_code", length = 50)
-    private String modelCode;
+    // [이동] Product -> Registration
+    // 개별 기기의 제조일자
+    @Column(name = "manufactured_at")
+    private LocalDate manufacturedAt;
 
-    @Column(name = "product_category", length = 30)
-    private String productCategory;
+    // [이동] Product -> Registration
+    // 개별 기기의 보증마감일
+    @Column(name = "warranty_ends_at")
+    private LocalDate warrantyEndsAt;
 
-    @Column(name = "bought_at")
-    private LocalDateTime boughtAt;
+    // boughtAt은 삭제됨
 
     @Builder
-    public Registration(Customer customer, String symptom, String errorCode, 
-                        String modelCode, String productCategory, LocalDateTime boughtAt) {
+    public Registration(Customer customer, Product product, String symptom, String errorCode,
+                        LocalDate manufacturedAt, LocalDate warrantyEndsAt) {
         this.customer = customer;
+        this.product = product;
         this.symptom = symptom;
         this.errorCode = errorCode;
-        this.modelCode = modelCode;
-        this.productCategory = productCategory;
-        this.boughtAt = boughtAt;
+        this.manufacturedAt = manufacturedAt;
+        this.warrantyEndsAt = warrantyEndsAt;
     }
 
     // ========== 비즈니스 메서드 ==========
