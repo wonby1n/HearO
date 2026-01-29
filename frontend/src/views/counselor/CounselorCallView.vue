@@ -124,14 +124,7 @@
             </section>
 
             <!-- 메모 영역 -->
-            <section>
-              <h4 class="text-sm font-semibold text-gray-900 mb-3">메모</h4>
-              <textarea
-                v-model="memo"
-                placeholder="상담 메모를 입력하세요."
-                class="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
-              ></textarea>
-            </section>
+            <CallMemoPanel v-model="memo" />
           </div>
         </div>
       </div>
@@ -146,6 +139,7 @@ import CallTimer from '@/components/counselor/CallTimer.vue'
 import CustomerInfoPanel from '@/components/counselor/CustomerInfoPanel.vue'
 import STTChatPanel from '@/components/counselor/STTChatPanel.vue'
 import CounselorCallControls from '@/components/counselor/CounselorCallControls.vue'
+import CallMemoPanel from '@/components/counselor/CallMemoPanel.vue'
 import AutoTerminationModal from '@/components/call/AutoTerminationModal.vue'
 import ManualEndCallModal from '@/components/call/ManualEndCallModal.vue'
 import { mockCustomerInfo, mockSttMessages } from '@/mocks/counselor'
