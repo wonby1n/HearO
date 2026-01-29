@@ -25,3 +25,4 @@ public class ConsultationController {
         return ResponseEntity.ok(consultationService.getLatest3ByCustomerId(customerId));
     }
 }
+
