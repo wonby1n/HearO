@@ -152,6 +152,15 @@ const router = createRouter({
       meta: {
         title: '알림 테스트'
       }
+    },
+    // 휴식 권장 모달 테스트 페이지 (개발용)
+    {
+      path: '/rest-recommend-test',
+      name: 'rest-recommend-test',
+      component: () => import('@/components/alert/RestRecommendModalExample.vue'),
+      meta: {
+        title: '휴식 권장 모달 테스트'
+      }
     }
   ],
 })
