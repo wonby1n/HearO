@@ -75,12 +75,25 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   // 로그아웃
-  const logout = () => {
+  const logout = async () => {
+    console.log('[Logout] 로그아웃 시작')
+
+    try {
+      // 백엔드 로그아웃 API 호출 (refreshToken 쿠키 삭제)
+      await axios.post('/api/v1/auth/logout')
+      console.log('[Logout] 백엔드 로그아웃 성공')
+    } catch (err) {
+      console.error('[Logout] 백엔드 로그아웃 실패:', err.response?.data || err.message)
+      // 백엔드 실패해도 프론트엔드는 로그아웃 처리
+    }
+
+    // 프론트엔드 상태 및 localStorage 정리
     accessToken.value = null
     user.value = null
-
     localStorage.removeItem('accessToken')
     localStorage.removeItem('user')
+
+    console.log('[Logout] 로그아웃 완료')
   }
 
   // 토큰 갱신

@@ -114,22 +114,32 @@ const sendHeartbeat = async (forceStatus = null) => {
   isRequestPending = true
   try {
     const status = forceStatus !== null ? forceStatus : !!dashboardStore.consultationStatus.isActive
-    await axios.post('/api/v1/users/me/heartbeat', { isHeartbeatActive: status })
+    console.log(`[Heartbeat] 전송 중... isHeartbeatActive: ${status}`)
+
+    const response = await axios.post('/api/v1/users/me/heartbeat', { isHeartbeatActive: status })
+
+    console.log('[Heartbeat] 응답 성공:', response.data)
   } catch (error) {
-    console.error('[Heartbeat] Failed:', error)
+    console.error('[Heartbeat] 전송 실패:', error.response?.data || error.message)
   } finally {
     isRequestPending = false
   }
 }
 
 const startHeartbeat = () => {
-  stopHeartbeat()
+  if (heartbeatInterval) {
+    console.log('[Heartbeat] 기존 interval 정리')
+    clearInterval(heartbeatInterval)
+    heartbeatInterval = null
+  }
+  console.log('[Heartbeat] 시작 - 10초마다 전송')
   sendHeartbeat()
   heartbeatInterval = setInterval(() => sendHeartbeat(), 10000)
 }
 
 const stopHeartbeat = () => {
   if (heartbeatInterval) {
+    console.log('[Heartbeat] 중지')
     clearInterval(heartbeatInterval)
     heartbeatInterval = null
   }
@@ -147,15 +157,22 @@ const handleBeforeUnload = () => {
 }
 
 const toggleConsultationStatus = () => {
-  dashboardStore.consultationStatus.isActive = !dashboardStore.consultationStatus.isActive
+  const newStatus = !dashboardStore.consultationStatus.isActive
+  console.log(`[상담 버튼] 토글: ${dashboardStore.consultationStatus.isActive ? 'ON' : 'OFF'} → ${newStatus ? 'ON' : 'OFF'}`)
+  dashboardStore.consultationStatus.isActive = newStatus
 }
 
 // --- Watchers ---
 watch(
   () => dashboardStore.consultationStatus.isActive,
   (isActive) => {
-    if (isActive) startHeartbeat()
-    else { sendHeartbeat(false); stopHeartbeat() }
+    console.log(`[Watch] consultationStatus.isActive 변경: ${isActive}`)
+    if (isActive) {
+      startHeartbeat()
+    } else {
+      sendHeartbeat(false)
+      stopHeartbeat()
+    }
   }
 )
 
