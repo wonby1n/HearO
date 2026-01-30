@@ -303,8 +303,8 @@ public class QueueServiceImpl implements QueueService {
      */
     private Set<Long> findMatchableCounselors(String customerId, Set<Long> availableCounselorIds) {
         try {
-            Long customerIdLong = Long.parseLong(customerId);
-            Set<Long> blockedCounselorIds = blacklistRepository.findBlockedCounselorIdsByCustomerId(customerIdLong);
+            Integer customerIdInt = Integer.parseInt(customerId);
+            Set<Long> blockedCounselorIds = blacklistRepository.findBlockedCounselorIdsByCustomerId(customerIdInt);
 
             return availableCounselorIds.stream()
                     .filter(counselorId -> !blockedCounselorIds.contains(counselorId))
