@@ -4,6 +4,8 @@ services:
     image: postgres:15
     container_name: postgres-db
     restart: always
+    env_file:
+    - .env
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -65,6 +67,8 @@ services:
       - "51000-51100:51000-51100/tcp"
     volumes:
       - ./livekit.yaml:/etc/livekit.yaml
+    env_file:
+    - .env
     environment:
       LIVEKIT_KEYS: "${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
       REDIS_PASSWORD: ${REDIS_PASSWORD}
