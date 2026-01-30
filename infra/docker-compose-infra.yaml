@@ -70,6 +70,7 @@ services:
     env_file:
     - .env
     environment:
+      LIVEKIT_REDIS_ADDRESS: "redis:6379"
       LIVEKIT_KEYS: "${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
       REDIS_PASSWORD: ${REDIS_PASSWORD}
     depends_on:
