@@ -5,6 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 public interface BlacklistRepository extends JpaRepository<Blacklist, Long> {
@@ -33,4 +35,14 @@ public interface BlacklistRepository extends JpaRepository<Blacklist, Long> {
             @Param("customerId") Long customerId,
             @Param("counselorIds") Set<Long> counselorIds,
             @Param("counselorCount") long counselorCount);
+
+    // 특정 상담원(User)이 등록한 블랙리스트 목록 조회 (최신순)
+    List<Blacklist> findAllByUserIdOrderByCreatedAtDesc(Long userId);
+
+    // 중복 등록 방지용 조회
+    // Customer ID가 Integer이므로 타입 주의
+    boolean existsByUserIdAndCustomerId(Long userId, Integer customerId);
+
+    // 블랙리스트 삭제를 위한 조회
+    Optional<Blacklist> findByUserIdAndCustomerId(Long userId, Integer customerId);
 }

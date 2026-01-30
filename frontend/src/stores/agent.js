@@ -16,11 +16,12 @@ const STRESS_COLORS = {
 }
 
 // 에너지 변화 속도 (stressLevel 증감/초)
-// stressLevel 0 → 100까지 소요 시간 또는 100 → 0까지 회복 시간
+// 백엔드와 동기화: 4시간에 100 소진/회복 (분당 0.41666...)
+// stressLevel은 100 - energy이므로 부호 반대
 const ENERGY_CHANGE_RATES = {
-  AVAILABLE: 0.028,  // 상담 대기 중: +0.028/초 → 1시간(3600초)에 완전 소진
-  IN_CALL: 0.014,    // 통화 중: +0.014/초 → 2시간(7200초)에 완전 소진
-  REST: -0.5         // 휴식 중: -0.5/초 → 약 3분 20초(200초)에 완전 회복
+  AVAILABLE: 0.41666666 / 60,   // 분당 -0.41666... (에너지) → stressLevel +0.00694.../초 (4시간에 100 소진)
+  IN_CALL: 0.41666666 / 60,     // 분당 -0.41666... (에너지) → stressLevel +0.00694.../초 (4시간에 100 소진)
+  REST: -0.41666666 / 60        // 분당 +0.41666... (에너지) → stressLevel -0.00694.../초 (4시간에 100 회복)
 }
 
 export const useAgentStore = defineStore('agent', () => {
