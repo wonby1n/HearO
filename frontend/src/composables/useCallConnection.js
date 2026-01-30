@@ -4,10 +4,11 @@ import { useLiveKit } from "@/composables/useLiveKit";
 import { useMatchingNotification } from "@/composables/useMatchingNotification";
 import axios from "axios";
 
-export function useCallConnection(role = "customer") {
+export function useCallConnection(role = "customer", options = {}) {
   const router = useRouter();
   const connectionState = ref("idle"); // idle, waiting, matched, connecting, connected
   const error = ref(null);
+  const matchedData = ref(null); // 매칭 데이터 저장
 
   // LiveKit composable
   const livekit = useLiveKit({
@@ -25,6 +26,7 @@ export function useCallConnection(role = "customer") {
   const handleMatched = async (matchData) => {
     try {
       connectionState.value = "matched";
+      matchedData.value = matchData;
       console.log("[CallConnection] 매칭 완료, LiveKit 토큰 요청 중...");
 
       const { roomName, identity } = matchData;
@@ -43,22 +45,32 @@ export function useCallConnection(role = "customer") {
       // 2. LiveKit 룸 연결
       await livekit.connect(url, token);
 
-      // 3. 마이크 활성화
-      await livekit.enableMicrophone();
+      // 3. 마이크 활성화 (실패해도 계속 진행)
+      try {
+        await livekit.enableMicrophone();
+      } catch (micError) {
+        console.warn("[CallConnection] 마이크 자동 활성화 실패 (수동으로 켜야 함):", micError);
+        // 에러를 무시하고 계속 진행
+      }
 
       connectionState.value = "connected";
       console.log("[CallConnection] 통화 연결 완료");
 
-      // 4. 통화 화면으로 이동
-      if (role === "customer") {
-        router.push("/client/call");
-      } else {
-        router.push("/counselor/call");
-      }
+      // 4. 콜백 호출 (페이지 이동은 호출자가 결정)
+      options.onMatched?.(matchData);
     } catch (err) {
       console.error("[CallConnection] 연결 실패:", err);
       error.value = err;
       connectionState.value = "error";
+    }
+  };
+
+  // 통화 화면으로 이동하는 헬퍼 함수
+  const navigateToCall = () => {
+    if (role === "customer") {
+      router.push("/client/call");
+    } else {
+      router.push("/counselor/call");
     }
   };
 
@@ -103,18 +115,22 @@ export function useCallConnection(role = "customer") {
 
   // 연결 종료
   const disconnect = async () => {
-    matching.disconnect();
+    if (matching) {
+      matching.disconnect();
+    }
     await livekit.disconnect();
     connectionState.value = "idle";
   };
 
   return {
     connectionState,
+    matchedData,
     error,
     livekit,
     startWaiting,
     startListening,
     disconnect,
     handleMatched,
+    navigateToCall,
   };
 }

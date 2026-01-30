@@ -38,6 +38,12 @@ export default defineConfig({
          * 아래 주석을 해제하여 요청 경로에서 '/api'라는 글자를 지우고 보낼 수 있습니다.
          */
         // rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+      // 🔹 WebSocket 프록시 추가
+      '/ws': {
+        target: 'https://i14e106.p.ssafy.io',
+        changeOrigin: true,
+        ws: true,  // WebSocket 지원 활성화
       }
     }
   }

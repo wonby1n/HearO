@@ -20,13 +20,16 @@ export const useDashboardStore = defineStore('dashboard', () => {
   ])
 
   const totalCallTime = ref({ hours: 0, minutes: 0 })
-  
+
   // localStorage에서 상담 상태 복원 (새로고침 시 유지)
   const savedConsultationStatus = localStorage.getItem('consultationStatus')
   const consultationStatus = ref({
     isActive: savedConsultationStatus ? JSON.parse(savedConsultationStatus).isActive : false,
     lastCallTime: 0
   })
+
+  // 매칭 데이터 (모달 표시용)
+  const matchedData = ref(null)
 
   // --- 연산 (Computed) ---
   const formattedCallTime = computed(() => {
@@ -197,6 +200,21 @@ export const useDashboardStore = defineStore('dashboard', () => {
     }
   )
 
+  /**
+   * 매칭 데이터 설정 (모달 표시용)
+   */
+  const setMatchedData = (data) => {
+    matchedData.value = data
+    console.log('[DashboardStore] 매칭 데이터 저장:', data)
+  }
+
+  /**
+   * 매칭 데이터 초기화
+   */
+  const clearMatchedData = () => {
+    matchedData.value = null
+  }
+
   return {
     userName,
     stressIndex,
@@ -206,6 +224,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
     waitingCustomers,
     consultationStatus,
     todos,
+    matchedData,
     formattedCallTime,
     fetchDashboardData,
     fetchTodos,
@@ -213,6 +232,8 @@ export const useDashboardStore = defineStore('dashboard', () => {
     toggleTodo,
     updateTodo,
     deleteTodo,
-    refreshStressData
+    refreshStressData,
+    setMatchedData,
+    clearMatchedData
   }
 })
