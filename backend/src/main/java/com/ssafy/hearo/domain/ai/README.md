@@ -207,3 +207,156 @@ ai
      └─ RagServiceImpl.java
 ```
 ---
+
+## 7. AI 상담 요약 기능 (STT 기반)
+
+### 7.1 개요
+
+HearO는 상담 중 수집된 **STT(Speech-To-Text) 상담 로그**를 기반으로
+AI(GMS, OpenAI 호환)를 활용한 **상담 요약 기능**을 제공합니다.
+
+> 본 기능은 **RAG 시스템과 독립적으로 동작**하며,
+> 상담 종료 전/후에 요약을 생성하여 프론트엔드에 반환합니다.
+
+---
+
+### 7.2 STT 데이터 성격
+
+* STT는 **로그인 로그가 아닌 상담 로그(업무 로그)** 입니다.
+* 상담 세션(Consultation) 단위로 생성됩니다.
+* AI 요약 생성 시 DB에 즉시 저장되지 않습니다.
+
+STT 예시:
+
+```text
+[00:01] 고객: 냉장고가 갑자기 작동하지 않습니다.
+[00:10] 상담원: 전원 플러그를 확인해보셨을까요?
+[00:20] 고객: 확인했는데도 동일합니다.
+```
+---
+
+### 7.3 전체 흐름 (AI 요약)
+
+```
+Client (상담 화면)
+  └─ STT 로그 수집
+        ↓
+Client
+  └─ POST /api/ai/consultations/summary
+        ↓
+Backend (Spring Boot)
+  └─ GMS(OpenAI 호환) 서버 호출
+        ↓
+GMS
+  └─ STT 기반 요약 생성
+        ↓
+Backend
+  └─ 요약 결과 반환
+        ↓
+Client
+  └─ 상담 종료 모달 / 미리보기 표시
+```
+
+---
+
+### 7.4 AI 요약 생성 API
+
+#### URL
+
+```http
+POST /api/ai/consultations/summary
+```
+
+---
+
+#### Request Body
+
+```json
+{
+  "fullTranscript": "고객: 냉장고가 작동하지 않습니다.\n상담원: 전원 플러그를 확인해보셨을까요?"
+}
+```
+
+| 필드             | 설명            |
+| -------------- | ------------- |
+| fullTranscript | 상담 STT 전체 텍스트 |
+
+---
+
+#### Response (200 OK)
+
+```json
+{
+  "aiSummary": "- 이슈 요약: 냉장고 작동 불량\n- 고객 요청: 원인 확인 요청\n- 상담원 안내: 전원 상태 점검 안내\n- 후속 조치: 필요 시 AS 접수 안내"
+}
+```
+
+| 필드        | 설명            |
+| --------- | ------------- |
+| aiSummary | AI가 생성한 상담 요약 |
+
+---
+
+### 7.5 요약 생성 정책
+
+* STT에 포함되지 않은 정보는 **추측하지 않음**
+* 시간 정보(타임스탬프)는 요약 결과에 포함하지 않음
+* 한국어로 응답
+* 다음 구조를 유지하여 요약
+
+```text
+- 이슈 요약
+- 고객 요청
+- 상담원 안내
+- 후속 조치
+```
+
+---
+
+### 7.6 저장 시점
+
+* AI 요약 생성 API는 **DB를 수정하지 않음**
+* 상담 종료 시 다음 데이터와 함께 저장됨:
+
+| 항목                | 설명        |
+| ----------------- | --------- |
+| fullTranscript    | 상담 STT 전체 |
+| aiSummary         | AI 요약     |
+| userMemo          | 상담원 메모    |
+| profanityCount    | 욕설 감지 횟수  |
+| terminationReason | 상담 종료 사유  |
+| durationSeconds   | 상담 시간     |
+
+---
+
+### 7.7 관련 엔티티
+
+* `Consultation`
+
+  * `fullTranscript`
+  * `aiSummary`
+  * `userMemo`
+  * `profanityCount`
+  * `terminationReason`
+  * `durationSeconds`
+
+---
+
+### 7.8 프로젝트 구조 (AI 요약)
+
+```
+ai
+ ├─ controller
+ │   └─ ConsultationAiController.java
+ ├─ dto
+ │   ├─ ConsultationSummaryRequest.java
+ │   └─ ConsultationSummaryResponse.java
+ ├─ client
+ │   └─ GmsClient.java
+ └─ service
+     └─ ConsultationSummaryService.java
+```
+
+---
+
+
