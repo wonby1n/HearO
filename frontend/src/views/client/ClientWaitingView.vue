@@ -211,7 +211,8 @@ const clearQueueSocketReconnect = () => {
 }
 
 const connectQueueSocket = () => {
-  const customerId = customerStore.currentCustomer?.id
+  // localStorage에서 customerId 가져오기 (store가 비어있을 수 있음)
+  const customerId = localStorage.getItem('clientCustomerId') || customerStore.currentCustomer?.id
   if (!customerId) {
     console.warn('[QueueWS] customerId missing - skip WebSocket connect')
     return
