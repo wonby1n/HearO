@@ -91,7 +91,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
           // 처음 로드 시에만 설정 (이후에는 애니메이션이 제어)
           if (agentStore.stressLevel === null) {
             agentStore.stressLevel = newStressLevel
-            console.log('[DashboardStore] 초기 에너지 레벨 설정:', newStressLevel)
           }
         }
 
@@ -125,7 +124,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
         // 고객 만족도
         customerSatisfaction.value = data.customerSatisfaction || 0
 
-        console.log('대시보드 데이터 로드 성공:', data)
       } else {
         throw new Error(response.data.message || '데이터를 불러오지 못했습니다')
       }

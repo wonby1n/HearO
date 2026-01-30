@@ -29,12 +29,39 @@
               <img v-if="productImg" :src="productImg" :alt="productName" class="product-image" />
               
               <div v-else class="device-icon">
+                <!-- 냉장고 아이콘 -->
                 <svg v-if="category === 'REFRIGERATOR'" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M5 2H19V22H5V2Z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
                   <path d="M5 10H19" stroke="white" stroke-width="2" stroke-linecap="round"/>
                   <path d="M9 6V8" stroke="white" stroke-width="2" stroke-linecap="round"/>
                   <path d="M9 14V18" stroke="white" stroke-width="2" stroke-linecap="round"/>
                 </svg>
+
+                <!-- 세탁기 아이콘 -->
+                <svg v-else-if="category === 'WASHING_MACHINE'" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="4" y="2" width="16" height="20" rx="2" stroke="white" stroke-width="2"/>
+                  <circle cx="7" cy="5" r="0.5" fill="white"/>
+                  <circle cx="9" cy="5" r="0.5" fill="white"/>
+                  <circle cx="12" cy="13" r="5" stroke="white" stroke-width="2"/>
+                  <path d="M12 10V16M9 13H15" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+
+                <!-- TV 아이콘 -->
+                <svg v-else-if="category === 'TV'" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="2" y="6" width="20" height="13" rx="2" stroke="white" stroke-width="2"/>
+                  <path d="M8 22H16" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                  <path d="M12 19V22" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+
+                <!-- 에어컨 아이콘 -->
+                <svg v-else-if="category === 'AIR_CONDITIONER'" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="3" y="4" width="18" height="8" rx="2" stroke="white" stroke-width="2"/>
+                  <path d="M7 12V15M12 12V17M17 12V15" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                  <path d="M5 15L3 17M7 17L5 19M10 17L8 19" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+                  <path d="M14 19L16 17M17 19L19 17M19 15L21 17" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+
+                <!-- 스마트폰 아이콘 (기본값) -->
                 <svg v-else viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <rect x="6" y="2" width="12" height="20" rx="2" stroke="white" stroke-width="2"/>
                   <path d="M10 19H14" stroke="white" stroke-width="2" stroke-linecap="round"/>
@@ -184,8 +211,8 @@ const props = defineProps({
 })
 
 const productImg = computed(() => {
-  if (!props.imageUrl) return null;
-  return props.imageUrl;
+  // 이미지 비활성화 - 아이콘만 표시
+  return null;
 })
 
 const router = useRouter()
