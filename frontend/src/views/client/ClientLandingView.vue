@@ -52,7 +52,36 @@
 
       <div class="device-info">
         <div class="phone-icon">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- 냉장고 아이콘 -->
+          <svg v-if="category === 'REFRIGERATOR'" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M5 2H19V22H5V2Z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M5 10H19" stroke="white" stroke-width="2" stroke-linecap="round"/>
+            <path d="M9 6V8" stroke="white" stroke-width="2" stroke-linecap="round"/>
+            <path d="M9 14V18" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <!-- 세탁기 아이콘 -->
+          <svg v-else-if="category === 'WASHING_MACHINE'" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="4" y="2" width="16" height="20" rx="2" stroke="white" stroke-width="2"/>
+            <circle cx="7" cy="5" r="0.5" fill="white"/>
+            <circle cx="9" cy="5" r="0.5" fill="white"/>
+            <circle cx="12" cy="13" r="5" stroke="white" stroke-width="2"/>
+            <path d="M12 10V16M9 13H15" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <!-- TV 아이콘 -->
+          <svg v-else-if="category === 'TV'" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="2" y="6" width="20" height="13" rx="2" stroke="white" stroke-width="2"/>
+            <path d="M8 22H16" stroke="white" stroke-width="2" stroke-linecap="round"/>
+            <path d="M12 19V22" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <!-- 에어컨 아이콘 -->
+          <svg v-else-if="category === 'AIR_CONDITIONER'" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="3" y="4" width="18" height="8" rx="2" stroke="white" stroke-width="2"/>
+            <path d="M7 12V15M12 12V17M17 12V15" stroke="white" stroke-width="2" stroke-linecap="round"/>
+            <path d="M5 15L3 17M7 17L5 19M10 17L8 19" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M14 19L16 17M17 19L19 17M19 15L21 17" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <!-- 스마트폰 아이콘 (기본값) -->
+          <svg v-else viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <rect x="6" y="2" width="12" height="20" rx="2" stroke="white" stroke-width="2"/>
             <path d="M10 19H14" stroke="white" stroke-width="2" stroke-linecap="round"/>
           </svg>
@@ -68,9 +97,11 @@
 
     <!-- 4. 제품 정보 입력 화면 -->
     <div v-else class="info-form-screen">
-      <ClientInfoForm 
-        :product-name="productName" 
+      <ClientInfoForm
+        :product-name="productName"
         :model-number="modelNumber"
+        :image-url="imageUrl"
+        :category="category"
         :manufactured-at="manufacturedAt"
         :warranty-ends-at="warrantyEndsAt"
       />
@@ -97,25 +128,10 @@ const isError = ref(false)
 // 데이터 정보
 const productName = ref('')
 const modelNumber = ref('')
+const imageUrl = ref('')
+const category = ref('')
 const manufacturedAt = ref('')
 const warrantyEndsAt = ref('')
-
-/**
- * 직접 입력 모드로 전환
- */
-const goToManualInput = () => {
-  productName.value = '' // 직접 입력을 위해 초기화
-  modelNumber.value = ''
-  isError.value = false
-  showInitialScreen.value = false
-}
-
-/**
- * 홈페이지로 이동 (예외 상황)
- */
-const handleBackToHome = () => {
-  router.push('/')
-}
 
 /**
  * API에서 제품 정보 가져오기
@@ -127,12 +143,19 @@ const loadProductInfo = async (productId) => {
   try {
     const productData = await fetchProductById(productId)
     if (!productData) throw new Error('Product not found')
-    
+
     productName.value = productData.name
     modelNumber.value = productData.code
+    imageUrl.value = productData.imageUrl || ''
+    category.value = productData.category || ''
 
+    // localStorage에 저장 (뒤로가기 시 사용)
     localStorage.setItem('clientProductId', productId)
-    
+    localStorage.setItem('clientProductName', productData.name)
+    localStorage.setItem('clientModelNumber', productData.code)
+    localStorage.setItem('clientImageUrl', productData.imageUrl || '')
+    localStorage.setItem('clientCategory', productData.category || '')
+
     // 성공 시 3초 대기 후 전환
     setTimeout(() => {
       showInitialScreen.value = false
@@ -150,20 +173,36 @@ onMounted(async () => {
   const { productId, manufacturedAt: mDate, warrantyEndsAt: wDate } = route.query
 
   // 날짜 정보 저장
-  manufacturedAt.value = mDate || ''
-  warrantyEndsAt.value = wDate || ''
+  manufacturedAt.value = mDate || localStorage.getItem('clientManufacturedAt') || ''
+  warrantyEndsAt.value = wDate || localStorage.getItem('clientWarrantyEndsAt') || ''
   if (mDate) localStorage.setItem('clientManufacturedAt', mDate)
   if (wDate) localStorage.setItem('clientWarrantyEndsAt', wDate)
 
-  // 1. productId 유무 검사
-  if (!productId) {
-    isLoading.value = false
-    isError.value = true
+  // 1. productId가 URL에 있으면 API 호출
+  if (productId) {
+    await loadProductInfo(productId)
     return
   }
 
-  // 2. productId가 있으면 정보 로드
-  await loadProductInfo(productId)
+  // 2. URL에 없으면 localStorage에서 복원 (뒤로가기)
+  const savedProductId = localStorage.getItem('clientProductId')
+  const savedProductName = localStorage.getItem('clientProductName')
+  const savedModelNumber = localStorage.getItem('clientModelNumber')
+  const savedImageUrl = localStorage.getItem('clientImageUrl')
+  const savedCategory = localStorage.getItem('clientCategory')
+
+  if (savedProductId && savedProductName) {
+    productName.value = savedProductName
+    modelNumber.value = savedModelNumber || ''
+    imageUrl.value = savedImageUrl || ''
+    category.value = savedCategory || ''
+    isLoading.value = false
+    showInitialScreen.value = false
+  } else {
+    // 저장된 정보도 없으면 에러
+    isLoading.value = false
+    isError.value = true
+  }
 })
 </script>
 
