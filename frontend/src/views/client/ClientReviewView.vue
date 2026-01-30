@@ -143,24 +143,26 @@ const handleSubmit = async () => {
   isLoading.value = true
 
   try {
-    // TODO: API 호출로 리뷰 데이터 전송
+    // TODO: API 연동 시 주석 해제
     // const response = await fetch(`/api/v1/consultations/${consultationId}/review`, {
     //   method: 'POST',
     //   headers: { 'Content-Type': 'application/json' },
     //   body: JSON.stringify({
     //     processRating: reviewData.processRating,
     //     solutionRating: reviewData.solutionRating,
+    //     kindnessRating: reviewData.kindnessRating,
     //     comment: reviewData.additionalComment
     //   })
     // })
+    //
     // if (!response.ok) throw new Error('리뷰 제출 실패')
 
-    
-    // 제출 완료 후 감사 페이지로 이동
+    // API 성공 후에만 페이지 이동
     router.push({ name: 'client-final' })
   } catch (error) {
     console.error('리뷰 제출 중 오류:', error)
     notificationStore.notifyError('리뷰 제출에 실패했습니다')
+    // 에러 발생 시 페이지 이동하지 않음
   } finally {
     isLoading.value = false
   }
