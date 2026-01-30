@@ -67,8 +67,6 @@ services:
       - "51000-51100:51000-51100/tcp"
     volumes:
       - ./livekit.yaml:/etc/livekit.yaml
-    env_file:
-    - .env
     environment:
       LIVEKIT_KEYS: "${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
       REDIS_PASSWORD: ${REDIS_PASSWORD}
