@@ -77,10 +77,20 @@ import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useAgentStore } from '@/stores/agent'
+import { useCallConnection } from '@/composables/useCallConnection'
 
 const authStore = useAuthStore()
 const dashboardStore = useDashboardStore()
 const agentStore = useAgentStore()
+
+// 통화 연결 관리 (상담원용)
+const { startListening, disconnect: disconnectCall, matchedData, navigateToCall } = useCallConnection('counselor', {
+  onMatched: (data) => {
+    console.log('[DashboardHeader] 매칭 알림 수신:', data)
+    // DashboardStore에 매칭 데이터 저장 (모달 표시용)
+    dashboardStore.setMatchedData(data)
+  }
+})
 
 // --- 상태 변수 ---
 const currentTime = ref(new Date())
@@ -198,8 +208,12 @@ const toggleConsultationStatus = () => {
 // --- Watchers ---
 watch(
   () => dashboardStore.consultationStatus.isActive,
-  (isActive) => {
-    // 상담사 상태 업데이트
+  (isActive, oldValue) => {
+    // 초기 로드 시 실행 방지 (undefined → false 변경 시 무시)
+    if (oldValue === undefined && !isActive) {
+      return
+    }
+
     const status = isActive ? 'AVAILABLE' : 'REST'
     updateCounselorStatus(status)
 
@@ -208,11 +222,22 @@ watch(
       startHeartbeat()
       // 상담 대기 상태로 변경
       agentStore.currentStatus = 'AVAILABLE'
+
+      // 매칭 알림 구독 시작
+      const counselorId = authStore.user?.id
+      if (counselorId) {
+        console.log('[DashboardHeader] 매칭 알림 구독 시작, counselorId:', counselorId)
+        startListening(counselorId)
+      }
     } else {
       sendHeartbeat(false)
       stopHeartbeat()
       // 휴식 상태로 변경
       agentStore.currentStatus = 'REST'
+
+      // 매칭 알림 구독 해제
+      disconnectCall()
+      console.log('[DashboardHeader] 매칭 알림 구독 해제')
     }
   }
 )

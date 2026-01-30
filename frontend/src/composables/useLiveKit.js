@@ -191,6 +191,7 @@ export function useLiveKit(options = {}) {
     }
 
     try {
+      // 옵션 없이 호출 (LiveKit 기본값 사용)
       await room.value.localParticipant.setMicrophoneEnabled(true)
 
       const micTrack = room.value.localParticipant.getTrackPublication(Track.Source.Microphone)
@@ -204,6 +205,24 @@ export function useLiveKit(options = {}) {
       return localAudioTrack.value
     } catch (err) {
       console.error('[LiveKit] 마이크 활성화 실패:', err)
+
+      // DataCloneError인 경우 다시 시도 (옵션 문제 우회)
+      if (err.name === 'DataCloneError') {
+        console.warn('[LiveKit] DataCloneError 발생, 재시도 중...')
+        try {
+          // 직접 로컬 트랙 생성
+          const tracks = await room.value.localParticipant.createTracks({ audio: true })
+          if (tracks.length > 0) {
+            localAudioTrack.value = tracks[0]
+            isMuted.value = false
+            console.log('[LiveKit] 마이크 활성화 (재시도 성공)')
+            return localAudioTrack.value
+          }
+        } catch (retryErr) {
+          console.error('[LiveKit] 재시도 실패:', retryErr)
+        }
+      }
+
       error.value = err
       throw err
     }

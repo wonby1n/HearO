@@ -212,8 +212,9 @@ const props = defineProps({
 
 const productImg = computed(() => {
   // 이미지 비활성화 - 아이콘만 표시
-  return null;
-})
+  return props.imageUrl ?
+  `https://i14e106.p.ssafy.io${props.imageUrl}` : null;
+  })
 
 const router = useRouter()
 const notificationStore = useNotificationStore()
@@ -407,7 +408,6 @@ const handleSubmit = async () => {
 }
 
 .product-image {
-  width: 100%;
   height: 100%;
   object-fit: cover;
 }
