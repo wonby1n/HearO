@@ -60,15 +60,16 @@
 
     <!-- 🔹 MatchingModal 연결 -->
     <!-- isOpen 프로퍼티와 close 이벤트를 바인딩했습니다. -->
-    <MatchingModal 
-      :is-open="isModalOpen" 
-      @close="isModalOpen = false" 
+    <MatchingModal
+      :is-open="isModalOpen"
+      @close="handleModalClose"
     />
   </DashboardLayout>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue' // ref 추가
+import { ref, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useDashboardStore } from '@/stores/dashboard'
 import DashboardLayout from '@/components/layout/DashboardLayout.vue'
 import DashboardHeader from '@/components/dashboard/DashboardHeader.vue'
@@ -78,6 +79,7 @@ import StatsCard from '@/components/dashboard/StatsCard.vue'
 import TodoList from '@/components/dashboard/TodoList.vue'
 import MatchingModal from '@/components/dashboard/MatchingModal.vue'
 
+const router = useRouter()
 const dashboardStore = useDashboardStore()
 
 /**
@@ -85,6 +87,23 @@ const dashboardStore = useDashboardStore()
  * false: 닫힘, true: 열림
  */
 const isModalOpen = ref(false)
+
+// 매칭 데이터 감지하여 모달 열기
+watch(
+  () => dashboardStore.matchedData,
+  (newData) => {
+    if (newData) {
+      isModalOpen.value = true
+    }
+  }
+)
+
+// 모달 닫기 시 통화 화면으로 이동
+const handleModalClose = () => {
+  isModalOpen.value = false
+  dashboardStore.clearMatchedData()
+  router.push('/counselor/call')
+}
 
 onMounted(async () => {
   await dashboardStore.fetchDashboardData()
