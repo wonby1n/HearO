@@ -1,14 +1,12 @@
 package com.ssafy.hearo.global.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ssafy.hearo.global.common.response.BaseResponse;
+import com.ssafy.hearo.global.security.SecurityErrorHandler;
 import com.ssafy.hearo.global.security.jwt.JwtAuthenticationFilter;
 import com.ssafy.hearo.global.security.jwt.JwtProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.config.Customizer;
 
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -32,7 +30,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    private final ObjectMapper objectMapper;
+    private final SecurityErrorHandler securityErrorHandler;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -74,20 +72,8 @@ public class SecurityConfig {
                 )
                 // Handle authentication/authorization errors
                 .exceptionHandling(exception -> exception
-                        .authenticationEntryPoint((request, response, authException) -> {
-                            response.setContentType("application/json;charset=UTF-8");
-                            response.setStatus(HttpStatus.UNAUTHORIZED.value());
-                            BaseResponse<Void> errorResponse = BaseResponse.fail(
-                                    "인증이 필요합니다.", HttpStatus.UNAUTHORIZED.value());
-                            response.getWriter().write(objectMapper.writeValueAsString(errorResponse));
-                        })
-                        .accessDeniedHandler((request, response, accessDeniedException) -> {
-                            response.setContentType("application/json;charset=UTF-8");
-                            response.setStatus(HttpStatus.FORBIDDEN.value());
-                            BaseResponse<Void> errorResponse = BaseResponse.fail(
-                                    "접근 권한이 없습니다.", HttpStatus.FORBIDDEN.value());
-                            response.getWriter().write(objectMapper.writeValueAsString(errorResponse));
-                        })
+                        .authenticationEntryPoint(securityErrorHandler)
+                        .accessDeniedHandler(securityErrorHandler)
                 )
                 // Add JWT filter before UsernamePasswordAuthenticationFilter
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
