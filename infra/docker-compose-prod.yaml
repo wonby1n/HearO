@@ -8,8 +8,6 @@ services:
       - "8000:8080"
     env_file:
       - ./.env
-    environment:
-      - LIVEKIT_URL=wss://i14e106.p.ssafy.io/livekit
     networks:
       - ssafy-network 
 
