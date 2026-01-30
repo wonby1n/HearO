@@ -80,3 +80,4 @@ public class ConsultationController {
         return ResponseEntity.ok(BaseResponse.success());
     }
 }
+

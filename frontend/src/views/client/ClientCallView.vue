@@ -346,9 +346,11 @@ onMounted(async () => {
   }
 
   // 테스트용: 바로 통화 중 상태로 설정
+  // localStorage에서 customerId 가져오기
+  const customerId = localStorage.getItem('clientCustomerId') || customerStore.currentCustomer.id
   callStore.startCall({
     id: `client-call-${Date.now()}`,
-    customerId: customerStore.currentCustomer.id,
+    customerId: customerId ? parseInt(customerId) : null,
     roomToken: 'test-token'
   })
 

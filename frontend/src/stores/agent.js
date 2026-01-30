@@ -16,11 +16,12 @@ const STRESS_COLORS = {
 }
 
 // 에너지 변화 속도 (stressLevel 증감/초)
-// stressLevel 0 → 100까지 소요 시간 또는 100 → 0까지 회복 시간
+// 백엔드와 동기화: 4시간에 100 소진/회복 (분당 0.41666...)
+// stressLevel은 100 - energy이므로 부호 반대
 const ENERGY_CHANGE_RATES = {
-  AVAILABLE: 0.028,  // 상담 대기 중: +0.028/초 → 1시간(3600초)에 완전 소진
-  IN_CALL: 0.014,    // 통화 중: +0.014/초 → 2시간(7200초)에 완전 소진
-  REST: -0.5         // 휴식 중: -0.5/초 → 약 3분 20초(200초)에 완전 회복
+  AVAILABLE: 0.41666666 / 60,   // 분당 -0.41666... (에너지) → stressLevel +0.00694.../초 (4시간에 100 소진)
+  IN_CALL: 0.41666666 / 60,     // 분당 -0.41666... (에너지) → stressLevel +0.00694.../초 (4시간에 100 소진)
+  REST: -0.41666666 / 60        // 분당 +0.41666... (에너지) → stressLevel -0.00694.../초 (4시간에 100 회복)
 }
 
 export const useAgentStore = defineStore('agent', () => {
@@ -141,7 +142,6 @@ export const useAgentStore = defineStore('agent', () => {
     energyAnimationInterval = setInterval(() => {
       // stressLevel이 초기화되지 않았으면 스킵
       if (stressLevel.value === null) {
-        console.log('[AgentStore] 에너지 레벨 초기화 대기 중...')
         return
       }
 
@@ -149,11 +149,8 @@ export const useAgentStore = defineStore('agent', () => {
 
       // stressLevel 업데이트 (0-100 범위 유지)
       stressLevel.value = Math.max(0, Math.min(100, stressLevel.value + rate))
-
-      console.log(`[AgentStore] 에너지 변화 - Status: ${currentStatus.value}, StressLevel: ${stressLevel.value.toFixed(1)}`)
     }, 1000)
 
-    console.log('[AgentStore] 에너지 애니메이션 시작')
   }
 
   // 에너지 애니메이션 중지
@@ -162,7 +159,6 @@ export const useAgentStore = defineStore('agent', () => {
       clearInterval(energyAnimationInterval)
       energyAnimationInterval = null
     }
-    console.log('[AgentStore] 에너지 애니메이션 중지')
   }
 
   return {

@@ -124,14 +124,7 @@
             </section>
 
             <!-- 메모 영역 -->
-            <section>
-              <h4 class="text-sm font-semibold text-gray-900 mb-3">메모</h4>
-              <textarea
-                v-model="memo"
-                placeholder="상담 메모를 입력하세요."
-                class="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
-              ></textarea>
-            </section>
+            <CallMemoPanel v-model="memo" :saved-label="memoSaveLabel" />
           </div>
         </div>
       </div>
@@ -140,16 +133,18 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import CallTimer from '@/components/counselor/CallTimer.vue'
 import CustomerInfoPanel from '@/components/counselor/CustomerInfoPanel.vue'
 import STTChatPanel from '@/components/counselor/STTChatPanel.vue'
 import CounselorCallControls from '@/components/counselor/CounselorCallControls.vue'
+import CallMemoPanel from '@/components/counselor/CallMemoPanel.vue'
 import AutoTerminationModal from '@/components/call/AutoTerminationModal.vue'
 import ManualEndCallModal from '@/components/call/ManualEndCallModal.vue'
 import { mockCustomerInfo, mockSttMessages } from '@/mocks/counselor'
 import { fetchCustomerData } from '@/services/customerService'
+import { saveConsultationMemo } from '@/services/consultationService'
 import { useNotificationStore } from '@/stores/notification'
 import { useCallStore } from '@/stores/call'
 
@@ -185,8 +180,165 @@ const sttMessages = ref(mockSttMessages)
 
 // AI 가이드
 const searchQuery = ref('')
-const memo = ref('')
+const memo = computed({
+  get: () => callStore.callMemo,
+  set: (value) => {
+    callStore.updateMemo(value)
+  }
+})
 const aiSummary = ref('')
+
+// 메모 임시 저장
+const memoDraftKey = ref('')
+const memoLastSavedAt = ref(null)
+let memoSaveTimeout = null
+let skipDraftSaveOnUnmount = false
+
+const memoSaveLabel = computed(() => {
+  if (!memoLastSavedAt.value) {
+    return memo.value?.trim().length ? '임시 저장 전' : ''
+  }
+  const timeLabel = new Date(memoLastSavedAt.value).toLocaleTimeString('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+  return `임시 저장됨 · ${timeLabel}`
+})
+
+const getSessionDraftKey = () => {
+  if (typeof window === 'undefined') {
+    return ''
+  }
+  let storedKey = sessionStorage.getItem('callMemoDraftKey')
+  if (!storedKey) {
+    storedKey = `callMemoDraft:${Date.now()}`
+    sessionStorage.setItem('callMemoDraftKey', storedKey)
+  }
+  return storedKey
+}
+
+const resolveMemoDraftKey = (callId) => {
+  if (callId) {
+    return `callMemoDraft:${callId}`
+  }
+  return getSessionDraftKey()
+}
+
+const loadMemoDraft = () => {
+  if (!memoDraftKey.value) {
+    return
+  }
+  try {
+    const raw = localStorage.getItem(memoDraftKey.value)
+    if (!raw) {
+      return
+    }
+    const parsed = JSON.parse(raw)
+    const draftText = typeof parsed === 'string' ? parsed : parsed?.memo
+    if (draftText && memo.value.trim().length === 0) {
+      callStore.updateMemo(draftText)
+    }
+    if (parsed?.savedAt) {
+      memoLastSavedAt.value = parsed.savedAt
+    }
+  } catch (error) {
+    console.warn('메모 임시 저장 로드 실패:', error)
+  }
+}
+
+const saveMemoDraft = (value) => {
+  if (!memoDraftKey.value) {
+    return
+  }
+  if (!value || value.trim().length === 0) {
+    localStorage.removeItem(memoDraftKey.value)
+    memoLastSavedAt.value = null
+    return
+  }
+  const payload = {
+    memo: value,
+    savedAt: Date.now()
+  }
+  localStorage.setItem(memoDraftKey.value, JSON.stringify(payload))
+  memoLastSavedAt.value = payload.savedAt
+}
+
+const clearMemoDraft = (key = memoDraftKey.value) => {
+  if (typeof window === 'undefined') {
+    return
+  }
+  if (memoSaveTimeout) {
+    clearTimeout(memoSaveTimeout)
+    memoSaveTimeout = null
+  }
+  if (key) {
+    localStorage.removeItem(key)
+  }
+  memoLastSavedAt.value = null
+}
+
+watch(memo, (newValue) => {
+  if (!memoDraftKey.value) {
+    return
+  }
+  if (memoSaveTimeout) {
+    clearTimeout(memoSaveTimeout)
+  }
+  memoSaveTimeout = setTimeout(() => {
+    saveMemoDraft(newValue)
+  }, 500)
+})
+
+watch(
+  () => callStore.currentCall.id,
+  (newId, oldId) => {
+    const nextKey = resolveMemoDraftKey(newId)
+    const previousKey = memoDraftKey.value
+    if (previousKey && previousKey !== nextKey) {
+      clearMemoDraft(previousKey)
+    }
+    memoDraftKey.value = nextKey
+    skipDraftSaveOnUnmount = false
+    loadMemoDraft()
+  },
+  { immediate: true }
+)
+
+onBeforeUnmount(() => {
+  if (memoSaveTimeout) {
+    clearTimeout(memoSaveTimeout)
+    memoSaveTimeout = null
+  }
+  if (!skipDraftSaveOnUnmount && memo.value?.trim().length) {
+    saveMemoDraft(memo.value)
+  }
+})
+
+const getConsultationId = () => {
+  return callStore.currentCall.consultationId ?? callStore.currentCall.id
+}
+
+const saveMemoToServer = async () => {
+  const memoValue = memo.value?.trim()
+  if (!memoValue) {
+    return true
+  }
+  const consultationId = getConsultationId()
+  if (!consultationId) {
+    notificationStore.notifyWarning('상담 ID를 찾을 수 없어 메모를 저장하지 못했습니다')
+    return false
+  }
+
+  try {
+    await saveConsultationMemo(consultationId, memoValue)
+    notificationStore.notifySuccess('메모가 저장되었습니다')
+    return true
+  } catch (error) {
+    console.error('메모 저장 실패:', error)
+    notificationStore.notifyError('메모 저장에 실패했습니다')
+    return false
+  }
+}
 
 // 고객 정보 로드
 const loadCustomerData = async () => {
@@ -224,8 +376,14 @@ const handlePauseChanged = (paused) => {
 const handleEndCall = async () => {
   try {
     isCallActive.value = false
+    callStore.endCall()
+    const saved = await saveMemoToServer()
+    if (saved) {
+      clearMemoDraft()
+      skipDraftSaveOnUnmount = true
+    }
     // TODO: await livekitService.disconnect()
-    // TODO: router.push('/counselor/call-summary')
+    router.push({ name: 'dashboard' })
     console.log('통화 종료')
   } catch (error) {
     console.error('통화 종료 실패:', error)
@@ -257,6 +415,12 @@ const handleAutoTerminationConfirm = async () => {
     // TODO: API 호출 - 블랙리스트 등록
     // await addToBlacklist(callData.customerId, callStore.currentCall.agentId)
 
+    const saved = await saveMemoToServer()
+    if (saved) {
+      clearMemoDraft()
+      skipDraftSaveOnUnmount = true
+    }
+
     // TODO: 통화 기록 저장
     // await saveCallRecord(callData)
 
@@ -267,7 +431,7 @@ const handleAutoTerminationConfirm = async () => {
     callStore.resetCall()
 
     // 대시보드로 이동
-    router.push({ name: 'counselor-dashboard' })
+    router.push({ name: 'dashboard' })
 
     notificationStore.notifyInfo('고객이 블랙리스트에 등록되었습니다')
   } catch (error) {
