@@ -20,9 +20,11 @@
         <!-- 내 기기 정보 -->
         <section class="form-section">
           <h2 class="section-title">내 기기 정보</h2>
-          <p class="section-description">아래 자동 인식된 모델이 맞는지 확인해주세요.</p>
+          <p class="section-description">
+            {{ productName ? '아래 자동 인식된 모델이 맞는지 확인해주세요.' : '제품 정보가 없습니다. 상담 시 상세히 말씀해주세요.' }}
+          </p>
 
-          <div class="device-card">
+          <div class="device-card" :class="{ 'no-data': !productName }">
             <div class="device-visual">
               <img v-if="productImg" :src="productImg" :alt="productName" class="product-image" />
               
@@ -41,9 +43,16 @@
             </div>
 
             <div class="device-details">
-              <p class="device-label">자동 인식된 모델</p>
-              <p class="device-model">{{ productName }}</p>
-              <p class="device-model-number">{{ modelNumber }}</p>
+              <p class="device-label">{{ productName ? '자동 인식된 모델' : '제품 정보 직접 입력' }}</p>
+              <p class="device-model">{{ productName || '정보를 확인할 수 없음' }}</p>
+              <p class="device-model-number">{{ modelNumber || '' }}</p>
+              
+              <!-- 날짜 정보 표시 (값이 있을 때만) -->
+              <div v-if="manufacturedAt" class="device-date-info">
+                <span>제조일자 : {{ manufacturedAt }}</span>
+                <span class="date-divider">|</span>
+                <span>보증기간 : {{ warrantyEndsAt }}</span>
+              </div>
             </div>
           </div>
         </section>
@@ -73,7 +82,6 @@
 
         <!-- 증상 상세 입력 -->
         <section class="form-section">
-
           <div class="label-with-counter">
             <label class="input-label required">
               <svg class="message-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -90,7 +98,7 @@
             v-model="formData.symptomDetail"
             class="form-textarea"
             rows="5"
-            placeholder="언제부터, 어떤 문제가 발생했는지, 어떤 소리가 나는지 등 상세히 적어주시면 빠른 상담이 가능합니다."
+            placeholder="언제부터, 어떤 문제가 발생했는지 상세히 적어주세요."
             maxlength="500"
             required
           ></textarea>
@@ -111,8 +119,6 @@
               type="button"
               class="voice-record-button"
               :class="{ recording: isRecording }"
-              :aria-label="isRecording ? '녹음 중지' : '녹음 시작'"
-              :aria-pressed="isRecording"
               @click="toggleVoiceRecognition"
             >
               <svg class="mic-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -136,14 +142,11 @@
             <div v-if="voiceTranscript" class="transcript-preview">
               <div class="preview-header">
                 <span class="preview-label">녹음된 내용</span>
-                <div class="preview-actions">
-                  <span class="preview-counter">{{ voiceTranscript.length }}자</span>
-                  <button type="button" class="clear-button" @click="clearTranscript">
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    </svg>
-                  </button>
-                </div>
+                <button type="button" class="clear-button" @click="clearTranscript">
+                  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </button>
               </div>
               <p class="preview-text">{{ voiceTranscript }}</p>
               <button type="button" class="confirm-button" @click="addTranscriptToForm">
@@ -174,26 +177,21 @@ import BrowserNotice from '@/components/common/BrowserNotice.vue'
 const props = defineProps({
   productName: { type: String, required: true },
   modelNumber: { type: String, required: true },
-  imageUrl: { type: String, default: '' }, // 이미지 URL 추가
-  category: { type: String, default: '' }   // 카테고리 추가
+  imageUrl: { type: String, default: '' },
+  category: { type: String, default: '' },
+  manufacturedAt: { type: String, default: '' },
+  warrantyEndsAt: { type: String, default: '' }
 })
 
-// Vite 환경에서 public 폴더나 외부 URL 이미지를 처리
 const productImg = computed(() => {
   if (!props.imageUrl) return null;
-  // 상대 경로인 경우 처리 (필요에 따라 base URL 추가)
   return props.imageUrl;
 })
-
-
 
 const router = useRouter()
 const notificationStore = useNotificationStore()
 
-// 브라우저 알림 표시 여부
 const showBrowserNotice = ref(true)
-
-// 음성 인식 관련
 const isRecording = ref(false)
 const speechSupported = ref(false)
 const voiceTranscript = ref('')
@@ -208,154 +206,73 @@ const isFormValid = computed(() => {
   return formData.value.symptomDetail.trim().length > 0
 })
 
-// 음성 인식 초기화
 const initSpeechRecognition = () => {
-  // Web Speech API 지원 확인
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-
   if (!SpeechRecognition) {
     speechSupported.value = false
-    console.warn('음성 인식이 지원되지 않는 브라우저입니다.')
     return
   }
 
   speechSupported.value = true
   recognition.value = new SpeechRecognition()
-
-  // 한국어 설정
   recognition.value.lang = 'ko-KR'
-  // 중간 결과도 반환
   recognition.value.interimResults = true
-  // 연속 인식
   recognition.value.continuous = true
 
-  // 인식 결과 처리
   recognition.value.onresult = (event) => {
-    let interimTranscript = ''
     let finalTranscript = ''
-
     for (let i = event.resultIndex; i < event.results.length; i++) {
-      const transcript = event.results[i][0].transcript
       if (event.results[i].isFinal) {
-        finalTranscript += transcript
-      } else {
-        interimTranscript += transcript
+        finalTranscript += event.results[i][0].transcript
       }
     }
-
-    // 최종 결과를 미리보기에 추가 (최대 500자 제한)
     if (finalTranscript) {
-      const newTranscript = voiceTranscript.value + (voiceTranscript.value ? ' ' : '') + finalTranscript
-      if (newTranscript.length > 500) {
-        voiceTranscript.value = newTranscript.substring(0, 500)
-        recognition.value.stop()
-        notificationStore.notifyWarning('최대 500자에 도달하여 녹음이 자동 종료되었습니다')
-      } else {
-        voiceTranscript.value = newTranscript
-      }
+      voiceTranscript.value = (voiceTranscript.value + (voiceTranscript.value ? ' ' : '') + finalTranscript).trim().substring(0, 500)
     }
   }
 
-  // 인식 시작
-  recognition.value.onstart = () => {
-    isRecording.value = true
-  }
-
-  // 인식 종료
-  recognition.value.onend = () => {
-    isRecording.value = false
-  }
-
-  // 에러 처리
+  recognition.value.onstart = () => isRecording.value = true
+  recognition.value.onend = () => isRecording.value = false
   recognition.value.onerror = (event) => {
     console.error('음성 인식 오류:', event.error)
     isRecording.value = false
-
-    if (event.error === 'not-allowed') {
-      notificationStore.notifyWarning('마이크 권한이 필요합니다. 브라우저 설정에서 마이크 권한을 허용해주세요')
-    }
   }
 }
 
-// 음성 인식 토글
 const toggleVoiceRecognition = () => {
   if (!recognition.value) return
-
-  if (isRecording.value) {
-    recognition.value.stop()
-  } else {
-    // 녹음 시작 전 이전 내용 초기화
-    voiceTranscript.value = ''
-    recognition.value.start()
-  }
+  isRecording.value ? recognition.value.stop() : (voiceTranscript.value = '', recognition.value.start())
 }
 
-// 녹음된 내용을 폼에 추가
 const addTranscriptToForm = () => {
   if (voiceTranscript.value.trim()) {
-    const currentText = formData.value.symptomDetail
-    const newText = currentText + (currentText ? ' ' : '') + voiceTranscript.value
-
-    // 500자 제한 확인
-    if (newText.length > 500) {
-      const remaining = 500 - currentText.length
-      if (remaining > 0) {
-        formData.value.symptomDetail = currentText + (currentText ? ' ' : '') + voiceTranscript.value.substring(0, remaining - 1)
-        notificationStore.notifyWarning(`최대 500자까지 입력 가능합니다. ${remaining}자만 추가되었습니다`)
-      } else {
-        notificationStore.notifyWarning('증상 입력란이 이미 가득 찼습니다 (최대 500자)')
-      }
-    } else {
-      formData.value.symptomDetail = newText
-    }
+    formData.value.symptomDetail = (formData.value.symptomDetail + (formData.value.symptomDetail ? ' ' : '') + voiceTranscript.value).trim().substring(0, 500)
     voiceTranscript.value = ''
   }
 }
 
-// 녹음 내용 지우기
-const clearTranscript = () => {
-  voiceTranscript.value = ''
-}
+const clearTranscript = () => voiceTranscript.value = ''
 
-onMounted(() => {
-  initSpeechRecognition()
-})
+onMounted(() => initSpeechRecognition())
+onUnmounted(() => { if (recognition.value) recognition.value.stop() })
 
-onUnmounted(() => {
-  // 음성 인식 정리 (메모리 누수 방지)
-  if (recognition.value) {
-    recognition.value.stop()
-    recognition.value = null
-  }
-})
-
-// 뒤로 가기
-const handleBack = () => {
-  router.push({ name: 'client-landing' })
-}
+const handleBack = () => router.push({ name: 'client-landing' })
 
 const handleSubmit = async () => {
   if (!isFormValid.value) return
+  
+  const productId = localStorage.getItem('clientProductId')
 
-  try {
-    // 대기열 등록 API에 필요한 형식으로 localStorage에 저장
-    const consultationData = {
-      symptom: formData.value.symptomDetail,
-      errorCode: formData.value.errorCode || '',
-      modelCode: props.modelNumber
-    }
-
-    localStorage.setItem('clientConsultationData', JSON.stringify(consultationData))
-
-    console.log('[ClientInfoForm] 상담 데이터 저장:', consultationData)
-    notificationStore.notifySuccess('정보가 저장되었습니다')
-
-    // 다음 단계로 이동 (본인 확인 페이지)
-    router.push('/client/consultation/verification')
-  } catch (error) {
-    console.error('제출 실패:', error)
-    notificationStore.notifyWarning('제출 중 오류가 발생했습니다. 다시 시도해주세요')
+  const consultationData = {
+    symptom: formData.value.symptomDetail,
+    errorCode: formData.value.errorCode || '',
+    productId: productId ? parseInt(productId) : null,
+    manufacturedAt: props.manufacturedAt,
+    warrantyEndsAt: props.warrantyEndsAt
   }
+
+  localStorage.setItem('clientConsultationData', JSON.stringify(consultationData))
+  router.push('/client/consultation/verification')
 }
 </script>
 
@@ -369,7 +286,6 @@ const handleSubmit = async () => {
   flex-direction: column;
 }
 
-/* 헤더 영역 */
 .form-header {
   background: white;
   padding: 16px 20px;
@@ -413,7 +329,6 @@ const handleSubmit = async () => {
   font-weight: 600;
 }
 
-/* 폼 콘텐츠 */
 .form-content {
   flex: 1;
   padding: 24px 20px;
@@ -437,7 +352,6 @@ const handleSubmit = async () => {
   line-height: 1.5;
 }
 
-/* 기기 정보 카드 */
 .device-card {
   background: linear-gradient(135deg, #5B7CFF 0%, #4A61D9 100%);
   border-radius: 16px;
@@ -448,20 +362,32 @@ const handleSubmit = async () => {
   box-shadow: 0 4px 12px rgba(91, 124, 255, 0.2);
 }
 
-.device-icon {
-  width: 48px;
-  height: 48px;
+.device-card.no-data {
+  background: linear-gradient(135deg, #86868b 0%, #52525b 100%);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.device-visual {
+  width: 64px;
+  height: 64px;
   background: rgba(255, 255, 255, 0.2);
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.product-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .device-icon svg {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
 }
 
 .device-details {
@@ -485,11 +411,23 @@ const handleSubmit = async () => {
 .device-model-number {
   font-size: 14px;
   color: rgba(255, 255, 255, 0.8);
-  margin: 0;
+  margin: 0 0 4px 0;
   font-weight: 500;
 }
 
-/* 입력 필드 */
+.device-date-info {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.date-divider {
+  font-size: 10px;
+  opacity: 0.5;
+}
+
 .label-with-counter {
   display: flex;
   justify-content: space-between;
@@ -498,23 +436,18 @@ const handleSubmit = async () => {
 }
 
 .input-label {
-  display: block;
-  font-size: 15px;
-  font-weight: 600;
-  color: #1d1d1f;
   display: flex;
   align-items: center;
   gap: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1d1d1f;
 }
 
 .input-label svg {
   width: 16px;
   height: 16px;
   color: #5B7CFF;
-}
-
-.optional::after {
-  content: '';
 }
 
 .required::after {
@@ -529,12 +462,7 @@ const handleSubmit = async () => {
   font-weight: 500;
 }
 
-.char-counter.warning {
-  color: #ff9500;
-  font-weight: 600;
-}
-
-.form-input {
+.form-input, .form-textarea {
   width: 100%;
   padding: 14px 16px;
   border: none;
@@ -544,42 +472,18 @@ const handleSubmit = async () => {
   color: #1d1d1f;
   box-sizing: border-box;
   transition: box-shadow 0.2s;
-}
-
-.form-input::placeholder {
-  color: #86868b;
-}
-
-.form-input:focus {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(91, 124, 255, 0.15);
 }
 
 .form-textarea {
-  width: 100%;
-  padding: 14px 16px;
-  border: none;
-  border-radius: 12px;
-  background: white;
-  font-size: 15px;
-  color: #1d1d1f;
   resize: vertical;
-  font-family: inherit;
-  box-sizing: border-box;
-  transition: box-shadow 0.2s;
   line-height: 1.5;
 }
 
-.form-textarea::placeholder {
-  color: #86868b;
-}
-
-.form-textarea:focus {
+.form-input:focus, .form-textarea:focus {
   outline: none;
   box-shadow: 0 0 0 3px rgba(91, 124, 255, 0.15);
 }
 
-/* 음성 녹음 섹션 */
 .voice-section {
   margin-top: 20px;
   padding: 20px;
@@ -598,7 +502,6 @@ const handleSubmit = async () => {
   border-radius: 8px;
   font-size: 15px;
   color: #4b5563;
-  line-height: 1.5;
 }
 
 .guide-icon {
@@ -608,7 +511,6 @@ const handleSubmit = async () => {
   flex-shrink: 0;
 }
 
-/* 녹음 버튼 */
 .voice-record-button {
   width: 100%;
   padding: 18px;
@@ -623,35 +525,37 @@ const handleSubmit = async () => {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  transition: all 0.3s;
   box-shadow: 0 4px 12px rgba(91, 124, 255, 0.3);
 }
 
 .voice-record-button .mic-icon {
-  width: 28px;
-  height: 28px;
+  width: 20px;
+  height: 20px;
 }
 
-.voice-record-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(91, 124, 255, 0.4);
-}
-
-.voice-record-button:active {
-  transform: translateY(0);
-}
-
-/* 녹음 중 상태 */
 .voice-record-button.recording {
   background: linear-gradient(135deg, #ff3b30 0%, #d32f2f 100%);
-  box-shadow: 0 4px 12px rgba(255, 59, 48, 0.3);
 }
 
-.voice-record-button.recording:hover {
-  box-shadow: 0 6px 20px rgba(255, 59, 48, 0.4);
+.submit-button {
+  width: 100%;
+  padding: 18px;
+  background: linear-gradient(135deg, #5B7CFF 0%, #4A61D9 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 17px;
+  font-weight: 700;
+  margin-top: 32px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(91, 124, 255, 0.3);
 }
 
-/* 녹음 중 표시 */
+.submit-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .recording-indicator {
   margin-top: 16px;
   padding: 16px;
@@ -660,109 +564,12 @@ const handleSubmit = async () => {
   border: 2px solid #ff3b30;
 }
 
-.recording-animation {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.recording-dot {
-  width: 12px;
-  height: 12px;
-  background: #ff3b30;
-  border-radius: 50%;
-  animation: wave 1.4s ease-in-out infinite;
-}
-
-.recording-dot:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.recording-dot:nth-child(3) {
-  animation-delay: 0.4s;
-}
-
-@keyframes wave {
-  0%, 60%, 100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  30% {
-    transform: scale(1.5);
-    opacity: 0.6;
-  }
-}
-
-.recording-text {
-  text-align: center;
-  font-size: 16px;
-  font-weight: 600;
-  color: #ff3b30;
-  margin: 0;
-}
-
-/* 녹음 내용 미리보기 */
 .transcript-preview {
   margin-top: 16px;
   padding: 16px;
   background: white;
   border-radius: 8px;
   border: 2px solid #5B7CFF;
-}
-
-.preview-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.preview-label {
-  font-size: 14px;
-  font-weight: 600;
-  color: #5B7CFF;
-}
-
-.preview-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.preview-counter {
-  font-size: 12px;
-  color: #86868b;
-  font-weight: 500;
-}
-
-.clear-button {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  color: #9ca3af;
-  transition: color 0.2s;
-}
-
-.clear-button:hover {
-  color: #ff3b30;
-}
-
-.clear-button svg {
-  width: 20px;
-  height: 20px;
-}
-
-.preview-text {
-  font-size: 16px;
-  line-height: 1.6;
-  color: #1d1d1f;
-  margin: 0 0 16px 0;
-  padding: 12px;
-  background: #f9fafb;
-  border-radius: 6px;
 }
 
 .confirm-button {
@@ -774,90 +581,15 @@ const handleSubmit = async () => {
   border-radius: 8px;
   font-size: 16px;
   font-weight: 600;
-  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: all 0.2s;
 }
 
-.confirm-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-}
-
-.confirm-button:active {
-  transform: translateY(0);
-}
-
-.confirm-button svg {
-  width: 20px;
-  height: 20px;
-}
-
-/* 제출 버튼 */
-.submit-button {
-  width: 100%;
-  padding: 18px;
-  background: linear-gradient(135deg, #5B7CFF 0%, #4A61D9 100%);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-size: 17px;
-  font-weight: 700;
-  cursor: pointer;
-  margin-top: 32px;
-  transition: all 0.2s;
-  box-shadow: 0 4px 12px rgba(91, 124, 255, 0.3);
-}
-
-.submit-button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(91, 124, 255, 0.4);
-}
-
-.submit-button:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.submit-button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-/* 모바일 최적화 */
 @media (max-width: 768px) {
   .form-content {
     padding: 20px 16px;
   }
-
-  .section-title {
-    font-size: 20px;
-  }
-}
-
-.device-visual {
-  width: 64px;
-  height: 64px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  overflow: hidden; /* 이미지 오버플로우 방지 */
-}
-
-.product-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover; /* 카드 크기에 맞게 이미지 조절 */
-}
-
-.device-icon svg {
-  width: 32px;
-  height: 32px;
 }
 </style>

@@ -15,7 +15,7 @@ const getAuthToken = () => {
 
 /**
  * 대기열 등록 (고객 접수)
- * API: POST /api/v1/queue/register
+ * API: POST /api/v1/registrations
  */
 export const registerQueue = async (payload) => {
   try {
@@ -45,46 +45,6 @@ export const registerQueue = async (payload) => {
     }
   } catch (error) {
     console.error('❌ 대기열 등록 에러:', error.response?.data || error.message)
-    throw error
-  }
-}
-
-/**
- * 고객 상담 이력 조회 (최근 3건)
- * API: GET /api/v1/registerations/{registrationId}/customer-history
- *
- * @param {number} registrationId - 접수 ID
- * @returns {Promise<Array>} 상담 이력 배열
- */
-export const fetchCustomerHistory = async (registrationId) => {
-  try {
-    // TODO: 백엔드 API 준비되면 주석 해제
-    // const token = getAuthToken()
-    // const response = await axios.get(
-    //   `${API_BASE_URL}/registerations/${registrationId}/customer-history`,
-    //   {
-    //     headers: {
-    //       Authorization: `Bearer ${token}`
-    //     }
-    //   }
-    // )
-    // const { pastConsultations } = response.data
-    //
-    // // 명세에 맞춰 데이터 매핑 (최근 3건만)
-    // return pastConsultations.slice(0, 3).map(consultation => ({
-    //   date: consultation.createdAt,
-    //   agent: `담당자: ${consultation.userName}`,
-    //   summary: consultation.title
-    // }))
-
-    // 개발용: Mock 데이터 반환
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(mockCustomerInfo.consultationHistory || [])
-      }, 500)
-    })
-  } catch (error) {
-    console.error('상담 이력 조회 실패:', error)
     throw error
   }
 }

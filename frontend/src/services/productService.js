@@ -15,9 +15,7 @@ const API_BASE_URL = '/api/v1'
  */
 export const fetchProductById = async (productId) => {
   try {
-    console.log(`[API 요청] GET ${API_BASE_URL}/products/${productId}`)
     const response = await axios.get(`${API_BASE_URL}/products/${productId}`)
-    console.log('[API 응답]', response.data)
 
     if (response.data.isSuccess) {
       const { data } = response.data
