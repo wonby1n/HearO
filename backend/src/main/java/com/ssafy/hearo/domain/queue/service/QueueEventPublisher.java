@@ -1,5 +1,6 @@
 package com.ssafy.hearo.domain.queue.service;
 
+import com.ssafy.hearo.domain.matching.dto.MatchingNotification;
 import com.ssafy.hearo.domain.queue.dto.QueueUpdateMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +15,7 @@ public class QueueEventPublisher {
 
     private static final String QUEUE_TOPIC = "/topic/queue-updates";
     private static final String RANK_TOPIC_PREFIX = "/topic/queue-rank/";
+    private static final String COUNSELOR_TOPIC_PREFIX = "/topic/counselor/";
 
     private final SimpMessagingTemplate messagingTemplate;
 
@@ -48,4 +50,49 @@ public class QueueEventPublisher {
     }
 
     public record RankUpdateMessage(String customerId, Long rank, Long timestamp) {}
+
+    /**
+     * 고객에게 매칭 완료 알림 전송
+     * @param customerId 고객 식별자 (예: "customer_123")
+     * @param identity LiveKit 접속용 identity
+     * @param roomName LiveKit 방 이름
+     */
+    public void sendMatchingToCustomer(String customerId, String identity, String roomName) {
+        String userTopic = RANK_TOPIC_PREFIX + customerId;
+        MatchingNotification.CustomerNotification notification = MatchingNotification.CustomerNotification.builder()
+                .customerId(customerId)
+                .status("MATCHED")
+                .identity(identity)
+                .roomName(roomName)
+                .timestamp(System.currentTimeMillis())
+                .build();
+
+        log.info("고객 매칭 알림 전송: customerId={}, roomName={}", customerId, roomName);
+        messagingTemplate.convertAndSend(userTopic, notification);
+    }
+
+    /**
+     * 상담원에게 매칭 완료 알림 전송
+     * @param counselorId 상담원 ID
+     * @param registrationId 접수 ID
+     * @param customerId 고객 ID (DB PK)
+     * @param identity LiveKit 접속용 identity
+     * @param roomName LiveKit 방 이름
+     */
+    public void sendMatchingToCounselor(Long counselorId, Long registrationId, Integer customerId,
+                                        String identity, String roomName) {
+        String counselorTopic = COUNSELOR_TOPIC_PREFIX + counselorId;
+        MatchingNotification.CounselorNotification notification = MatchingNotification.CounselorNotification.builder()
+                .type("MATCH_ASSIGNED")
+                .registrationId(registrationId)
+                .customerId(customerId)
+                .identity(identity)
+                .roomName(roomName)
+                .timestamp(System.currentTimeMillis())
+                .build();
+
+        log.info("상담원 매칭 알림 전송: counselorId={}, registrationId={}, customerId={}, roomName={}",
+                counselorId, registrationId, customerId, roomName);
+        messagingTemplate.convertAndSend(counselorTopic, notification);
+    }
 }
