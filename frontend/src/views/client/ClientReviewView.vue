@@ -49,6 +49,26 @@
           </div>
         </div>
 
+        <!-- 질문 3: 상담원 친절도 조시 -->
+        <div class="question-item">
+          <label class="question-label">상담원은 친절했나요?</label>
+          <div class="star-rating">
+            <button
+              v-for="star in 5"
+              :key="'kindness-' + star"
+              type="button"
+              class="star-button"
+              :class="{ active: kindnessRating >= star }"
+              :aria-label="`상담원 친절도 ${star}점`"
+              @click="kindnessRating = star"
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
         <!-- 추가 의견 -->
         <div class="question-item">
           <label class="question-label">추가 의견이 있으면 작성해주세요.</label>
@@ -66,7 +86,9 @@
     </div>
     <!-- 하단 버튼 영역 -->
     <div class="button-section">
-      <button type="button" class="submit-button" :class="{ active: isFormValid }" :disabled="!isFormValid" @click="handleSubmit">
+      <button type="button" class="submit-button" 
+      :class="{ active: isFormValid }" :disabled="!isFormValid" 
+      @click="handleSubmit">
         제출하기
       </button>
     </div>
@@ -85,12 +107,13 @@ const notificationStore = useNotificationStore()
 // 별점 상태
 const processRating = ref(0)
 const solutionRating = ref(0)
+const kindnessRating = ref(0)
 const additionalComment = ref('')
 const isLoading = ref(false)
 
 // 폼 유효성 검사 (두 별점 모두 선택해야 제출 가능)
 const isFormValid = computed(() => {
-  return processRating.value > 0 && solutionRating.value > 0
+  return processRating.value > 0 && solutionRating.value > 0 && kindnessRating.value > 0
 })
 
 // 메인으로
@@ -103,14 +126,16 @@ const handleSubmit = async () => {
   if (!isFormValid.value || isLoading.value) return
 
   const consultationId = route.query.consultationId
-  if (!consultationId) {
-    notificationStore.notifyError('상담 정보를 찾을 수 없습니다')
-    return
-  }
+  // TODO: API 연동 시 consultationId 검증 활성화
+  // if (!consultationId) {
+  //   notificationStore.notifyError('상담 정보를 찾을 수 없습니다')
+  //   return
+  // }
 
   const reviewData = {
     processRating: processRating.value,
     solutionRating: solutionRating.value,
+    kindnessRating: kindnessRating.value,
     additionalComment: additionalComment.value,
     consultationId
   }
@@ -130,6 +155,7 @@ const handleSubmit = async () => {
     // })
     // if (!response.ok) throw new Error('리뷰 제출 실패')
 
+    
     // 제출 완료 후 감사 페이지로 이동
     router.push({ name: 'client-final' })
   } catch (error) {
