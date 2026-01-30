@@ -15,12 +15,12 @@ public interface BlacklistRepository extends JpaRepository<Blacklist, Long> {
      * 특정 고객이 블랙리스트로 등록한 상담원 ID 목록 조회
      */
     @Query("SELECT b.user.id FROM Blacklist b WHERE b.customer.id = :customerId")
-    Set<Long> findBlockedCounselorIdsByCustomerId(@Param("customerId") Long customerId);
+    Set<Long> findBlockedCounselorIdsByCustomerId(@Param("customerId") Integer customerId);
 
     /**
      * 특정 고객과 특정 상담원 간의 블랙리스트 관계 존재 여부
      */
-    boolean existsByCustomerIdAndUserId(Long customerId, Long userId);
+    boolean existsByCustomerIdAndUserId(Integer customerId, Long userId);
 
     /**
      * 특정 고객이 주어진 상담원 목록 중 매칭 가능한 상담원이 있는지 확인
@@ -32,7 +32,7 @@ public interface BlacklistRepository extends JpaRepository<Blacklist, Long> {
         WHERE b.customer.id = :customerId AND b.user.id IN :counselorIds
         """)
     boolean hasMatchableCounselor(
-            @Param("customerId") Long customerId,
+            @Param("customerId") Integer customerId,
             @Param("counselorIds") Set<Long> counselorIds,
             @Param("counselorCount") long counselorCount);
 
