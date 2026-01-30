@@ -18,6 +18,10 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
+  define: {
+    // SockJS 호환성을 위한 global 객체 polyfill
+    global: 'globalThis',
+  },
   server: {
     proxy: {
       // 🔹 '/api'로 시작하는 모든 요청을 가로챕니다.

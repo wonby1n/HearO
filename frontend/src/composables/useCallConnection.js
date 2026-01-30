@@ -1,0 +1,120 @@
+import { ref } from "vue";
+import { useRouter } from "vue-router";
+import { useLiveKit } from "@/composables/useLiveKit";
+import { useMatchingNotification } from "@/composables/useMatchingNotification";
+import axios from "axios";
+
+export function useCallConnection(role = "customer") {
+  const router = useRouter();
+  const connectionState = ref("idle"); // idle, waiting, matched, connecting, connected
+  const error = ref(null);
+
+  // LiveKit composable
+  const livekit = useLiveKit({
+    onDisconnected: (reason) => {
+      console.log("[CallConnection] 통화 종료:", reason);
+      connectionState.value = "idle";
+    },
+    onError: (err) => {
+      error.value = err;
+      connectionState.value = "error";
+    },
+  });
+
+  // 매칭 완료 시 호출될 핸들러
+  const handleMatched = async (matchData) => {
+    try {
+      connectionState.value = "matched";
+      console.log("[CallConnection] 매칭 완료, LiveKit 토큰 요청 중...");
+
+      const { roomName, identity } = matchData;
+
+      // 1. LiveKit 토큰 요청
+      const response = await axios.post("/api/v1/calls/token", {
+        identity,
+        roomName,
+      });
+
+      const { token, url } = response.data;
+
+      connectionState.value = "connecting";
+      console.log("[CallConnection] LiveKit 연결 중...");
+
+      // 2. LiveKit 룸 연결
+      await livekit.connect(url, token);
+
+      // 3. 마이크 활성화
+      await livekit.enableMicrophone();
+
+      connectionState.value = "connected";
+      console.log("[CallConnection] 통화 연결 완료");
+
+      // 4. 통화 화면으로 이동
+      if (role === "customer") {
+        router.push("/client/call");
+      } else {
+        router.push("/counselor/call");
+      }
+    } catch (err) {
+      console.error("[CallConnection] 연결 실패:", err);
+      error.value = err;
+      connectionState.value = "error";
+    }
+  };
+
+  // 매칭 알림 composable (나중에 초기화)
+  let matching = null;
+
+  // 대기 시작 (고객용)
+  const startWaiting = (customerId) => {
+    if (!customerId) {
+      console.error("[CallConnection] customerId가 필요합니다");
+      return;
+    }
+
+    connectionState.value = "waiting";
+
+    // 매칭 알림 composable 초기화 (customerId와 함께)
+    matching = useMatchingNotification({
+      customerId,
+      onMatched: handleMatched,
+    });
+
+    matching.connect();
+  };
+
+  // 대기 시작 (상담원용)
+  const startListening = (counselorId) => {
+    if (!counselorId) {
+      console.error("[CallConnection] counselorId가 필요합니다");
+      return;
+    }
+
+    connectionState.value = "waiting";
+
+    // 매칭 알림 composable 초기화 (counselorId와 함께)
+    matching = useMatchingNotification({
+      counselorId,
+      onMatched: handleMatched,
+    });
+
+    matching.connect();
+  };
+
+  // 연결 종료
+  const disconnect = async () => {
+    matching.disconnect();
+    await livekit.disconnect();
+    connectionState.value = "idle";
+  };
+
+  return {
+    connectionState,
+    error,
+    livekit,
+    startWaiting,
+    startListening,
+    disconnect,
+    handleMatched,
+  };
+}

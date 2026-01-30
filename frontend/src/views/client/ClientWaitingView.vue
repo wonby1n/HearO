@@ -7,16 +7,8 @@
       <div class="loading-icon-container">
         <div class="loading-icon">
           <svg class="spinner" viewBox="0 0 50 50">
-            <circle
-              class="spinner-path"
-              cx="25"
-              cy="25"
-              r="20"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="4"
-              stroke-linecap="round"
-            />
+            <circle class="spinner-path" cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4"
+              stroke-linecap="round" />
           </svg>
         </div>
       </div>
@@ -40,18 +32,18 @@
       <div class="call-controls">
         <!-- 스피커 버튼 -->
         <div class="control-item">
-          <button
-            @click="toggleSpeaker"
-            :class="['control-btn', { active: isSpeakerOn }]"
-            :aria-label="isSpeakerOn ? '스피커폰 끄기' : '스피커폰 켜기'"
-            title="스피커"
-          >
+          <button @click="toggleSpeaker" :class="['control-btn', { active: isSpeakerOn }]"
+            :aria-label="isSpeakerOn ? '스피커폰 끄기' : '스피커폰 켜기'" title="스피커">
             <div class="control-icon-wrapper">
               <svg v-if="isSpeakerOn" class="control-icon" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clip-rule="evenodd"/>
+                <path fill-rule="evenodd"
+                  d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z"
+                  clip-rule="evenodd" />
               </svg>
               <svg v-else class="control-icon" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                <path fill-rule="evenodd"
+                  d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z"
+                  clip-rule="evenodd" />
               </svg>
             </div>
           </button>
@@ -60,16 +52,13 @@
 
         <!-- 통화 종료 버튼 -->
         <div class="control-item">
-          <button
-            @click="handleEndCall"
-            class="control-btn end-call"
-            aria-label="대기 취소"
-            title="통화 종료"
-          >
+          <button @click="handleEndCall" class="control-btn end-call" aria-label="대기 취소" title="통화 종료">
             <div class="control-icon-wrapper end">
               <svg class="control-icon" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
-                <path d="M16.707 3.293a1 1 0 010 1.414L15.414 6l1.293 1.293a1 1 0 01-1.414 1.414L14 7.414l-1.293 1.293a1 1 0 11-1.414-1.414L12.586 6l-1.293-1.293a1 1 0 011.414-1.414L14 4.586l1.293-1.293a1 1 0 011.414 0z"/>
+                <path
+                  d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                <path
+                  d="M16.707 3.293a1 1 0 010 1.414L15.414 6l1.293 1.293a1 1 0 01-1.414 1.414L14 7.414l-1.293 1.293a1 1 0 11-1.414-1.414L12.586 6l-1.293-1.293a1 1 0 011.414-1.414L14 4.586l1.293-1.293a1 1 0 011.414 0z" />
               </svg>
             </div>
           </button>
@@ -78,19 +67,19 @@
 
         <!-- 음소거 버튼 -->
         <div class="control-item">
-          <button
-            @click="toggleMute"
-            :class="['control-btn', { active: isMuted }]"
-            :aria-label="isMuted ? '음소거 해제' : '음소거'"
-            title="음소거"
-          >
+          <button @click="toggleMute" :class="['control-btn', { active: isMuted }]"
+            :aria-label="isMuted ? '음소거 해제' : '음소거'" title="음소거">
             <div class="control-icon-wrapper">
               <svg v-if="!isMuted" class="control-icon" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clip-rule="evenodd"/>
+                <path fill-rule="evenodd"
+                  d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z"
+                  clip-rule="evenodd" />
               </svg>
               <svg v-else class="control-icon" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clip-rule="evenodd"/>
-                <path d="M3.293 3.293a1 1 0 011.414 0l12 12a1 1 0 01-1.414 1.414l-12-12a1 1 0 010-1.414z"/>
+                <path fill-rule="evenodd"
+                  d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z"
+                  clip-rule="evenodd" />
+                <path d="M3.293 3.293a1 1 0 011.414 0l12 12a1 1 0 01-1.414 1.414l-12-12a1 1 0 010-1.414z" />
               </svg>
             </div>
           </button>
@@ -101,11 +90,7 @@
 
     <!-- 통화 종료 확인 모달 -->
     <Teleport to="body">
-      <div
-        v-if="showConfirmModal"
-        class="modal-overlay"
-        @click.self="closeConfirmModal"
-      >
+      <div v-if="showConfirmModal" class="modal-overlay" @click.self="closeConfirmModal">
         <div class="modal-content">
           <h3 class="modal-title">대기 취소</h3>
           <p class="modal-message">상담 대기를 취소하시겠습니까?</p>
@@ -122,6 +107,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useCallConnection } from '@/composables/useCallConnection'
 import { useCallStore } from '@/stores/call'
 import { useCustomerStore } from '@/stores/customer'
 import ARSvoiceFile from '@/assets/ARSvoice.mp3'
@@ -129,6 +115,7 @@ import ARSvoiceFile from '@/assets/ARSvoice.mp3'
 const router = useRouter()
 const callStore = useCallStore()
 const customerStore = useCustomerStore()
+const { connectionState, startWaiting } = useCallConnection('customer')
 
 // 상태 관리
 const queuePosition = ref(customerStore.queueInfo.position || 0) // 대기 순번 (추후 백엔드 연동)
@@ -391,20 +378,32 @@ const onAgentConnected = () => {
   // 상담 화면으로 이동
   router.push('/client/call')
 }
-
+onMounted(() => {
+  const customerId = customerStore.currentCustomer?.id
+  if (customerId) {
+    startWaiting(customerId)
+  }
+})
 // 컴포넌트 마운트 시 초기화
 onMounted(async () => {
   // ARS 음성 자동 재생
   playARSAudio()
 
-  // 초기 대기 순번 조회
+  // 고객 ID 확인
+  const customerId = customerStore.currentCustomer?.id
+  if (!customerId) {
+    console.error('[ClientWaiting] 고객 ID가 없습니다')
+    return
+  }
+
+  // STOMP 기반 매칭 알림 시작 (LiveKit 자동 연결 포함)
+  startWaiting(customerId)
+
+  // 초기 대기 순번 조회 (순번 표시용)
   await fetchQueuePosition()
 
-  // 주기적으로 대기 순번 업데이트 (5초마다)
+  // 주기적으로 대기 순번 업데이트 (5초마다) - 순번 표시용
   startQueuePolling()
-
-  // WebSocket 연결로 실시간 대기 순번 업데이트
-  connectQueueSocket()
 })
 
 // 컴포넌트 언마운트 시 정리
@@ -491,10 +490,12 @@ defineExpose({
     stroke-dasharray: 1, 150;
     stroke-dashoffset: 0;
   }
+
   50% {
     stroke-dasharray: 90, 150;
     stroke-dashoffset: -35;
   }
+
   100% {
     stroke-dasharray: 90, 150;
     stroke-dashoffset: -124;
@@ -683,4 +684,3 @@ defineExpose({
   background-color: #dc2626;
 }
 </style>
-
