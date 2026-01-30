@@ -219,27 +219,42 @@ const handleSubmit = async () => {
     const consultationData = JSON.parse(consultationDataStr)
 
     // 2단계에서 받은 accessToken 가져오기
-    const accessToken = localStorage.getItem('clientAccessToken')
+    const accessToken = localStorage.getItem('customerAccessToken')
     if (!accessToken) {
       notificationStore.notifyWarning('인증 정보가 없습니다. 본인 인증을 다시 진행해주세요.')
       router.push({ name: 'client-consultation-verification' })
       return
     }
 
-    console.log('[ClientConsent] 대기열 등록 API 호출:', consultationData)
+    console.log('🔑 Authorization 헤더:', `Bearer ${accessToken.substring(0, 20)}...`)
 
-    // 대기열 등록 API 호출
-    const response = await axios.post('/api/v1/queue/register', {
+    // productId 가져오기
+    const productId = localStorage.getItem('clientProductId')
+    if (!productId) {
+      notificationStore.notifyWarning('제품 정보가 없습니다. 처음부터 다시 진행해주세요.')
+      router.push({ name: 'client-landing' })
+      return
+    }
+
+    console.log('📦 전송 데이터:', {
       symptom: consultationData.symptom,
       errorCode: consultationData.errorCode,
-      modelCode: consultationData.modelCode
+      productId: parseInt(productId)
+    })
+
+    // 대기열 등록 API 호출
+    const response = await axios.post('/api/v1/registrations', {
+      symptom: consultationData.symptom,
+      errorCode: consultationData.errorCode,
+      productId: parseInt(productId)  // modelCode 대신 productId 전송
     }, {
       headers: {
         'Authorization': `Bearer ${accessToken}`
       }
     })
 
-    console.log('[ClientConsent] 대기열 등록 성공:', response.data)
+
+    console.log('📦 응답 데이터:', response.data)
 
     // 약관 동의 정보 저장
     customerStore.saveConsent(agreements.value)
@@ -254,7 +269,7 @@ const handleSubmit = async () => {
     router.push({ name: 'client-waiting' })
 
   } catch (error) {
-    console.error('[ClientConsent] 대기열 등록 실패:', error)
+    console.error('❌ 대기열 등록 실패!')
 
     if (error.response?.status === 401) {
       notificationStore.notifyWarning('인증이 만료되었습니다. 본인 인증을 다시 진행해주세요.')

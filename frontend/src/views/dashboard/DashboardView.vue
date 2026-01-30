@@ -1,37 +1,31 @@
 <template>
   <DashboardLayout>
-    <!-- 헤더 -->
+    <!-- 상단 헤더: 상담 상태 및 실시간 정보 -->
     <DashboardHeader />
 
-    <!-- 메인 컨텐츠 그리드 -->
     <div class="container mx-auto px-6 py-6">
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- 1번째 칸: 스트레스 지수 -->
+        <!-- 1번째 섹션: 스트레스 지수 -->
         <div class="lg:col-span-1">
           <div class="h-[600px]">
             <StressChart />
           </div>
         </div>
 
-        <!-- 2번째 칸: 주간 실적 차트 (위) + 통계 카드 2개 (아래) -->
+        <!-- 2번째 섹션: 주간 실적 차트 + 통계 카드 -->
         <div class="lg:col-span-1">
           <div class="flex flex-col gap-6 h-[600px]">
-            <!-- 위: 주간 실적 -->
             <div class="flex-1">
               <WeeklyPerformanceChart />
             </div>
 
-            <!-- 아래: 통계 카드 2개 -->
             <div class="grid grid-cols-2 gap-4">
-              <!-- 총 상담 시간 -->
               <StatsCard
                 icon="clock"
                 title="총 상담 시간"
                 :value="dashboardStore.formattedCallTime"
                 color="purple"
               />
-
-              <!-- 고객 만족도 -->
               <StatsCard
                 icon="star"
                 title="고객 만족도"
@@ -42,19 +36,39 @@
           </div>
         </div>
 
-        <!-- 3번째 칸: Todo List -->
+        <!-- 3번째 섹션: 할 일 목록 -->
         <div class="lg:col-span-1">
           <div class="h-[600px]">
             <TodoList />
           </div>
         </div>
       </div>
+      
+      <!-- [추가] 모달 테스트 버튼: 클릭 시 모달이 열립니다. -->
+      <!-- <div class="mt-8 flex justify-center">
+        <button 
+          @click="isModalOpen = true"
+          class="px-8 py-4 bg-[#1F3A8C] text-white rounded-2xl font-bold hover:bg-[#162a65] transition-all shadow-xl active:scale-95 flex items-center gap-3"
+        >
+          <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3z"/>
+          </svg>
+          AI 매칭 시작하기
+        </button>
+      </div> -->
     </div>
+
+    <!-- 🔹 MatchingModal 연결 -->
+    <!-- isOpen 프로퍼티와 close 이벤트를 바인딩했습니다. -->
+    <MatchingModal 
+      :is-open="isModalOpen" 
+      @close="isModalOpen = false" 
+    />
   </DashboardLayout>
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { ref, onMounted } from 'vue' // ref 추가
 import { useDashboardStore } from '@/stores/dashboard'
 import DashboardLayout from '@/components/layout/DashboardLayout.vue'
 import DashboardHeader from '@/components/dashboard/DashboardHeader.vue'
@@ -62,10 +76,16 @@ import StressChart from '@/components/dashboard/StressChart.vue'
 import WeeklyPerformanceChart from '@/components/dashboard/WeeklyPerformanceChart.vue'
 import StatsCard from '@/components/dashboard/StatsCard.vue'
 import TodoList from '@/components/dashboard/TodoList.vue'
+import MatchingModal from '@/components/dashboard/MatchingModal.vue'
 
 const dashboardStore = useDashboardStore()
 
-// 컴포넌트 마운트 시 대시보드 데이터 로드
+/**
+ * 🔹 모달 상태 제어 변수
+ * false: 닫힘, true: 열림
+ */
+const isModalOpen = ref(false)
+
 onMounted(async () => {
   console.log('[Dashboard] 마운트 - 데이터 로드')
   await dashboardStore.fetchDashboardData()
@@ -73,5 +93,12 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* DashboardView 전용 스타일 */
+.container {
+  animation: fadeIn 0.8s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 </style>

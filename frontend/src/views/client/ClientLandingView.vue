@@ -47,11 +47,13 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import ClientInfoForm from '@/components/client/ClientInfoForm.vue'
 import BrowserNotice from '@/components/common/BrowserNotice.vue'
+import { fetchProductById } from '@/services/productService'
 
 const route = useRoute()
+const router = useRouter()
 
 // 화면 전환 상태
 const showInitialScreen = ref(true)
@@ -59,17 +61,52 @@ const showInitialScreen = ref(true)
 // 브라우저 알림 표시 여부
 const showBrowserNotice = ref(true)
 
-// 제품 정보 (QR 코드에서 받아오거나 URL 파라미터로 받음)
+// 제품 정보
 const productName = ref('Galaxy S24 Ultra')
 const modelNumber = ref('SM-S928N')
+const isLoading = ref(false)
+const errorMessage = ref('')
 
-onMounted(() => {
-  // URL 파라미터에서 제품 정보 가져오기 (추후 QR 코드 구현 시)
-  if (route.query.product) {
-    productName.value = route.query.product
+/**
+ * API에서 제품 정보 가져오기
+ */
+const loadProductInfo = async (productId) => {
+  isLoading.value = true
+  errorMessage.value = ''
+
+  try {
+    const productData = await fetchProductById(productId)
+    productName.value = productData.name
+    modelNumber.value = productData.code
+
+    // productId를 localStorage에 저장 (나중에 registration API에서 사용)
+    localStorage.setItem('clientProductId', productId)
+    console.log('[ClientLandingView] productId 저장:', productId)
+  } catch (error) {
+    console.error('제품 정보 로드 실패:', error)
+    errorMessage.value = '제품 정보를 불러오는데 실패했습니다.'
+    // 기본값 유지
+  } finally {
+    isLoading.value = false
   }
-  if (route.query.model) {
-    modelNumber.value = route.query.model
+}
+
+onMounted(async () => {
+  // 현재 URL 디버깅
+  console.log('[ClientLandingView] 현재 URL:', window.location.href)
+  console.log('[ClientLandingView] Query 파라미터:', route.query)
+
+  // URL 파라미터에서 productId 가져오기
+  const productId = route.query.productId
+
+  if (productId) {
+    console.log('[ClientLandingView] productId 발견:', productId)
+    // API에서 제품 정보 가져오기
+    await loadProductInfo(productId)
+  } else {
+    // productId가 없으면 기본값 사용 (기존 하드코딩 값)
+    console.warn('[ClientLandingView] ⚠️ productId가 URL에 없습니다. 기본값을 사용합니다.')
+    console.warn('[ClientLandingView] 올바른 URL 형식: http://localhost:5173/client?productId=1')
   }
 
   // 3-4초 후 정보 입력 화면으로 전환
