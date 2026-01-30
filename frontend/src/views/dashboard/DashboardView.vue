@@ -87,7 +87,6 @@ const dashboardStore = useDashboardStore()
 const isModalOpen = ref(false)
 
 onMounted(async () => {
-  console.log('[Dashboard] 마운트 - 데이터 로드')
   await dashboardStore.fetchDashboardData()
 })
 </script>

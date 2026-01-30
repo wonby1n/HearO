@@ -141,7 +141,6 @@ export const useAgentStore = defineStore('agent', () => {
     energyAnimationInterval = setInterval(() => {
       // stressLevel이 초기화되지 않았으면 스킵
       if (stressLevel.value === null) {
-        console.log('[AgentStore] 에너지 레벨 초기화 대기 중...')
         return
       }
 
@@ -149,11 +148,8 @@ export const useAgentStore = defineStore('agent', () => {
 
       // stressLevel 업데이트 (0-100 범위 유지)
       stressLevel.value = Math.max(0, Math.min(100, stressLevel.value + rate))
-
-      console.log(`[AgentStore] 에너지 변화 - Status: ${currentStatus.value}, StressLevel: ${stressLevel.value.toFixed(1)}`)
     }, 1000)
 
-    console.log('[AgentStore] 에너지 애니메이션 시작')
   }
 
   // 에너지 애니메이션 중지
@@ -162,7 +158,6 @@ export const useAgentStore = defineStore('agent', () => {
       clearInterval(energyAnimationInterval)
       energyAnimationInterval = null
     }
-    console.log('[AgentStore] 에너지 애니메이션 중지')
   }
 
   return {
