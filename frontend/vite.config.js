@@ -18,6 +18,10 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
+  define: {
+    // SockJS 호환성을 위한 global 객체 polyfill
+    global: 'globalThis',
+  },
   server: {
     proxy: {
       // 🔹 '/api'로 시작하는 모든 요청을 가로챕니다.
@@ -34,6 +38,12 @@ export default defineConfig({
          * 아래 주석을 해제하여 요청 경로에서 '/api'라는 글자를 지우고 보낼 수 있습니다.
          */
         // rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+      // 🔹 WebSocket 프록시 추가
+      '/ws': {
+        target: 'https://i14e106.p.ssafy.io',
+        changeOrigin: true,
+        ws: true,  // WebSocket 지원 활성화
       }
     }
   }
