@@ -118,7 +118,6 @@ const sendHeartbeat = async (forceStatus = null) => {
     const status = forceStatus !== null ? forceStatus : !!dashboardStore.consultationStatus.isActive
     const response = await axios.post('/api/v1/users/me/heartbeat', { isHeartbeatActive: status })
 
-    console.log('[Heartbeat] 응답 성공:', response.data)
   } catch (error) {
     console.error('[Heartbeat] 전송 실패:', error.response?.data || error.message)
   } finally {
@@ -171,7 +170,6 @@ const updateCounselorStatus = async (status) => {
       status: status
     })
 
-    console.log('[Status Update] 성공:', response.data)
 
     if (response.data.isSuccess) {
       console.log('[Status Update]', response.data.message)

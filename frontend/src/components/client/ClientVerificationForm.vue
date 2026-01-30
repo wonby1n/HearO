@@ -277,7 +277,7 @@ const clearVerificationError = () => {
 
 // 뒤로 가기
 const handleBack = () => {
-  router.push({ name: 'client-consultation-info' })
+  router.push({ name: 'client-landing' })
 }
 
 // 폼 제출
