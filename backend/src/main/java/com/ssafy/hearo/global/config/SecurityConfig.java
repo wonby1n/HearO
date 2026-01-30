@@ -54,6 +54,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/queue/stats").permitAll()
                         // Calls endpoint
                         .requestMatchers("/api/v1/calls/**").permitAll()
+                        // Product endpoints (for customers - public access)
+                        .requestMatchers("/api/v1/products/**").permitAll()
                         // Actuator endpoints
                         .requestMatchers("/actuator/**").permitAll()
                         // Swagger UI
@@ -62,6 +64,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/users/**").authenticated()
                         // Counselor endpoints require authentication
                         .requestMatchers("/api/v1/counselor/**").authenticated()
+                        .requestMatchers("/images/**").permitAll()
                         // All other requests require authentication
                         .anyRequest().authenticated()
                 )
