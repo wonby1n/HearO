@@ -65,7 +65,6 @@ public class SecurityConfig {
                         // Counselor endpoints require authentication
                         .requestMatchers("/api/v1/counselor/**").authenticated()
                         .requestMatchers("/images/**").permitAll()
-                        .requestMatchers("/api/v1/ai/**").permitAll()
                         // All other requests require authentication
                         .anyRequest().authenticated()
                 )
