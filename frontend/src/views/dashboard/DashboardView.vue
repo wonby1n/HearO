@@ -5,10 +5,10 @@
 
     <div class="container mx-auto px-6 py-6">
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- 1번째 섹션: 스트레스 지수 -->
+        <!-- 1번째 섹션: 에너지 지수 -->
         <div class="lg:col-span-1">
           <div class="h-[600px]">
-            <StressChart />
+            <EnergyChart />
           </div>
         </div>
 
@@ -64,29 +64,40 @@
       :is-open="isModalOpen"
       @close="handleModalClose"
     />
+
+    <!-- 🔹 TimeModal 연결 (에너지 0일 때 의무 휴식) -->
+    <TimeModal
+      v-model="isTimeModalOpen"
+      :duration="600"
+      @complete="handleTimeModalComplete"
+    />
   </DashboardLayout>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDashboardStore } from '@/stores/dashboard'
+import { useAgentStore } from '@/stores/agent'
 import DashboardLayout from '@/components/layout/DashboardLayout.vue'
 import DashboardHeader from '@/components/dashboard/DashboardHeader.vue'
-import StressChart from '@/components/dashboard/StressChart.vue'
+import EnergyChart from '@/components/dashboard/EnergyChart.vue'
 import WeeklyPerformanceChart from '@/components/dashboard/WeeklyPerformanceChart.vue'
 import StatsCard from '@/components/dashboard/StatsCard.vue'
 import TodoList from '@/components/dashboard/TodoList.vue'
 import MatchingModal from '@/components/dashboard/MatchingModal.vue'
+import TimeModal from '@/components/dashboard/TimeModal.vue'
 
 const router = useRouter()
 const dashboardStore = useDashboardStore()
+const agentStore = useAgentStore()
 
 /**
  * 🔹 모달 상태 제어 변수
  * false: 닫힘, true: 열림
  */
 const isModalOpen = ref(false)
+const isTimeModalOpen = ref(false)
 
 // 매칭 데이터 감지하여 모달 열기
 watch(
@@ -98,6 +109,25 @@ watch(
   }
 )
 
+// 에너지 레벨 감지하여 0이 되면 TimeModal 열기
+watch(
+  () => agentStore.energyLevel,
+  (newLevel, oldLevel) => {
+    console.log('[DashboardView Watch] 에너지 변화:', oldLevel, '→', newLevel)
+
+    if (newLevel !== null && newLevel <= 0 && !isTimeModalOpen.value) {
+      console.log('[DashboardView] 에너지 0 이하 감지 - TimeModal 열기')
+      isTimeModalOpen.value = true
+
+      // 상담 상태 강제로 OFF (의무 휴식)
+      if (dashboardStore.consultationStatus.isActive) {
+        console.log('[DashboardView] 상담 모드 강제 OFF')
+        dashboardStore.consultationStatus.isActive = false
+      }
+    }
+  }
+)
+
 // 모달 닫기 시 통화 화면으로 이동
 const handleModalClose = () => {
   isModalOpen.value = false
@@ -105,8 +135,32 @@ const handleModalClose = () => {
   router.push('/counselor/call')
 }
 
+// TimeModal 완료 시 자동으로 닫기
+const handleTimeModalComplete = () => {
+  console.log('[DashboardView] TimeModal 10분 완료 - 자동 닫기')
+  isTimeModalOpen.value = false
+}
+
+let energyLogInterval = null
+
 onMounted(async () => {
   await dashboardStore.fetchDashboardData()
+
+  // 30초마다 에너지 레벨 콘솔 출력 (디버깅용)
+  energyLogInterval = setInterval(() => {
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('[에너지 디버깅] 현재 에너지 레벨:', agentStore.energyLevel)
+    console.log('[에너지 디버깅] 현재 상태:', agentStore.currentStatus)
+    console.log('[에너지 디버깅] 상담 모드:', dashboardStore.consultationStatus.isActive)
+    console.log('[에너지 디버깅] TimeModal 상태:', isTimeModalOpen.value)
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  }, 30000)
+})
+
+onUnmounted(() => {
+  if (energyLogInterval) {
+    clearInterval(energyLogInterval)
+  }
 })
 </script>
 
