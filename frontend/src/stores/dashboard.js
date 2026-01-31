@@ -55,7 +55,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
           // 백엔드의 currentEnergy는 이미 0-100 값이므로 그대로 사용
           // 항상 백엔드 값으로 덮어쓰기 (동기화)
           agentStore.energyLevel = data.currentEnergy
-          console.log('[DashboardStore] 에너지 초기화:', data.currentEnergy)
         }
 
         if (data.weeklyChart) {
@@ -185,7 +184,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
         if (data.currentEnergy !== undefined) {
           // 백엔드의 currentEnergy는 이미 0-100 값이므로 그대로 사용
           agentStore.energyLevel = data.currentEnergy
-          console.log('[DashboardStore] 에너지 새로고침 완료:', data.currentEnergy)
         }
       }
     } catch (error) {

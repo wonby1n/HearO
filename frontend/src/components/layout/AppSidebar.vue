@@ -90,7 +90,6 @@ const isWarningModalOpen = ref(false)
 
 // 로그아웃 핸들러
 const handleLogout = async () => {
-  console.log('[Sidebar] 로그아웃 버튼 클릭')
 
   // 상담 모드가 ON인지 체크
   if (dashboardStore.consultationStatus.isActive) {

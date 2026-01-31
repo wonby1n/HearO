@@ -113,7 +113,6 @@ watch(
 watch(
   () => agentStore.energyLevel,
   (newLevel, oldLevel) => {
-    console.log('[DashboardView Watch] 에너지 변화:', oldLevel, '→', newLevel)
 
     if (newLevel !== null && newLevel <= 0 && !isTimeModalOpen.value) {
       console.log('[DashboardView] 에너지 0 이하 감지 - TimeModal 열기')
@@ -148,12 +147,6 @@ onMounted(async () => {
 
   // 30초마다 에너지 레벨 콘솔 출력 (디버깅용)
   energyLogInterval = setInterval(() => {
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    console.log('[에너지 디버깅] 현재 에너지 레벨:', agentStore.energyLevel)
-    console.log('[에너지 디버깅] 현재 상태:', agentStore.currentStatus)
-    console.log('[에너지 디버깅] 상담 모드:', dashboardStore.consultationStatus.isActive)
-    console.log('[에너지 디버깅] TimeModal 상태:', isTimeModalOpen.value)
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   }, 30000)
 })
 

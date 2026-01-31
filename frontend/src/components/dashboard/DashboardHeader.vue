@@ -176,17 +176,13 @@ const handleBeforeUnload = () => {
 
 // --- 상담사 상태 업데이트 ---
 const updateCounselorStatus = async (status) => {
-  console.log('[Status Update] 백엔드 상태 변경 요청:', status)
 
   try {
     const response = await axios.patch('/api/v1/users/me/status', {
       status: status
     })
 
-    console.log('[Status Update] 성공:', response.data)
-
     if (response.data.isSuccess) {
-      console.log('[Status Update]', response.data.message)
     }
   } catch (error) {
     // 401은 interceptor가 처리하므로 여기서는 다른 에러만 처리
@@ -224,7 +220,6 @@ watch(
       startHeartbeat()
       // 상담 대기 상태로 변경
       agentStore.currentStatus = 'AVAILABLE'
-      console.log('[DashboardHeader] currentStatus 변경 → AVAILABLE')
 
       // 매칭 알림 구독 시작
       const counselorId = authStore.user?.id
@@ -237,7 +232,6 @@ watch(
       stopHeartbeat()
       // 휴식 상태로 변경
       agentStore.currentStatus = 'REST'
-      console.log('[DashboardHeader] currentStatus 변경 → REST (에너지 회복 시작)')
 
       // 매칭 알림 구독 해제
       disconnectCall()
