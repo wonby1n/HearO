@@ -136,7 +136,10 @@ const getQueueSocketUrl = () => {
   let baseUrl = configuredBase?.replace(/\/$/, '')
 
   if (baseUrl) {
-    if (baseUrl.startsWith('http://')) {
+    // 이미 ws:// 또는 wss://로 시작하면 그대로 사용
+    if (baseUrl.startsWith('ws://') || baseUrl.startsWith('wss://')) {
+      // 그대로 사용
+    } else if (baseUrl.startsWith('http://')) {
       baseUrl = `ws://${baseUrl.slice(7)}`
     } else if (baseUrl.startsWith('https://')) {
       baseUrl = `wss://${baseUrl.slice(8)}`
