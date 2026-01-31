@@ -176,15 +176,13 @@ const handleBeforeUnload = () => {
 
 // --- 상담사 상태 업데이트 ---
 const updateCounselorStatus = async (status) => {
+
   try {
     const response = await axios.patch('/api/v1/users/me/status', {
       status: status
     })
 
-    console.log('[Status Update] 성공:', response.data)
-
     if (response.data.isSuccess) {
-      console.log('[Status Update]', response.data.message)
     }
   } catch (error) {
     // 401은 interceptor가 처리하므로 여기서는 다른 에러만 처리

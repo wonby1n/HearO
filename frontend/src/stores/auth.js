@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import axios from 'axios'
 import router from '@/router'
+import { useAgentStore } from './agent'
 
 export const useAuthStore = defineStore('auth', () => {
   // 상태
@@ -100,9 +101,12 @@ export const useAuthStore = defineStore('auth', () => {
       // 토큰 및 사용자 정보 저장
       accessToken.value = token
       user.value = userData
-      
+
       localStorage.setItem('accessToken', token)
       localStorage.setItem('user', JSON.stringify(userData))
+
+      // 로그인 시 상담 상태 초기화 (heartbeat를 false로 시작)
+      localStorage.setItem('consultationStatus', JSON.stringify({ isActive: false }))
 
       return { success: true }
     } catch (err) {
@@ -113,7 +117,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // 로그아웃
+  // 로그아웃 (상담 모드가 OFF인 상태에서만 호출됨)
   const logout = async () => {
     try {
       // 백엔드 로그아웃 API 호출 (refreshToken 쿠키 삭제)
@@ -127,6 +131,11 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
     localStorage.removeItem('accessToken')
     localStorage.removeItem('user')
+    localStorage.removeItem('consultationStatus') // 상담 상태 초기화
+
+    // agentStore 리셋 (에너지 레벨 초기화)
+    const agentStore = useAgentStore()
+    agentStore.logout()
 
     // 로그인 페이지로 리다이렉트
     router.push('/login')

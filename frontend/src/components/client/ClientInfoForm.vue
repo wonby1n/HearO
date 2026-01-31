@@ -141,28 +141,49 @@
               <span>직접 입력이 어려우시다면 음성으로 말씀해주세요</span>
             </div>
 
-            <!-- 녹음 버튼 -->
+            <!-- 녹음 시작 버튼 (녹음 중이 아닐 때) -->
             <button
+              v-if="!isRecording"
               type="button"
               class="voice-record-button"
-              :class="{ recording: isRecording }"
               @click="toggleVoiceRecognition"
             >
               <svg class="mic-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 15C13.6569 15 15 13.6569 15 12V6C15 4.34315 13.6569 3 12 3C10.3431 3 9 4.34315 9 6V12C9 13.6569 10.3431 15 12 15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 <path d="M19 12C19 15.866 15.866 19 12 19M12 19C8.13401 19 5 15.866 5 12M12 19V22M12 22H15M12 22H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
-              <span class="button-text">{{ isRecording ? '녹음 중지' : '녹음 시작' }}</span>
+              <span class="button-text">음성으로 증상 입력하기</span>
             </button>
 
             <!-- 녹음 중 상태 표시 -->
-            <div v-if="isRecording" class="recording-indicator">
-              <div class="recording-animation">
-                <span class="recording-dot"></span>
-                <span class="recording-dot"></span>
-                <span class="recording-dot"></span>
+            <div v-if="isRecording" class="recording-active-section">
+              <!-- 음성 바 애니메이션 -->
+              <div class="voice-visualizer">
+                <div class="voice-bar" style="animation-delay: 0s"></div>
+                <div class="voice-bar" style="animation-delay: 0.1s"></div>
+                <div class="voice-bar" style="animation-delay: 0.2s"></div>
+                <div class="voice-bar" style="animation-delay: 0.3s"></div>
+                <div class="voice-bar" style="animation-delay: 0.4s"></div>
+                <div class="voice-bar" style="animation-delay: 0.5s"></div>
+                <div class="voice-bar" style="animation-delay: 0.6s"></div>
               </div>
-              <p class="recording-text">음성을 듣고 있습니다. 천천히 말씀해주세요.</p>
+
+              <p class="recording-status-text">
+                <span class="recording-pulse">●</span>
+                음성을 듣고 있습니다. 천천히 말씀해주세요.
+              </p>
+
+              <!-- 녹음 완료 버튼 -->
+              <button
+                type="button"
+                class="stop-recording-button"
+                @click="toggleVoiceRecognition"
+              >
+                <svg class="stop-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/>
+                </svg>
+                녹음 완료
+              </button>
             </div>
 
             <!-- 녹음된 내용 미리보기 -->
@@ -556,12 +577,8 @@ const handleSubmit = async () => {
 }
 
 .voice-record-button .mic-icon {
-  width: 20px;
-  height: 20px;
-}
-
-.voice-record-button.recording {
-  background: linear-gradient(135deg, #ff3b30 0%, #d32f2f 100%);
+  width: 16px;
+  height: 16px;
 }
 
 .submit-button {
@@ -583,12 +600,105 @@ const handleSubmit = async () => {
   cursor: not-allowed;
 }
 
-.recording-indicator {
+/* 녹음 중 활성 섹션 */
+.recording-active-section {
   margin-top: 16px;
-  padding: 16px;
-  background: white;
-  border-radius: 8px;
+  padding: 24px;
+  background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%);
+  border-radius: 12px;
   border: 2px solid #ff3b30;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+}
+
+/* 음성 바 시각화 */
+.voice-visualizer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 60px;
+  padding: 8px 0;
+}
+
+.voice-bar {
+  width: 6px;
+  background: linear-gradient(to top, #ff3b30, #ff6b60);
+  border-radius: 3px;
+  animation: voicePulse 0.8s ease-in-out infinite;
+  box-shadow: 0 2px 8px rgba(255, 59, 48, 0.3);
+}
+
+@keyframes voicePulse {
+  0%, 100% {
+    height: 12px;
+    opacity: 0.5;
+  }
+  50% {
+    height: 50px;
+    opacity: 1;
+  }
+}
+
+/* 녹음 상태 텍스트 */
+.recording-status-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: #ff3b30;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.recording-pulse {
+  animation: pulse 1.5s ease-in-out infinite;
+  font-size: 12px;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* 녹음 완료 버튼 */
+.stop-recording-button {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, #ff3b30 0%, #d32f2f 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 4px 12px rgba(255, 59, 48, 0.4);
+  transition: all 0.2s ease;
+}
+
+.stop-recording-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(255, 59, 48, 0.5);
+}
+
+.stop-recording-button:active {
+  transform: translateY(0);
+}
+
+.stop-recording-button .stop-icon {
+  width: 20px;
+  height: 20px;
 }
 
 .transcript-preview {
@@ -613,6 +723,12 @@ const handleSubmit = async () => {
   justify-content: center;
   gap: 8px;
 }
+
+.confirm-button svg {
+  width: 18px;
+  height: 18px;
+}
+
 
 @media (max-width: 768px) {
   .form-content {
