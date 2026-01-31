@@ -6,7 +6,7 @@ import { useAgentStore } from './agent'
 export const useDashboardStore = defineStore('dashboard', () => {
   // --- 상태 (State) ---
   const userName = ref('')
-  const stressIndex = ref(0)
+  const energyIndex = ref(0)
   const waitingCustomers = ref(10)
   const customerSatisfaction = ref(4.8)
   const todos = ref([])
@@ -47,15 +47,14 @@ export const useDashboardStore = defineStore('dashboard', () => {
       if (response.data.isSuccess) {
         const data = response.data.data
         userName.value = data.userName || ''
-        stressIndex.value = data.stressIndex || 0
+        energyIndex.value = data.currentEnergy || 0
         customerSatisfaction.value = data.customerSatisfaction || 0
 
         if (data.currentEnergy !== undefined) {
           const agentStore = useAgentStore()
-          const newStressLevel = 100 - data.currentEnergy
-          if (agentStore.stressLevel === null) {
-            agentStore.stressLevel = newStressLevel
-          }
+          // 백엔드의 currentEnergy는 이미 0-100 값이므로 그대로 사용
+          // 항상 백엔드 값으로 덮어쓰기 (동기화)
+          agentStore.energyLevel = data.currentEnergy
         }
 
         if (data.weeklyChart) {
@@ -174,20 +173,21 @@ export const useDashboardStore = defineStore('dashboard', () => {
   }
 
   /**
-   * 스트레스 데이터 부분 새로고침
+   * 에너지 데이터 부분 새로고침
    */
-  const refreshStressData = async () => {
+  const refreshEnergyData = async () => {
     try {
       const response = await axios.get('/api/v1/dashboard')
       if (response.data.isSuccess) {
         const data = response.data.data
         const agentStore = useAgentStore()
         if (data.currentEnergy !== undefined) {
-          agentStore.stressLevel = 100 - data.currentEnergy
+          // 백엔드의 currentEnergy는 이미 0-100 값이므로 그대로 사용
+          agentStore.energyLevel = data.currentEnergy
         }
       }
     } catch (error) {
-      console.error('[DashboardStore] 스트레스 새로고침 실패:', error)
+      console.error('[DashboardStore] 에너지 새로고침 실패:', error)
     }
   }
 
@@ -217,7 +217,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
   return {
     userName,
-    stressIndex,
+    energyIndex,
     weeklyPerformance,
     totalCallTime,
     customerSatisfaction,
@@ -232,7 +232,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
     toggleTodo,
     updateTodo,
     deleteTodo,
-    refreshStressData,
+    refreshEnergyData,
     setMatchedData,
     clearMatchedData
   }

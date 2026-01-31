@@ -2,26 +2,25 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import axios from 'axios'
 
-// 스트레스 임계값 상수
-const STRESS_THRESHOLDS = {
-  HIGH: 67,
-  MEDIUM: 34
+// 에너지 임계값 상수 (낮을수록 위험)
+const ENERGY_THRESHOLDS = {
+  LOW: 33,      // 33 이하 = 위험 (빨간색)
+  MEDIUM: 66    // 33-66 = 보통 (노란색), 67 이상 = 좋음 (녹색)
 }
 
-// 스트레스 색상 상수
-const STRESS_COLORS = {
-  high: '#ef4444',    // red-500
-  medium: '#eab308',  // yellow-500
-  low: '#22c55e'      // green-500
+// 에너지 색상 상수
+const ENERGY_COLORS = {
+  high: '#22c55e',    // green-500 (에너지 높음 = 좋음)
+  medium: '#eab308',  // yellow-500 (에너지 보통)
+  low: '#ef4444'      // red-500 (에너지 낮음 = 위험)
 }
 
-// 에너지 변화 속도 (stressLevel 증감/초)
-// 백엔드와 동기화: 4시간에 100 소진/회복 (분당 0.41666...)
-// stressLevel은 100 - energy이므로 부호 반대
+// 에너지 변화 속도 (energyLevel 증감/초)
+// 백엔드와 동기화: AVAILABLE/IN_CALL 분당 -0.5, REST 분당 +1.5
 const ENERGY_CHANGE_RATES = {
-  AVAILABLE: 0.41666666 / 60,   // 분당 -0.41666... (에너지) → stressLevel +0.00694.../초 (4시간에 100 소진)
-  IN_CALL: 0.41666666 / 60,     // 분당 -0.41666... (에너지) → stressLevel +0.00694.../초 (4시간에 100 소진)
-  REST: -0.41666666 / 60        // 분당 +0.41666... (에너지) → stressLevel -0.00694.../초 (4시간에 100 회복)
+  AVAILABLE: -0.5 / 60,  // 분당 -0.5 소진 (백엔드 동기화)
+  IN_CALL: -0.5 / 60,    // 분당 -0.5 소진 (백엔드 동기화)
+  REST: 1.5 / 60         // 분당 +1.5 회복 (백엔드 동기화)
 }
 
 export const useAgentStore = defineStore('agent', () => {
@@ -35,7 +34,7 @@ export const useAgentStore = defineStore('agent', () => {
   })
 
   // 상담원 상태
-  const stressLevel = ref(null) // 스트레스 지수 (0-100), null이면 초기화 전
+  const energyLevel = ref(null) // 에너지 지수 (0-100), null이면 초기화 전
   const consecutiveCalls = ref(0)
   const totalCallTime = ref(0)
   const currentStatus = ref('REST') // 현재 상태: AVAILABLE, IN_CALL, REST
@@ -46,19 +45,19 @@ export const useAgentStore = defineStore('agent', () => {
 
   // 통화 가능 여부
   const isAvailable = computed(() => {
-    return agentInfo.value.status === 'available' && agentInfo.value.isAuthenticated
+    return agentInfo.value.status === 'AVAILABLE' && agentInfo.value.isAuthenticated
   })
 
-  // 스트레스 상태 계산 (3단계: 녹색/노란색/빨간색)
-  const stressStatus = computed(() => {
-    const level = stressLevel.value
-    if (level >= STRESS_THRESHOLDS.HIGH) return 'high' // 빨간색
-    if (level >= STRESS_THRESHOLDS.MEDIUM) return 'medium' // 노란색
-    return 'low' // 녹색
+  // 에너지 상태 계산 (3단계: 녹색/노란색/빨간색)
+  const energyStatus = computed(() => {
+    const level = energyLevel.value
+    if (level <= ENERGY_THRESHOLDS.LOW) return 'low' // 빨간색 (에너지 낮음)
+    if (level <= ENERGY_THRESHOLDS.MEDIUM) return 'medium' // 노란색 (에너지 보통)
+    return 'high' // 녹색 (에너지 높음)
   })
 
-  // 스트레스 색상
-  const stressColor = computed(() => STRESS_COLORS[stressStatus.value])
+  // 에너지 색상
+  const energyColor = computed(() => ENERGY_COLORS[energyStatus.value])
 
   // 상담원 로그인
   const login = (userData) => {
@@ -66,7 +65,7 @@ export const useAgentStore = defineStore('agent', () => {
       ...agentInfo.value,
       ...userData,
       isAuthenticated: true,
-      status: 'available'
+      status: 'AVAILABLE'
     }
   }
 
@@ -76,7 +75,7 @@ export const useAgentStore = defineStore('agent', () => {
       id: null,
       name: '',
       email: '',
-      status: 'offline',
+      status: 'REST',
       isAuthenticated: false
     }
     resetStats()
@@ -87,42 +86,14 @@ export const useAgentStore = defineStore('agent', () => {
     agentInfo.value.status = newStatus
   }
 
-  // 스트레스 지수 조회 (백엔드 연동)
-  const fetchStressLevel = async () => {
-    try {
-      // TODO: 백엔드 API 연동 시 주석 해제
-      // NOTE: 백엔드 팀과 API 응답 필드명 협의 필요
-      // 예상 응답 형식 1: { "stressLevel": 0-100 }
-      // 예상 응답 형식 2: { "stress": 0-100 }
-      // 현재는 data.stressLevel || data.stress로 둘 다 처리하도록 구현되어 있으나,
-      // 백엔드 API 스펙이 확정되면 필드명을 하나로 통일하는 것을 권장합니다.
-      //
-      // const response = await fetch('/api/v1/users/me/stress', {
-      //   method: 'GET',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     // 'Authorization': `Bearer ${token}` // 인증 토큰이 필요한 경우
-      //   }
-      // })
-      // if (!response.ok) throw new Error('스트레스 지수를 불러오지 못했습니다')
-      // const data = await response.json()
-      // stressLevel.value = data.stressLevel || data.stress || 0
-
-      // 현재는 더미 데이터 사용 (localStorage)
-      console.log('fetchStressLevel - API 연동 대기 중')
-    } catch (error) {
-      console.error('스트레스 지수 조회 실패:', error)
-    }
-  }
-
-  // 스트레스 지수 업데이트
-  const updateStressLevel = (level) => {
-    stressLevel.value = level
+  // 에너지 지수 업데이트
+  const updateEnergyLevel = (level) => {
+    energyLevel.value = level
   }
 
   // 통계 초기화
   const resetStats = () => {
-    stressLevel.value = 0
+    energyLevel.value = null
     consecutiveCalls.value = 0
     totalCallTime.value = 0
   }
@@ -140,15 +111,15 @@ export const useAgentStore = defineStore('agent', () => {
 
     // 에너지 증감 애니메이션 (1초마다)
     energyAnimationInterval = setInterval(() => {
-      // stressLevel이 초기화되지 않았으면 스킵
-      if (stressLevel.value === null) {
+      // energyLevel이 초기화되지 않았으면 스킵
+      if (energyLevel.value === null) {
         return
       }
 
       const rate = ENERGY_CHANGE_RATES[currentStatus.value] || 0
 
-      // stressLevel 업데이트 (0-100 범위 유지)
-      stressLevel.value = Math.max(0, Math.min(100, stressLevel.value + rate))
+      // energyLevel 업데이트 (0-100 범위 유지)
+      energyLevel.value = Math.max(0, Math.min(100, energyLevel.value + rate))
     }, 1000)
 
   }
@@ -164,20 +135,19 @@ export const useAgentStore = defineStore('agent', () => {
   return {
     // State
     agentInfo,
-    stressLevel,
+    energyLevel,
     consecutiveCalls,
     totalCallTime,
     currentStatus,
     // Getters
     isAvailable,
-    stressStatus,
-    stressColor,
+    energyStatus,
+    energyColor,
     // Actions
     login,
     logout,
     updateStatus,
-    fetchStressLevel,
-    updateStressLevel,
+    updateEnergyLevel,
     resetStats,
     incrementCallStats,
     startEnergyAnimation,

@@ -66,19 +66,36 @@
         <span class="text-sm font-bold">Sign Out</span>
       </button>
     </div>
+
+    <!-- 상담모드 ON 경고 모달 -->
+    <ConsultationWarningModal
+      :is-open="isWarningModalOpen"
+      @close="isWarningModalOpen = false"
+    />
   </aside>
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useDashboardStore } from '@/stores/dashboard'
+import ConsultationWarningModal from '@/components/common/ConsultationWarningModal.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const dashboardStore = useDashboardStore()
+
+const isWarningModalOpen = ref(false)
 
 // 로그아웃 핸들러
 const handleLogout = async () => {
-  console.log('[Sidebar] 로그아웃 버튼 클릭')
+
+  // 상담 모드가 ON인지 체크
+  if (dashboardStore.consultationStatus.isActive) {
+    isWarningModalOpen.value = true
+    return
+  }
 
   // 로그아웃 실행 (auth store에서 자동으로 로그인 페이지로 리다이렉트)
   await authStore.logout()
