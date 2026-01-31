@@ -18,7 +18,13 @@ public class ConsultationAiController {
     public ResponseEntity<ConsultationSummaryResponse> generateSummary(
             @RequestBody ConsultationSummaryRequest request
     ) {
-        String summary = summaryService.generateSummary(request.getFullTranscript());
-        return ResponseEntity.ok(new ConsultationSummaryResponse(summary));
+        var content = summaryService.generateContent(request.getFullTranscript());
+        return ResponseEntity.ok(
+                new ConsultationSummaryResponse(
+                        content.title(),
+                        content.subtitle(),
+                        content.aiSummary()
+                )
+        );
     }
 }
