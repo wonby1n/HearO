@@ -117,6 +117,18 @@ public class Consultation extends BaseTimeEntity {
         this.aiSummary = summary;
     }
 
+    public void updateTitleSubtitle(String title, String subtitle) {
+        if (title != null && !title.isBlank()) {
+            this.title = title;
+        }
+        if (subtitle != null) {
+            this.subtitle = subtitle;
+        }
+    }
+
+    public void updateFullTranscript(String fullTranscript) {
+        this.fullTranscript = fullTranscript;
+    }
     /**
      * 상담원 메모 저장
      */
