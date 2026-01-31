@@ -191,39 +191,31 @@ export function useLiveKit(options = {}) {
     }
 
     try {
-      // 옵션 없이 호출 (LiveKit 기본값 사용)
-      await room.value.localParticipant.setMicrophoneEnabled(true)
+      // DataCloneError 회피: 브라우저 API로 직접 MediaStream 가져오기
+      console.log('[LiveKit] 마이크 권한 요청 중...')
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
 
-      const micTrack = room.value.localParticipant.getTrackPublication(Track.Source.Microphone)
-      if (micTrack?.track) {
-        localAudioTrack.value = micTrack.track
+      console.log('[LiveKit] 마이크 스트림 획득, LiveKit에 publish 중...')
+      const audioTracks = stream.getAudioTracks()
+      if (audioTracks.length > 0) {
+        // LiveKit에 트랙 publish
+        const publication = await room.value.localParticipant.publishTrack(audioTracks[0])
+        localAudioTrack.value = publication.track
+        isMuted.value = false
+        console.log('[LiveKit] 마이크 활성화 성공')
+        return localAudioTrack.value
+      } else {
+        throw new Error('오디오 트랙을 찾을 수 없습니다')
       }
-
-      isMuted.value = false
-      console.log('[LiveKit] 마이크 활성화')
-
-      return localAudioTrack.value
     } catch (err) {
       console.error('[LiveKit] 마이크 활성화 실패:', err)
+      error.value = err
 
-      // DataCloneError인 경우 다시 시도 (옵션 문제 우회)
-      if (err.name === 'DataCloneError') {
-        console.warn('[LiveKit] DataCloneError 발생, 재시도 중...')
-        try {
-          // 직접 로컬 트랙 생성
-          const tracks = await room.value.localParticipant.createTracks({ audio: true })
-          if (tracks.length > 0) {
-            localAudioTrack.value = tracks[0]
-            isMuted.value = false
-            console.log('[LiveKit] 마이크 활성화 (재시도 성공)')
-            return localAudioTrack.value
-          }
-        } catch (retryErr) {
-          console.error('[LiveKit] 재시도 실패:', retryErr)
-        }
+      // 권한 거부 에러인 경우 사용자에게 알림
+      if (err.name === 'NotAllowedError') {
+        console.warn('[LiveKit] 마이크 권한이 거부되었습니다. 브라우저 설정에서 마이크 권한을 허용해주세요.')
       }
 
-      error.value = err
       throw err
     }
   }
