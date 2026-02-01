@@ -52,7 +52,7 @@
         </div>
 
         <!-- 중앙: STT 자막 영역 (6 columns) -->
-        <div class="lg:col-span-6">
+        <div class="lg:col-span-6 h-full">
           <STTChatPanel
             :messages="sttMessages"
             @toggle-profanity="handleToggleProfanity"
