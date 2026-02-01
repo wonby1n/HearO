@@ -8,6 +8,7 @@ export function useMatchingNotification(options = {}) {
   const client = ref(null)
   const isConnected = ref(false)
   const matchData = ref(null)
+  const isMatched = ref(false) // 중복 매칭 방지 플래그
 
   // STOMP 클라이언트 연결
   const connect = () => {
@@ -25,7 +26,14 @@ export function useMatchingNotification(options = {}) {
             const data = JSON.parse(message.body)
 
             if (data.status === 'MATCHED') {
+              // 중복 매칭 방지
+              if (isMatched.value) {
+                console.warn('[STOMP] 이미 매칭되었으므로 중복 메시지 무시:', data)
+                return
+              }
+
               console.log('[STOMP] 매칭 완료:', data)
+              isMatched.value = true
               matchData.value = data
               onMatched?.(data)
             }
@@ -38,7 +46,14 @@ export function useMatchingNotification(options = {}) {
             const data = JSON.parse(message.body)
 
             if (data.type === 'MATCH_ASSIGNED') {
+              // 중복 매칭 방지
+              if (isMatched.value) {
+                console.warn('[STOMP] 이미 매칭되었으므로 중복 메시지 무시:', data)
+                return
+              }
+
               console.log('[STOMP] 매칭 배정:', data)
+              isMatched.value = true
               matchData.value = data
               onMatched?.(data)
             }
@@ -64,6 +79,7 @@ export function useMatchingNotification(options = {}) {
       client.value.deactivate()
       client.value = null
     }
+    isMatched.value = false // 플래그 리셋
   }
 
   onUnmounted(() => {

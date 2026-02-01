@@ -24,6 +24,12 @@ export function useCallConnection(role = "customer", options = {}) {
 
   // 매칭 완료 시 호출될 핸들러
   const handleMatched = async (matchData) => {
+    // 중복 매칭 방지: 이미 연결 중이거나 연결된 상태면 무시
+    if (connectionState.value === "connecting" || connectionState.value === "connected" || connectionState.value === "matched") {
+      console.warn("[CallConnection] 이미 연결 중이므로 중복 매칭 무시:", matchData);
+      return;
+    }
+
     try {
       connectionState.value = "matched";
       matchedData.value = matchData;
