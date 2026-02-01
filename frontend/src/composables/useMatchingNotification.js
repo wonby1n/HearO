@@ -12,6 +12,9 @@ export function useMatchingNotification(options = {}) {
 
   // STOMP 클라이언트 연결
   const connect = () => {
+    // 새 연결 시작 시 매칭 플래그 리셋
+    isMatched.value = false
+
     client.value = new Client({
       webSocketFactory: () => new SockJS('/ws/queue'),
       reconnectDelay: 5000,

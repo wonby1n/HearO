@@ -105,7 +105,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCallConnection } from '@/composables/useCallConnection'
 import { useCallStore } from '@/stores/call'
@@ -116,6 +116,26 @@ const router = useRouter()
 const callStore = useCallStore()
 const customerStore = useCustomerStore()
 const { connectionState, startWaiting } = useCallConnection('customer')
+
+// 연결 완료 시 자동으로 통화 화면으로 이동
+watch(connectionState, (newState) => {
+  if (newState === 'connected') {
+    console.log('[ClientWaiting] 연결 완료 - 통화 화면으로 이동')
+
+    // ARS 음성 정리
+    if (arsAudio.value) {
+      arsAudio.value.pause()
+      arsAudio.value.removeEventListener('ended', onARSAudioEnded)
+    }
+
+    // 대기열 정리
+    stopQueuePolling()
+    disconnectQueueSocket()
+
+    // 통화 화면으로 이동
+    router.push('/client/call')
+  }
+})
 
 // 상태 관리
 const queuePosition = ref(customerStore.queueInfo.position || 0) // 대기 순번 (추후 백엔드 연동)
@@ -382,12 +402,7 @@ const onAgentConnected = () => {
   // 상담 화면으로 이동
   router.push('/client/call')
 }
-onMounted(() => {
-  const customerId = customerStore.currentCustomer?.id
-  if (customerId) {
-    startWaiting(customerId)
-  }
-})
+
 // 컴포넌트 마운트 시 초기화
 onMounted(async () => {
   // ARS 음성 자동 재생
