@@ -352,8 +352,9 @@ const playARSAudio = () => {
 
   // 새 Audio 객체 생성
   arsAudio.value = new Audio(ARSvoiceFile)
+  arsAudio.value.loop = true // 무한 반복 재생
   isARSPlaying.value = true
-  console.log('[Client] ARS 음성 재생 시작')
+  console.log('[Client] ARS 음성 재생 시작 (무한 반복)')
 
   arsAudio.value.play()
     .then(() => {
@@ -364,7 +365,7 @@ const playARSAudio = () => {
       isARSPlaying.value = false
     })
 
-  // 음성 재생 완료 이벤트
+  // 음성 재생 완료 이벤트 (loop=true이므로 실행되지 않음)
   arsAudio.value.addEventListener('ended', onARSAudioEnded)
 }
 
