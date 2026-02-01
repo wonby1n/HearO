@@ -36,13 +36,19 @@ export function useLiveKit(options = {}) {
    * @param {Object} roomOptions - 룸 옵션
    */
   const connect = async (serverUrl, token, roomOptions = {}) => {
+    // 중복 연결 방지: 이미 연결 중이면 무시
+    if (isConnecting.value || isConnected.value) {
+      console.warn('[LiveKit] 이미 연결 중이므로 중복 연결 시도 무시')
+      return room.value
+    }
+
     try {
       error.value = null
       isConnecting.value = true
       connectionState.value = ConnectionState.Connecting
 
-      // 기존 룸이 있으면 정리
-      if (room.value) {
+      // 기존 룸이 있으면 정리 (Disconnected 상태일 때만)
+      if (room.value && connectionState.value === ConnectionState.Disconnected) {
         await disconnect()
       }
 
