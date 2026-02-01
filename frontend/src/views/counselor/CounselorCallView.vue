@@ -533,18 +533,11 @@ onMounted(() => {
     callStore.livekitRoom.on(RoomEvent.ParticipantDisconnected, (participant) => {
       console.log('[CounselorCallView] 고객이 통화를 종료했습니다:', participant.identity)
 
-      // LiveKit 연결 종료
-      if (callStore.livekitRoom) {
-        callStore.livekitRoom.disconnect()
-        callStore.setLivekitRoom(null)
-      }
+      // 통화 종료 모달 표시 (통화 요약 및 메모 저장)
+      isCallActive.value = false
+      showManualEndModal.value = true
 
-      // call store 리셋
-      callStore.resetCall()
-
-      // 대시보드로 이동
       notificationStore.notifyInfo('고객이 통화를 종료했습니다')
-      router.push({ name: 'dashboard' })
     })
   } else {
     console.warn('[CounselorCallView] LiveKit 연결이 없습니다. 대시보드로 돌아가세요.')

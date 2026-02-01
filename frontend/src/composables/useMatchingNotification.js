@@ -25,7 +25,11 @@ export function useMatchingNotification(options = {}) {
 
         // 고객용 매칭 알림 구독
         if (customerId) {
-          client.value.subscribe(`/topic/queue-rank/${customerId}`, (message) => {
+          const topic = `/topic/queue-rank/${customerId}`
+          console.log('[STOMP] 고객 매칭 알림 구독 시작:', topic)
+
+          client.value.subscribe(topic, (message) => {
+            console.log('[STOMP] 메시지 수신:', message.body)
             const data = JSON.parse(message.body)
 
             if (data.status === 'MATCHED') {
@@ -39,8 +43,14 @@ export function useMatchingNotification(options = {}) {
               isMatched.value = true
               matchData.value = data
               onMatched?.(data)
+            } else {
+              console.log('[STOMP] 매칭 상태:', data.status)
             }
           })
+
+          console.log('[STOMP] 고객 매칭 알림 구독 완료')
+        } else {
+          console.error('[STOMP] customerId가 없어서 구독하지 못함!')
         }
 
         // 상담원용 매칭 알림 구독
