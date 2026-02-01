@@ -10,7 +10,7 @@ import { mockCustomerInfo } from '@/mocks/counselor'
  * JWT 토큰 가져오기
  */
 const getAuthToken = () => {
-  return localStorage.getItem('customerAccessToken')
+  return sessionStorage.getItem('customerAccessToken') || localStorage.getItem('customerAccessToken')
 }
 
 /**

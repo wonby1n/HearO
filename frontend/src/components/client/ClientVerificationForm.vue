@@ -209,6 +209,8 @@ const sendVerification = async () => {
 
     if (response.data.accessToken) {
       // JWT 토큰을 localStorage에 저장
+      sessionStorage.setItem('customerAccessToken', response.data.accessToken)
+      sessionStorage.setItem('customerId', response.data.customerId)
       localStorage.setItem('customerAccessToken', response.data.accessToken)
       localStorage.setItem('customerId', response.data.customerId)
     }
@@ -257,6 +259,8 @@ const verifyCode = async () => {
 
     // accessToken 저장
     const { accessToken, customerId } = response.data
+    sessionStorage.setItem('customerAccessToken', accessToken)
+    sessionStorage.setItem('clientCustomerId', String(customerId))
     localStorage.setItem('customerAccessToken', accessToken)
     localStorage.setItem('clientCustomerId', String(customerId))
 

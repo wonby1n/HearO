@@ -219,7 +219,7 @@ const handleSubmit = async () => {
     const consultationData = JSON.parse(consultationDataStr)
 
     // 2단계에서 받은 accessToken 가져오기
-    const accessToken = localStorage.getItem('customerAccessToken')
+    const accessToken = sessionStorage.getItem('customerAccessToken') || localStorage.getItem('customerAccessToken')
     if (!accessToken) {
       notificationStore.notifyWarning('인증 정보가 없습니다. 본인 인증을 다시 진행해주세요.')
       router.push({ name: 'client-consultation-verification' })

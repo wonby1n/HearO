@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 
 export const useCustomerStore = defineStore('customer', () => {
   // localStorage에서 customerId 복원
-  const savedCustomerId = localStorage.getItem('clientCustomerId')
+  const savedCustomerId = sessionStorage.getItem('clientCustomerId') || localStorage.getItem('clientCustomerId')
 
   // 현재 고객 정보
   const currentCustomer = ref({
@@ -59,6 +59,7 @@ export const useCustomerStore = defineStore('customer', () => {
     }
     // customerId가 변경되면 localStorage에 저장
     if (customerData.id) {
+      sessionStorage.setItem('clientCustomerId', String(customerData.id))
       localStorage.setItem('clientCustomerId', String(customerData.id))
     }
   }
