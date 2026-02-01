@@ -2,10 +2,12 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useLiveKit } from "@/composables/useLiveKit";
 import { useMatchingNotification } from "@/composables/useMatchingNotification";
+import { useCallStore } from "@/stores/call";
 import axios from "axios";
 
 export function useCallConnection(role = "customer", options = {}) {
   const router = useRouter();
+  const callStore = useCallStore();
   const connectionState = ref("idle"); // idle, waiting, matched, connecting, connected
   const error = ref(null);
   const matchedData = ref(null); // 매칭 데이터 저장
@@ -49,7 +51,11 @@ export function useCallConnection(role = "customer", options = {}) {
       console.log("[CallConnection] LiveKit 연결 중...");
 
       // 2. LiveKit 룸 연결
-      await livekit.connect(url, token);
+      const room = await livekit.connect(url, token);
+
+      // LiveKit room을 call store에 저장 (페이지 이동 시에도 유지)
+      callStore.setLivekitRoom(room);
+      console.log("[CallConnection] LiveKit room을 store에 저장");
 
       // 3. 마이크 활성화 (실패해도 계속 진행)
       try {
@@ -120,11 +126,20 @@ export function useCallConnection(role = "customer", options = {}) {
   };
 
   // 연결 종료
-  const disconnect = async () => {
+  const disconnect = async (disconnectLiveKit = true) => {
     if (matching) {
       matching.disconnect();
     }
-    await livekit.disconnect();
+
+    // LiveKit 연결은 선택적으로 끊기 (페이지 이동 시에는 유지)
+    if (disconnectLiveKit) {
+      await livekit.disconnect();
+      callStore.setLivekitRoom(null);
+      console.log("[CallConnection] LiveKit 연결 종료 및 store 정리");
+    } else {
+      console.log("[CallConnection] STOMP만 종료, LiveKit 연결은 유지");
+    }
+
     connectionState.value = "idle";
   };
 

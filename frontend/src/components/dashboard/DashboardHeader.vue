@@ -233,9 +233,9 @@ watch(
       // 휴식 상태로 변경
       agentStore.currentStatus = 'REST'
 
-      // 매칭 알림 구독 해제
-      disconnectCall()
-      console.log('[DashboardHeader] 매칭 알림 구독 해제')
+      // 매칭 알림 구독 해제 (LiveKit도 완전히 종료)
+      disconnectCall(true) // true: LiveKit도 끊기
+      console.log('[DashboardHeader] 매칭 알림 구독 해제 (LiveKit 포함)')
     }
   }
 )
@@ -268,6 +268,13 @@ onUnmounted(() => {
   stopHeartbeat()
   if (countChangeTimer) clearTimeout(countChangeTimer)
   if (countAnimationTimer) clearTimeout(countAnimationTimer)
+
+  // 페이지 이동 시에는 LiveKit 연결 유지 (STOMP만 정리)
+  // CounselorCallView에서 계속 사용할 수 있도록 함
+  if (dashboardStore.consultationStatus.isActive) {
+    console.log('[DashboardHeader] 언마운트 - LiveKit 연결 유지, STOMP만 정리')
+    disconnectCall(false) // false: LiveKit은 유지
+  }
 })
 </script>
 

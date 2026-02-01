@@ -506,9 +506,19 @@ const addSttMessage = (message) => {
 // 외부에서 사용할 수 있도록 expose (선택적)
 defineExpose({ addSttMessage })
 
-// 컴포넌트 마운트 시 고객 정보 로드
+// 컴포넌트 마운트 시 고객 정보 로드 및 LiveKit 연결 확인
 onMounted(() => {
   loadCustomerData()
+
+  // call store에 저장된 LiveKit room 확인
+  if (callStore.livekitRoom) {
+    console.log('[CounselorCallView] 기존 LiveKit 연결 사용:', callStore.livekitRoom.name)
+    // LiveKit room이 이미 연결되어 있으므로 그대로 사용
+  } else {
+    console.warn('[CounselorCallView] LiveKit 연결이 없습니다. 대시보드로 돌아가세요.')
+    // 선택적: 연결이 없으면 대시보드로 리다이렉트
+    // router.push('/dashboard')
+  }
 })
 </script>
 
