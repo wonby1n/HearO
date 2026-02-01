@@ -54,7 +54,7 @@
         </div>
 
         <!-- 중앙: STT 자막 영역 (6 columns) -->
-        <div class="lg:col-span-6">
+        <div class="lg:col-span-6" h-full>
           <STTChatPanel
             :messages="sttMessages"
             @toggle-profanity="handleToggleProfanity"
@@ -151,15 +151,15 @@ import { RoomEvent, Track } from 'livekit-client'
 import { useNotificationStore } from '@/stores/notification'
 import { useCallStore } from '@/stores/call'
 
-// ===== 로컬 AI 서버 엔드포인트 (Vite env로 덮어쓸 수 있음) =====
+// 로컬 AI 서버 엔드포인트 (Vite env로 덮어쓸 수 있음) 
 const TOXIC_API_URL = import.meta.env.VITE_TOXIC_API_URL || 'http://127.0.0.1:8000/unsmile'
 const WHISPER_API_URL = import.meta.env.VITE_WHISPER_API_URL || 'http://127.0.0.1:8000/stt'
 
-// ===== 상담원: 고객 오디오 딜레이(기본 3초) =====
+// 상담원: 고객 오디오 딜레이(기본 3초) 
 const CUSTOMER_AUDIO_DELAY_SEC = 3
 const MUTE_POSTPAD_MS = 600
 
-// ===== 상담원 Whisper STT: 무음 감지(보수적으로 짧게) =====
+// 상담원 Whisper STT: 무음 감지(보수적으로 짧게) 
 const VAD_SILENCE_MS = Number(import.meta.env.VITE_COUNSELOR_VAD_SILENCE_MS || 650)
 const VAD_MIN_UTTER_MS = Number(import.meta.env.VITE_COUNSELOR_VAD_MIN_UTTER_MS || 800)
 
@@ -196,11 +196,9 @@ const customerInfoError = ref(null)
 // STT 메시지 (실시간)
 const sttMessages = ref([])
 
-// ============================================================
 // 1) 고객 STT → 폭력성(unsmile) 검사 → 자막 블러/차단 트리거
 // 2) 고객 오디오: 3초 딜레이 재생 + 폭력성 감지 시 다음 STT까지 묵음
 // 3) 상담원 STT: 로컬 Whisper(무음 기반 구간 전송)
-// ============================================================
 
 // ---- 텍스트 마스킹(간단) ----
 const maskText = (text) => {

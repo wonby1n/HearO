@@ -109,7 +109,7 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick, computed } from 'vue'
+import { ref, watch, nextTick, computed, onMounted, onUnmounted } from 'vue'
 import { useNotificationStore } from '@/stores/notification'
 import NotificationItem from '@/components/notification/NotificationItem.vue'
 
@@ -153,6 +153,7 @@ const props = defineProps({
 const emit = defineEmits(['toggle-profanity'])
 
 const chatContainer = ref(null)
+const isUserScrolling = ref(false) // 사용자가 스크롤 중인지 여부
 
 // 화자 라벨 반환
 const getSpeakerLabel = (speaker) => {
@@ -164,16 +165,52 @@ const getSpeakerLabel = (speaker) => {
   return labels[speaker] || speaker
 }
 
-// 새 메시지가 추가되면 자동 스크롤
+// 맨 아래에 있는지 확인 (여유 50px)
+const isAtBottom = () => {
+  if (!chatContainer.value) return true
+  const { scrollTop, scrollHeight, clientHeight } = chatContainer.value
+  return scrollHeight - scrollTop - clientHeight < 50
+}
+
+// 스크롤 이벤트 핸들러
+const handleScroll = () => {
+  if (!chatContainer.value) return
+
+  // 사용자가 맨 아래로 스크롤하면 자동 스크롤 재개
+  if (isAtBottom()) {
+    isUserScrolling.value = false
+  } else {
+    // 사용자가 위로 스크롤하면 자동 스크롤 중지
+    isUserScrolling.value = true
+  }
+}
+
+// 새 메시지가 추가되면 자동 스크롤 (사용자가 스크롤 중이 아닐 때만)
 watch(
   () => props.messages.length,
   async () => {
     await nextTick()
-    if (chatContainer.value) {
+
+    // 사용자가 스크롤 중이 아니거나, 맨 아래에 있을 때만 자동 스크롤
+    if (chatContainer.value && !isUserScrolling.value) {
       chatContainer.value.scrollTop = chatContainer.value.scrollHeight
     }
   }
 )
+
+// 컴포넌트 마운트 시 스크롤 이벤트 리스너 등록
+onMounted(() => {
+  if (chatContainer.value) {
+    chatContainer.value.addEventListener('scroll', handleScroll)
+  }
+})
+
+// 컴포넌트 언마운트 시 이벤트 리스너 제거
+onUnmounted(() => {
+  if (chatContainer.value) {
+    chatContainer.value.removeEventListener('scroll', handleScroll)
+  }
+})
 </script>
 
 <style scoped>
