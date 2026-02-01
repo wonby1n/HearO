@@ -26,6 +26,11 @@ export function useLiveKit(options = {}) {
   const error = ref(null)
   const isMuted = ref(false)
 
+  // 기본 동작: 원격 오디오 자동 attach
+  // 상담원 측에서 딜레이/필터 파이프라인을 구성하려면 false로 두고,
+  // options.onTrackSubscribed에서 별도 처리하면 됨.
+  const autoAttachRemoteAudio = options.autoAttachRemoteAudio ?? true
+
   // 연결 상태 computed
   const isConnected = ref(false)
   const isConnecting = ref(false)
@@ -106,10 +111,12 @@ export function useLiveKit(options = {}) {
           publication
         })
 
-        // 오디오 요소에 연결
-        const audioElement = track.attach()
-        audioElement.id = `audio-${participant.identity}`
-        document.body.appendChild(audioElement)
+        // 오디오 요소 자동 attach (기본)
+        if (autoAttachRemoteAudio) {
+          const audioElement = track.attach()
+          audioElement.id = `audio-${participant.identity}`
+          document.body.appendChild(audioElement)
+        }
       }
 
       options.onTrackSubscribed?.(track, publication, participant)
@@ -124,8 +131,10 @@ export function useLiveKit(options = {}) {
           t => t.participant !== participant.identity
         )
 
-        // 오디오 요소 제거
-        track.detach().forEach(el => el.remove())
+        // 오디오 요소 제거 (auto attach를 켠 경우에만)
+        if (autoAttachRemoteAudio) {
+          track.detach().forEach(el => el.remove())
+        }
       }
 
       options.onTrackUnsubscribed?.(track, publication, participant)

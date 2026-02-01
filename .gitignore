@@ -26,3 +26,7 @@ thoughts/
 # 5. TLDR tool files
 .tldr/
 .tldrignore
+
+# 6. python venv
+venv/
+__pycache__/
