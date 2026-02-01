@@ -365,7 +365,7 @@ const playARSAudio = () => {
       isARSPlaying.value = false
     })
 
-  // 음성 재생 완료 이벤트 (loop=true이므로 실행되지 않음)
+  // 무한 반복 재생으로 설정되어 ended 이벤트는 발생하지 않음
   arsAudio.value.addEventListener('ended', onARSAudioEnded)
 }
 
