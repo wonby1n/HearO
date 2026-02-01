@@ -14,6 +14,8 @@ export function useCallConnection(role = "customer", options = {}) {
 
   // LiveKit composable
   const livekit = useLiveKit({
+    // 상담원은 원격(고객) 오디오를 그대로 재생하면 딜레이/차단을 못 거므로 자동 attach를 끔
+    autoAttachRemoteAudio: role !== 'counselor',
     onDisconnected: (reason) => {
       console.log("[CallConnection] 통화 종료:", reason);
       connectionState.value = "idle";
@@ -22,6 +24,8 @@ export function useCallConnection(role = "customer", options = {}) {
       error.value = err;
       connectionState.value = "error";
     },
+    // 외부에서 LiveKit 이벤트를 더 받고 싶으면 options.livekitHandlers로 넘기기
+    ...(options.livekitHandlers || {}),
   });
 
   // 매칭 완료 시 호출될 핸들러
