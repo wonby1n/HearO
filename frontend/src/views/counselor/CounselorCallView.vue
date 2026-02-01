@@ -407,7 +407,17 @@ const handleEndCall = async () => {
       clearMemoDraft()
       skipDraftSaveOnUnmount = true
     }
-    // TODO: await livekitService.disconnect()
+
+    // LiveKit 연결 종료
+    if (callStore.livekitRoom) {
+      console.log('[CounselorCallView] LiveKit 연결 종료')
+      await callStore.livekitRoom.disconnect()
+      callStore.setLivekitRoom(null)
+    }
+
+    // call store 완전히 리셋
+    callStore.resetCall()
+
     router.push({ name: 'dashboard' })
     console.log('통화 종료')
   } catch (error) {
@@ -450,7 +460,11 @@ const handleAutoTerminationConfirm = async () => {
     // await saveCallRecord(callData)
 
     // LiveKit 연결 종료
-    // TODO: await livekitService.disconnect()
+    if (callStore.livekitRoom) {
+      console.log('[CounselorCallView] LiveKit 연결 종료 (자동 종료)')
+      await callStore.livekitRoom.disconnect()
+      callStore.setLivekitRoom(null)
+    }
 
     // 상태 초기화
     callStore.resetCall()
