@@ -326,8 +326,11 @@ export function useLiveKit(options = {}) {
   }
 
   // 컴포넌트 언마운트 시 정리
+  // 주의: 자동 disconnect를 제거하여 페이지 이동 시에도 연결 유지
+  // disconnect는 명시적으로만 호출되어야 함
   onUnmounted(() => {
-    disconnect()
+    console.log('[LiveKit] useLiveKit 언마운트 - 자동 disconnect 생략')
+    // disconnect() 제거 - call store가 room을 관리하므로 여기서 끊지 않음
   })
 
   return {
