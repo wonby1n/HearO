@@ -259,7 +259,18 @@ watch(
 onMounted(() => {
   clockInterval = setInterval(() => { currentTime.value = new Date() }, 1000)
   window.addEventListener('beforeunload', handleBeforeUnload)
-  if (dashboardStore.consultationStatus.isActive) startHeartbeat()
+
+  // 상담 ON 상태면 하트비트 및 매칭 알림 재시작
+  if (dashboardStore.consultationStatus.isActive) {
+    startHeartbeat()
+
+    // STOMP 재연결 (통화 종료 후 대시보드로 돌아왔을 때)
+    const counselorId = authStore.user?.id
+    if (counselorId) {
+      console.log('[DashboardHeader] 상담 ON 상태 - 매칭 알림 재연결, counselorId:', counselorId)
+      startListening(counselorId)
+    }
+  }
 })
 
 onUnmounted(() => {
