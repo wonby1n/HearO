@@ -5,7 +5,7 @@ bind_addresses:
   - ""
 
 redis:
-  address: redis:6379
+  address: "redis:6379"
   username: ""
   db: 0
 

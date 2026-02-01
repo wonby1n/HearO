@@ -343,24 +343,49 @@ const saveMemoToServer = async () => {
 // 고객 정보 로드
 const loadCustomerData = async () => {
   try {
-    isLoadingCustomerInfo.value = true
-    customerInfoError.value = null
+    isLoadingCustomerInfo.value = true;
+    customerInfoError.value = null;
 
-    // TODO: 실제 registrationId는 라우트 파라미터나 통화 세션에서 가져오기
-    const registrationId = 1001
+    // 1. 등록 ID 가져오기 (예시: 1)
+    const registrationId = 1; 
 
-    const data = await fetchCustomerData(registrationId)
-    customerInfo.value = data
+    // 2. API 호출
+    const response = await fetchCustomerData(registrationId);
+
+    if (response && response.isSuccess) {
+      const apiData = response.data; // 백엔드에서 온 데이터
+
+      // 3. 스토어 및 로컬 상태 구조에 맞게 매핑
+      const mappedData = {
+        id: apiData.id,
+        // 상담원 화면이 기대하는 평탄한 구조로 일단 customerInfo에 저장
+        symptom: apiData.symptom,
+        errorCode: apiData.errorCode,
+        productName: apiData.productName,
+        modelCode: apiData.modelCode,
+        productImageUrl: apiData.productImageUrl,
+        manufacturedAt: apiData.manufacturedAt,
+        warrantyEndsAt: apiData.warrantyEndsAt
+      };
+
+      // 화면에 표시될 ref 객체에 할당
+      customerInfo.value = mappedData;
+      
+      // (선택사항) 만약 공통 스토어에도 저장해야 한다면:
+      // customerStore.setCustomerInfo(mappedData); 
+
+      console.log('✅ 데이터 매핑 성공:', customerInfo.value);
+    } else {
+      throw new Error(response.message || '데이터 구조 이상');
+    }
   } catch (error) {
-    console.error('고객 정보 로드 실패:', error)
-    customerInfoError.value = '고객 정보를 불러오는데 실패했습니다.'
-    // 에러 발생 시 mock 데이터 사용
-    customerInfo.value = mockCustomerInfo
-    // TODO: 에러 토스트 표시
+    console.error('❌ 고객 정보 로드 실패:', error);
+    customerInfoError.value = '고객 정보를 불러오는데 실패했습니다.';
+    customerInfo.value = mockCustomerInfo; // 실패 시 폴백
   } finally {
-    isLoadingCustomerInfo.value = false
+    isLoadingCustomerInfo.value = false;
   }
-}
+};
 
 // 통화 컨트롤 핸들러
 const handleMuteChanged = (muted) => {
