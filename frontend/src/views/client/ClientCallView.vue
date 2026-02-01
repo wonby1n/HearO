@@ -196,6 +196,25 @@ const {
   toggleMute: livekitToggleMute,
   startAudioPlayback
 } = useLiveKit({
+  onParticipantDisconnected: (participant) => {
+    // 상담원이 통화를 종료했을 때
+    console.log('[ClientCallView] 상담원이 통화를 종료했습니다:', participant.identity)
+
+    // 타이머 정리
+    if (timerInterval) {
+      clearInterval(timerInterval)
+    }
+
+    // call store 정리
+    callStore.endCall()
+    callStore.resetCall()
+
+    // 통화 종료 페이지로 이동
+    router.push({
+      name: 'client-call-end',
+      query: { duration: callDuration.value, reason: 'counselor_ended' }
+    })
+  },
   onTrackSubscribed: (track, publication, participant) => {
     console.log('[Client] 원격 오디오 트랙 수신:', participant.identity)
   },
@@ -283,8 +302,18 @@ const endCall = async () => {
     clearInterval(timerInterval)
   }
 
+  // call store의 LiveKit 연결 종료 (ClientWaitingView에서 만든 연결)
+  if (callStore.livekitRoom) {
+    console.log('[ClientCallView] LiveKit 연결 종료')
+    await callStore.livekitRoom.disconnect()
+    callStore.setLivekitRoom(null)
+  }
+
+  // 자체 LiveKit 연결도 종료 (혹시 있다면)
   await disconnect()
+
   callStore.endCall()
+  callStore.resetCall()
 
   // 통화 종료 페이지로 이동 (통화 시간 전달)
   router.push({
@@ -372,6 +401,14 @@ onUnmounted(async () => {
     clearTimeout(autoRedirectTimer)
   }
 
+  // call store의 LiveKit 연결 종료
+  if (callStore.livekitRoom) {
+    console.log('[ClientCallView] 언마운트 - LiveKit 연결 종료')
+    await callStore.livekitRoom.disconnect()
+    callStore.setLivekitRoom(null)
+  }
+
+  // 자체 LiveKit 연결 종료
   if (isConnected.value) {
     await disconnect()
   }

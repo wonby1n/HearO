@@ -145,6 +145,7 @@ import ManualEndCallModal from '@/components/call/ManualEndCallModal.vue'
 import { mockCustomerInfo, mockSttMessages } from '@/mocks/counselor'
 import { fetchCustomerData } from '@/services/customerService'
 import { saveConsultationMemo } from '@/services/consultationService'
+import { RoomEvent } from 'livekit-client'
 import { useNotificationStore } from '@/stores/notification'
 import { useCallStore } from '@/stores/call'
 
@@ -527,7 +528,24 @@ onMounted(() => {
   // call store에 저장된 LiveKit room 확인
   if (callStore.livekitRoom) {
     console.log('[CounselorCallView] 기존 LiveKit 연결 사용:', callStore.livekitRoom.name)
-    // LiveKit room이 이미 연결되어 있으므로 그대로 사용
+
+    // 고객이 통화를 종료했을 때 이벤트 리스너 추가
+    callStore.livekitRoom.on(RoomEvent.ParticipantDisconnected, (participant) => {
+      console.log('[CounselorCallView] 고객이 통화를 종료했습니다:', participant.identity)
+
+      // LiveKit 연결 종료
+      if (callStore.livekitRoom) {
+        callStore.livekitRoom.disconnect()
+        callStore.setLivekitRoom(null)
+      }
+
+      // call store 리셋
+      callStore.resetCall()
+
+      // 대시보드로 이동
+      notificationStore.notifyInfo('고객이 통화를 종료했습니다')
+      router.push({ name: 'dashboard' })
+    })
   } else {
     console.warn('[CounselorCallView] LiveKit 연결이 없습니다. 대시보드로 돌아가세요.')
     // 선택적: 연결이 없으면 대시보드로 리다이렉트

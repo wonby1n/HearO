@@ -13,6 +13,7 @@ import {
  * @param {Function} options.onTrackSubscribed - 트랙 구독 시 콜백
  * @param {Function} options.onTrackUnsubscribed - 트랙 구독 해제 시 콜백
  * @param {Function} options.onDisconnected - 연결 해제 시 콜백
+ * @param {Function} options.onParticipantDisconnected - 참가자 연결 해제 시 콜백
  * @param {Function} options.onError - 에러 발생 시 콜백
  */
 export function useLiveKit(options = {}) {
@@ -140,6 +141,9 @@ export function useLiveKit(options = {}) {
     roomInstance.on(RoomEvent.ParticipantDisconnected, (participant) => {
       console.log('[LiveKit] 참가자 연결 해제:', participant.identity)
       updateParticipants(roomInstance)
+
+      // 상대방이 나갔을 때 콜백 호출
+      options.onParticipantDisconnected?.(participant)
     })
 
     // 연결 해제
