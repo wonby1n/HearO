@@ -39,17 +39,58 @@ public class QueueEventPublisher {
     /**
      * 특정 고객에게 순위 업데이트 전송
      * @param customerId 고객 식별자
-     * @param rank 현재 대기 순위
+     * @param rank 현재 대기 순위 (null이면 대기열에서 제거됨)
      */
+    @Async
     public void sendRankUpdate(String customerId, Long rank) {
         String userTopic = RANK_TOPIC_PREFIX + customerId;
-        RankUpdateMessage message = new RankUpdateMessage(customerId, rank, System.currentTimeMillis());
+        RankUpdateMessage message = new RankUpdateMessage(
+                customerId,
+                rank,
+                rank != null ? "WAITING" : "REMOVED",
+                System.currentTimeMillis()
+        );
 
-        log.debug("순위 업데이트 전송: customerId={}, rank={}", customerId, rank);
+        log.debug("순위 업데이트 전송: customerId={}, rank={}, status={}", customerId, rank, message.status());
         messagingTemplate.convertAndSend(userTopic, message);
     }
 
-    public record RankUpdateMessage(String customerId, Long rank, Long timestamp) {}
+    /**
+     * 여러 고객에게 순위 업데이트 일괄 전송
+     * @param rankUpdates customerId -> rank 맵
+     */
+    @Async
+    public void sendBatchRankUpdates(java.util.Map<String, Long> rankUpdates) {
+        if (rankUpdates == null || rankUpdates.isEmpty()) {
+            return;
+        }
+
+        long timestamp = System.currentTimeMillis();
+        log.debug("배치 순위 업데이트 전송: {}명", rankUpdates.size());
+
+        for (java.util.Map.Entry<String, Long> entry : rankUpdates.entrySet()) {
+            String customerId = entry.getKey();
+            Long rank = entry.getValue();
+            String userTopic = RANK_TOPIC_PREFIX + customerId;
+
+            RankUpdateMessage message = new RankUpdateMessage(
+                    customerId,
+                    rank,
+                    "WAITING",
+                    timestamp
+            );
+            messagingTemplate.convertAndSend(userTopic, message);
+        }
+    }
+
+    /**
+     * 순위 업데이트 메시지
+     * @param customerId 고객 ID
+     * @param rank 대기 순위 (null이면 대기열에서 제거됨)
+     * @param status WAITING(대기중), REMOVED(대기열에서 제거됨), MATCHED(매칭완료)
+     * @param timestamp 타임스탬프
+     */
+    public record RankUpdateMessage(String customerId, Long rank, String status, Long timestamp) {}
 
     /**
      * 고객에게 매칭 완료 알림 전송
