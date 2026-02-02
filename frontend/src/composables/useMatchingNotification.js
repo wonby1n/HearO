@@ -49,12 +49,11 @@ export function useMatchingNotification(options = {}) {
           })
 
           console.log('[STOMP] 고객 매칭 알림 구독 완료')
-        } else {
-          console.error('[STOMP] customerId가 없어서 구독하지 못함!')
         }
 
         // 상담원용 매칭 알림 구독
         if (counselorId) {
+          console.log('[STOMP] 상담원 매칭 알림 구독 시작, counselorId:', counselorId)
           client.value.subscribe(`/topic/counselor/${counselorId}`, (message) => {
             const data = JSON.parse(message.body)
 
@@ -71,6 +70,7 @@ export function useMatchingNotification(options = {}) {
               onMatched?.(data)
             }
           })
+          console.log('[STOMP] 상담원 매칭 알림 구독 완료')
         }
       },
 

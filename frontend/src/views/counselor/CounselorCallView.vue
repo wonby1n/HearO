@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen bg-gray-50">
-    <!-- 자동 종료 모달 -->
+    <!-- 자동 종료 모달 (시스템 트리거) -->
     <AutoTerminationModal
       :show="showAutoTerminationModal"
       :ai-summary="aiSummary"
@@ -8,6 +8,7 @@
       @confirm="handleAutoTerminationConfirm"
     />
 
+    <!-- 수동 종료 확인 모달 -->
     <ManualEndCallModal
       :show="showManualEndModal"
       :ai-summary="aiSummary"
@@ -37,7 +38,7 @@
     <!-- 메인 컨텐츠 -->
     <main class="max-w-[1920px] mx-auto p-6">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-140px)]">
-        <!-- 좌측: 고객 정보 패널 (데이터가 있을 때만 렌더링하거나 안전한 기본값 전달) -->
+        <!-- 좌측: 고객 정보 패널 -->
         <div class="lg:col-span-3">
           <CustomerInfoPanel
             :customerInfo="customerInfo || initialPlaceholder"
@@ -54,9 +55,9 @@
           />
         </div>
 
-        <!-- 우측: AI 가이드 -->
+        <!-- 우측: AI 가이드 및 메모 -->
         <div class="lg:col-span-3">
-          <div class="bg-white rounded-lg shadow-sm border border-gray-200 h-full p-6">
+          <div class="bg-white rounded-lg shadow-sm border border-gray-200 h-full p-6 flex flex-col">
             <div class="flex items-center gap-2 mb-4">
               <svg class="w-5 h-5 text-primary-600" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.34.208-.646.477-.859a4 4 0 10-4.954 0c.27.213.462.519.476.859h4.002z"/>
@@ -64,6 +65,7 @@
               <h3 class="text-lg font-semibold text-gray-900">AI 가이드</h3>
             </div>
 
+            <!-- 검색 영역 -->
             <div class="mb-6">
               <div class="relative">
                 <input
@@ -78,41 +80,47 @@
               </div>
             </div>
 
-            <section class="mb-6">
-              <h4 class="text-sm font-semibold text-gray-900 mb-3">추천 솔루션</h4>
-              <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <ul class="space-y-2 text-sm text-gray-900">
-                  <li class="flex items-start gap-2">
-                    <span class="text-blue-600 mt-0.5">1.</span>
-                    <span>전원 플러그 확인 및 재부팅</span>
-                  </li>
-                  <li class="flex items-start gap-2">
-                    <span class="text-blue-600 mt-0.5">2.</span>
-                    <span>온도 센서 점검 필요</span>
-                  </li>
-                  <li class="flex items-start gap-2">
-                    <span class="text-blue-600 mt-0.5">3.</span>
-                    <span>다시 문을 제대로 닫기</span>
-                  </li>
-                </ul>
-              </div>
-            </section>
+            <!-- 추천 영역 (스크롤 가능하게 처리 권장) -->
+            <div class="flex-1 overflow-y-auto space-y-6 pr-1">
+              <section>
+                <h4 class="text-sm font-semibold text-gray-900 mb-3">추천 솔루션</h4>
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <ul class="space-y-2 text-sm text-gray-900">
+                    <li class="flex items-start gap-2">
+                      <span class="text-blue-600 mt-0.5">1.</span>
+                      <span>전원 플러그 확인 및 재부팅</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                      <span class="text-blue-600 mt-0.5">2.</span>
+                      <span>온도 센서 점검 필요</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                      <span class="text-blue-600 mt-0.5">3.</span>
+                      <span>다시 문을 제대로 닫기</span>
+                    </li>
+                  </ul>
+                </div>
+              </section>
 
-            <section class="mb-6">
-              <h4 class="text-sm font-semibold text-gray-900 mb-3">추천 응대 스크립트</h4>
-              <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-3">
-                <p class="text-sm text-gray-900 leading-relaxed">
-                  "고객님, 우선 냉장고 전원을 완전히 끄고 5분 정도 기다린 후 다시 켜주시겠어요?"
-                </p>
-              </div>
-              <div class="flex gap-2">
-                <button class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">
-                  응대제안 사용
-                </button>
-              </div>
-            </section>
+              <section>
+                <h4 class="text-sm font-semibold text-gray-900 mb-3">추천 응대 스크립트</h4>
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-3">
+                  <p class="text-sm text-gray-900 leading-relaxed">
+                    "고객님, 우선 냉장고 전원을 완전히 끄고 5분 정도 기다린 후 다시 켜주시겠어요?"
+                  </p>
+                </div>
+                <div class="flex gap-2">
+                  <button class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">
+                    응대제안 사용
+                  </button>
+                  <button class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors">
+                    로그 저장
+                  </button>
+                </div>
+              </section>
 
-            <CallMemoPanel v-model="memo" :saved-label="memoSaveLabel" />
+              <CallMemoPanel v-model="memo" :saved-label="memoSaveLabel" />
+            </div>
           </div>
         </div>
       </div>
@@ -121,7 +129,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed, onBeforeUnmount } from 'vue'
+import { ref, watch, computed, onBeforeUnmount, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import CallTimer from '@/components/counselor/CallTimer.vue'
 import CustomerInfoPanel from '@/components/counselor/CustomerInfoPanel.vue'
@@ -151,13 +159,11 @@ const VAD_SILENCE_MS = Number(import.meta.env.VITE_COUNSELOR_VAD_SILENCE_MS || 6
 const VAD_MIN_UTTER_MS = Number(import.meta.env.VITE_COUNSELOR_VAD_MIN_UTTER_MS || 800)
 
 const router = useRouter()
-
-// 스토어
 const notificationStore = useNotificationStore()
 const callStore = useCallStore()
 const dashboardStore = useDashboardStore()
 
-// 통화 및 모달 상태
+// --- 상태 정의 ---
 const isCallActive = ref(true)
 const isMuted = ref(false)
 
@@ -165,7 +171,6 @@ const isMuted = ref(false)
 const showAutoTerminationModal = ref(false)
 const showManualEndModal = ref(false)
 
-// [수정] 크래시 방지를 위한 초기 플레이스홀더 설정
 const initialPlaceholder = {
   customerName: '로딩 중...',
   phone: '-',
@@ -178,36 +183,109 @@ const customerInfo = ref(null)
 const isLoadingCustomerInfo = ref(false)
 const customerInfoError = ref(null)
 const sttMessages = ref(mockSttMessages)
-
-// AI 가이드 검색어 변수 추가 (누락되었던 부분)
 const searchQuery = ref('')
+const aiSummary = ref('')
 
-// 날짜 포맷팅 및 보증 상태 헬퍼
+// --- 메모 드래프트 관리 (복구된 핵심 로직) ---
+const memo = computed({
+  get: () => callStore.callMemo,
+  set: (val) => callStore.updateMemo(val)
+})
+
+const memoLastSavedAt = ref(null)
+const memoDraftKey = ref('')
+let memoSaveTimeout = null
+let skipDraftSaveOnUnmount = false
+
+const memoSaveLabel = computed(() => {
+  if (!memoLastSavedAt.value) return memo.value?.trim().length ? '임시 저장 전' : '';
+  const timeLabel = new Date(memoLastSavedAt.value).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+  return `임시 저장됨 · ${timeLabel}`;
+})
+
+const getSessionDraftKey = () => {
+  if (typeof window === 'undefined') return '';
+  let storedKey = sessionStorage.getItem('callMemoDraftKey');
+  if (!storedKey) {
+    storedKey = `callMemoDraft:${Date.now()}`;
+    sessionStorage.setItem('callMemoDraftKey', storedKey);
+  }
+  return storedKey;
+}
+
+const resolveMemoDraftKey = (callId) => {
+  return callId ? `callMemoDraft:${callId}` : getSessionDraftKey();
+}
+
+const loadMemoDraft = () => {
+  if (!memoDraftKey.value) return;
+  try {
+    const raw = localStorage.getItem(memoDraftKey.value);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    const draftText = typeof parsed === 'string' ? parsed : parsed?.memo;
+    if (draftText && memo.value.trim().length === 0) {
+      callStore.updateMemo(draftText);
+    }
+    if (parsed?.savedAt) memoLastSavedAt.value = parsed.savedAt;
+  } catch (error) {
+    console.warn('메모 드래프트 로드 실패:', error);
+  }
+}
+
+const saveMemoDraft = (value) => {
+  if (!memoDraftKey.value) return;
+  if (!value || value.trim().length === 0) {
+    localStorage.removeItem(memoDraftKey.value);
+    memoLastSavedAt.value = null;
+    return;
+  }
+  const payload = { memo: value, savedAt: Date.now() };
+  localStorage.setItem(memoDraftKey.value, JSON.stringify(payload));
+  memoLastSavedAt.value = payload.savedAt;
+}
+
+const clearMemoDraft = (key = memoDraftKey.value) => {
+  if (memoSaveTimeout) { clearTimeout(memoSaveTimeout); memoSaveTimeout = null; }
+  if (key) localStorage.removeItem(key);
+  memoLastSavedAt.value = null;
+}
+
+// 메모 변경 감시 (자동 저장)
+watch(memo, (newValue) => {
+  if (memoSaveTimeout) clearTimeout(memoSaveTimeout);
+  memoSaveTimeout = setTimeout(() => saveMemoDraft(newValue), 500);
+})
+
+// 콜 변경 시 드래프트 키 갱신
+watch(() => callStore.currentCall?.id, (newId) => {
+  const nextKey = resolveMemoDraftKey(newId);
+  const previousKey = memoDraftKey.value;
+  if (previousKey && previousKey !== nextKey) clearMemoDraft(previousKey);
+  memoDraftKey.value = nextKey;
+  skipDraftSaveOnUnmount = false;
+  loadMemoDraft();
+}, { immediate: true });
+
+// --- 데이터 로딩 로직 ---
 const formatDate = (dateString) => {
   if (!dateString) return '-';
   try {
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) return '-';
-    return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
+    return isNaN(date) ? '-' : `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
   } catch { return '-'; }
-};
+}
 
 const getWarrantyStatus = (warrantyEndsAt) => {
   if (!warrantyEndsAt) return { status: '정보 없음', isExpired: null, endDate: null };
   const endDate = new Date(warrantyEndsAt);
   const today = new Date();
   const isExpired = endDate <= today;
-  return {
-    status: isExpired ? '만료' : '이내',
-    isExpired: isExpired,
-    endDate: formatDate(warrantyEndsAt)
-  };
-};
+  return { status: isExpired ? '만료' : '이내', isExpired, endDate: formatDate(warrantyEndsAt) };
+}
 
-// 고객 데이터 로드 함수
 const loadCustomerData = async (regId) => {
-  if (!regId || regId === 'undefined') return;
-
+  if (!regId || String(regId) === 'undefined') return;
   try {
     isLoadingCustomerInfo.value = true;
     customerInfoError.value = null;
@@ -224,8 +302,6 @@ const loadCustomerData = async (regId) => {
     console.log('[CounselorCallView] Registration ID:', registrationId);
 
     const response = await fetchCustomerData(regId);
-    
-    // API 응답 데이터 안전하게 매핑
     customerInfo.value = {
       id: response.id,
       customerId: response.customerId,
@@ -234,20 +310,17 @@ const loadCustomerData = async (regId) => {
       productName: response.productName || '정보 없음',
       productCategory: response.productCategory || '정보 없음',
       modelCode: response.modelCode || '정보 없음',
-      modelNumber: response.modelNumber || response.modelCode || '정보 없음',
       purchaseDate: formatDate(response.manufacturedAt || response.purchaseDate),
       warrantyStatus: getWarrantyStatus(response.warrantyEndsAt),
-      productImage: response.productImageUrl || response.productImage || '/images/default-product.png',
+      productImage: response.productImageUrl || '/images/default-product.png',
       errorCode: response.errorCode || '정보 없음',
       symptoms: response.symptom ? [response.symptom] : (response.symptoms || ['정보 없음']),
       consultationHistory: response.consultationHistory || []
     };
-    
-    console.log('✅ [CounselorCallView] Load Success:', customerInfo.value);
   } catch (error) {
-    console.error('❌ [CounselorCallView] Load Failed:', error);
-    customerInfoError.value = '고객 정보를 불러오는 중 오류가 발생했습니다.';
-    customerInfo.value = mockCustomerInfo; 
+    console.error('고객 로드 실패:', error);
+    customerInfoError.value = '데이터를 불러올 수 없습니다.';
+    customerInfo.value = mockCustomerInfo;
   } finally {
     isLoadingCustomerInfo.value = false;
   }
@@ -486,6 +559,11 @@ const addSttMessage = (message) => {
     console.log(`[CounselorCall] 폭언 감지 (${newCount}/3회)`)
   }
 }
+
+onBeforeUnmount(() => {
+  if (memoSaveTimeout) clearTimeout(memoSaveTimeout);
+  if (!skipDraftSaveOnUnmount && memo.value?.trim().length) saveMemoDraft(memo.value);
+})
 
 defineExpose({ addSttMessage })
 

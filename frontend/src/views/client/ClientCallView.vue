@@ -277,7 +277,11 @@ const {
     // 통화 종료 페이지로 이동
     router.push({
       name: 'client-call-end',
-      query: { duration: callDuration.value, reason: 'counselor_ended' }
+      query: {
+        duration: callDuration.value,
+        reason: 'counselor_ended',
+        consultationId: callStore.currentCall?.consultationId
+      }
     })
   },
   onTrackSubscribed: (track, publication, participant) => {
@@ -323,7 +327,11 @@ watch(() => callStore.autoTerminationTriggered, (triggered) => {
 
         router.push({
           name: 'client-call-end',
-          query: { duration: finalDuration, autoTerminated: 'true' }
+          query: {
+            duration: finalDuration,
+            autoTerminated: 'true',
+            consultationId: callStore.currentCall?.consultationId
+          }
         })
       } catch (error) {
         console.error('[ClientCall] 자동 종료 처리 실패:', error)
@@ -395,7 +403,10 @@ const endCall = async () => {
   // 통화 종료 페이지로 이동 (통화 시간 전달)
   router.push({
     name: 'client-call-end',
-    query: { duration: finalDuration }
+    query: {
+      duration: finalDuration,
+      consultationId: callStore.currentCall?.consultationId
+    }
   })
 }
 

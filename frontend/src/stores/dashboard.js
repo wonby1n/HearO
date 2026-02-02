@@ -68,6 +68,12 @@ export const useDashboardStore = defineStore('dashboard', () => {
           const [hours, minutes] = data.totalDuration.split(':').map(Number)
           totalCallTime.value = { hours, minutes }
         }
+
+        // 백엔드 status와 프론트엔드 버튼 상태 동기화
+        if (data.status) {
+          const isAvailable = data.status === 'AVAILABLE'
+          consultationStatus.value.isActive = isAvailable
+        }
       }
     } catch (error) {
       console.error('[DashboardStore] 대시보드 데이터 조회 실패:', error)
@@ -196,7 +202,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
     () => consultationStatus.value.isActive,
     (newValue) => {
       localStorage.setItem('consultationStatus', JSON.stringify({ isActive: newValue }))
-      console.log('[DashboardStore] consultationStatus 저장:', newValue)
     }
   )
 
@@ -205,7 +210,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
    */
   const setMatchedData = (data) => {
     matchedData.value = data
-    console.log('[DashboardStore] 매칭 데이터 저장:', data)
   }
 
   /**
