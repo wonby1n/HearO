@@ -6,6 +6,7 @@ import com.ssafy.hearo.domain.user.entity.User;
 import com.ssafy.hearo.domain.user.repository.EnergyHistoryRepository;
 import com.ssafy.hearo.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +20,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class UserStateService {
 
     private final UserRepository userRepository;
@@ -62,6 +64,35 @@ public class UserStateService {
 
         // REST로 전환 (이 시점 에너지를 앵커로 고정)
         user.updateEnergyAnchor(UserStatus.REST, currentEnergy);
+    }
+
+    /**
+     * 1-3. 하트비트 만료 시: REST로 전환 + 히스토리 저장
+     * - 비정상 종료 등으로 하트비트가 끊겼을 때 호출됨
+     */
+    public void switchToRestOnHeartbeatTimeout(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자 없음"));
+
+        // 이미 REST 상태라면 중복 처리 방지
+        if (user.getStatus() == UserStatus.REST) {
+            log.debug("User {} is already in REST status, skipping heartbeat timeout processing.", userId);
+            return;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+
+        // 변경 직전 실시간 에너지 계산
+        int currentEnergy = user.calculateRealTimeEnergy(now);
+        int previousEnergy = user.getLastEnergyValue();
+
+        // 당시 상태(변경 전 상태)로 히스토리 기록
+        saveHistory(user, previousEnergy, currentEnergy, user.getStatus(), "하트비트 만료: 휴식(REST) 전환");
+
+        // REST로 전환 (이 시점 에너지를 앵커로 고정)
+        user.updateEnergyAnchor(UserStatus.REST, currentEnergy);
+        
+        log.info("User {} switched to REST due to heartbeat timeout.", userId);
     }
 
     /**
