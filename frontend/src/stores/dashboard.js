@@ -7,8 +7,8 @@ export const useDashboardStore = defineStore('dashboard', () => {
   // --- 상태 (State) ---
   const userName = ref('')
   const energyIndex = ref(0)
-  const waitingCustomers = ref(10)
-  const customerSatisfaction = ref(4.8)
+  const waitingCustomers = ref(0)
+  const customerSatisfaction = ref(0)
   const todos = ref([])
   
   const weeklyPerformance = ref([
