@@ -4,6 +4,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.listener.PatternTopic;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 /**
@@ -28,5 +30,18 @@ public class RedisConfig {
 
         template.afterPropertiesSet(); // 템플릿의 모든 설정이 완료 되었음을 알리고 초기화하는 표준 절차
         return template; // 설정이 완료된 템플릿을 반환하여 스프링 빈으로 등록을 마침
+    }
+
+    /**
+     * Redis Key Expiration 이벤트를 수신하기 위한 리스너 컨테이너
+     */
+    @Bean
+    public RedisMessageListenerContainer redisMessageListenerContainer(RedisConnectionFactory connectionFactory) {
+        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+        container.setConnectionFactory(connectionFactory);
+        // 키 만료 이벤트 패턴 구독 (__keyevent@*__:expired)
+        // 주의: Redis 설정에서 notify-keyspace-events Ex 가 활성화되어 있어야 함
+        container.addMessageListener((message, pattern) -> {}, new PatternTopic("__keyevent@*__:expired"));
+        return container;
     }
 }
