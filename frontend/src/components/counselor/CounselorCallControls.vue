@@ -1,5 +1,6 @@
 <template>
   <div class="flex items-center gap-3">
+
     <!-- 음소거 버튼 -->
     <button @click="toggleMute" :class="[
       'flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 active:scale-95',

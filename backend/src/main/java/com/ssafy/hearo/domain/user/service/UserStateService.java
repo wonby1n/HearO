@@ -43,6 +43,28 @@ public class UserStateService {
     }
 
     /**
+     * 1-2. 로그아웃 시: REST로 전환 + 히스토리 저장
+     * - 로그아웃은 "앱 사용 종료"이지만, 정책상 상태는 OFFLINE이 아니라 REST로 둔다.
+     * - 히스토리는 "로그아웃 이벤트로 인해 REST 전환"을 남긴다.
+     */
+    public void switchToRestOnLogout(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자 없음"));
+
+        LocalDateTime now = LocalDateTime.now();
+
+        // 변경 직전 실시간 에너지 계산
+        int currentEnergy = user.calculateRealTimeEnergy(now);
+        int previousEnergy = user.getLastEnergyValue();
+
+        // 당시 상태(변경 전 상태)로 히스토리 기록
+        saveHistory(user, previousEnergy, currentEnergy, user.getStatus(), "로그아웃: 휴식(REST) 전환");
+
+        // REST로 전환 (이 시점 에너지를 앵커로 고정)
+        user.updateEnergyAnchor(UserStatus.REST, currentEnergy);
+    }
+
+    /**
      * 2. 욕설 감지 등 즉시 차감 이벤트
      */
     public void applyImmediateDamage(Long userId, int damageAmount) {
