@@ -77,11 +77,13 @@ import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useAgentStore } from '@/stores/agent'
+import { useCallStore } from '@/stores/call'
 import { useCallConnection } from '@/composables/useCallConnection'
 
 const authStore = useAuthStore()
 const dashboardStore = useDashboardStore()
 const agentStore = useAgentStore()
+const callStore = useCallStore()
 
 // 통화 연결 관리 (상담원용)
 const { startListening, disconnect: disconnectCall, matchedData, navigateToCall } = useCallConnection('counselor', {
@@ -89,6 +91,11 @@ const { startListening, disconnect: disconnectCall, matchedData, navigateToCall 
     console.log('[DashboardHeader] 매칭 알림 수신:', data)
     // DashboardStore에 매칭 데이터 저장 (모달 표시용)
     dashboardStore.setMatchedData(data)
+    // CallStore에도 저장 (CounselorCallView에서 registrationId 참조용)
+    callStore.initiateCall({
+      registrationId: data.registrationId,
+      customerId: data.customerId
+    })
   }
 })
 
