@@ -19,15 +19,12 @@
     <header class="bg-white shadow-sm border-b border-gray-200">
       <div class="max-w-[1920px] mx-auto px-6 py-4">
         <div class="flex items-center justify-between">
-          <!-- 좌측: 로고 -->
           <div class="flex items-center gap-3">
             <h1 class="text-2xl font-bold text-primary-600">HearO</h1>
           </div>
 
-          <!-- 중앙: 타이머 + 통화 상태 -->
           <CallTimer :isActive="isCallActive" />
 
-          <!-- 우측: 통화 컨트롤 버튼 -->
           <CounselorCallControls
             :isMuted="isMuted"
             :isPaused="isPaused"
@@ -39,19 +36,19 @@
       </div>
     </header>
 
-    <!-- 메인 컨텐츠 (3-column 레이아웃) -->
+    <!-- 메인 컨텐츠 -->
     <main class="max-w-[1920px] mx-auto p-6">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-140px)]">
-        <!-- 좌측: 고객 정보 패널 (3 columns) -->
+        <!-- 좌측: 고객 정보 패널 (데이터가 있을 때만 렌더링하거나 안전한 기본값 전달) -->
         <div class="lg:col-span-3">
           <CustomerInfoPanel
-            :customerInfo="customerInfo"
+            :customerInfo="customerInfo || initialPlaceholder"
             :isLoading="isLoadingCustomerInfo"
             :error="customerInfoError"
           />
         </div>
 
-        <!-- 중앙: STT 자막 영역 (6 columns) -->
+        <!-- 중앙: STT 자막 영역 -->
         <div class="lg:col-span-6">
           <STTChatPanel
             :messages="sttMessages"
@@ -59,7 +56,7 @@
           />
         </div>
 
-        <!-- 우측: AI 가이드 (3 columns) -->
+        <!-- 우측: AI 가이드 -->
         <div class="lg:col-span-3">
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 h-full p-6">
             <div class="flex items-center gap-2 mb-4">
@@ -69,7 +66,6 @@
               <h3 class="text-lg font-semibold text-gray-900">AI 가이드</h3>
             </div>
 
-            <!-- 검색 바 -->
             <div class="mb-6">
               <div class="relative">
                 <input
@@ -84,7 +80,6 @@
               </div>
             </div>
 
-            <!-- 추천 솔루션 -->
             <section class="mb-6">
               <h4 class="text-sm font-semibold text-gray-900 mb-3">추천 솔루션</h4>
               <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -105,7 +100,6 @@
               </div>
             </section>
 
-            <!-- 추천 응대 스크립트 -->
             <section class="mb-6">
               <h4 class="text-sm font-semibold text-gray-900 mb-3">추천 응대 스크립트</h4>
               <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-3">
@@ -117,13 +111,9 @@
                 <button class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">
                   응대제안 사용
                 </button>
-                <button class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors">
-                  로그 저장
-                </button>
               </div>
             </section>
 
-            <!-- 메모 영역 -->
             <CallMemoPanel v-model="memo" :saved-label="memoSaveLabel" />
           </div>
         </div>
@@ -133,7 +123,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed, onBeforeUnmount } from 'vue'
+import { ref, watch, computed, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import CallTimer from '@/components/counselor/CallTimer.vue'
 import CustomerInfoPanel from '@/components/counselor/CustomerInfoPanel.vue'
@@ -155,209 +145,48 @@ const router = useRouter()
 const notificationStore = useNotificationStore()
 const callStore = useCallStore()
 
-// LiveKit composable
-const { setMuted: livekitSetMuted, isMuted: livekitIsMuted } = useLiveKit()
+// LiveKit
+const { setMuted: livekitSetMuted } = useLiveKit()
 
-// 통화 상태
+// 통화 및 모달 상태
 const isCallActive = ref(true)
 const isMuted = ref(false)
 const isPaused = ref(false)
-
-// 자동 종료 모달
 const showAutoTerminationModal = ref(false)
 const showManualEndModal = ref(false)
 
-// 자동 종료 감지
-watch(() => callStore.autoTerminationTriggered, (triggered) => {
-  if (triggered) {
-    showAutoTerminationModal.value = true
-  }
-})
+// [수정] 크래시 방지를 위한 초기 플레이스홀더 설정
+const initialPlaceholder = {
+  customerName: '로딩 중...',
+  phone: '-',
+  productName: '-',
+  warrantyStatus: { status: '-', isExpired: false, endDate: '-' },
+  symptoms: []
+}
 
-// 고객 정보
-const customerInfo = ref(mockCustomerInfo)
+const customerInfo = ref(null)
 const isLoadingCustomerInfo = ref(false)
 const customerInfoError = ref(null)
-
-// STT 메시지 (더미 데이터)
 const sttMessages = ref(mockSttMessages)
 
-// AI 가이드
+// AI 가이드 검색어 변수 추가 (누락되었던 부분)
 const searchQuery = ref('')
-const memo = computed({
-  get: () => callStore.callMemo,
-  set: (value) => {
-    callStore.updateMemo(value)
-  }
-})
-const aiSummary = ref('')
 
-// 메모 임시 저장
-const memoDraftKey = ref('')
-const memoLastSavedAt = ref(null)
-let memoSaveTimeout = null
-let skipDraftSaveOnUnmount = false
-
-const memoSaveLabel = computed(() => {
-  if (!memoLastSavedAt.value) {
-    return memo.value?.trim().length ? '임시 저장 전' : ''
-  }
-  const timeLabel = new Date(memoLastSavedAt.value).toLocaleTimeString('ko-KR', {
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-  return `임시 저장됨 · ${timeLabel}`
-})
-
-const getSessionDraftKey = () => {
-  if (typeof window === 'undefined') {
-    return ''
-  }
-  let storedKey = sessionStorage.getItem('callMemoDraftKey')
-  if (!storedKey) {
-    storedKey = `callMemoDraft:${Date.now()}`
-    sessionStorage.setItem('callMemoDraftKey', storedKey)
-  }
-  return storedKey
-}
-
-const resolveMemoDraftKey = (callId) => {
-  if (callId) {
-    return `callMemoDraft:${callId}`
-  }
-  return getSessionDraftKey()
-}
-
-const loadMemoDraft = () => {
-  if (!memoDraftKey.value) {
-    return
-  }
-  try {
-    const raw = localStorage.getItem(memoDraftKey.value)
-    if (!raw) {
-      return
-    }
-    const parsed = JSON.parse(raw)
-    const draftText = typeof parsed === 'string' ? parsed : parsed?.memo
-    if (draftText && memo.value.trim().length === 0) {
-      callStore.updateMemo(draftText)
-    }
-    if (parsed?.savedAt) {
-      memoLastSavedAt.value = parsed.savedAt
-    }
-  } catch (error) {
-    console.warn('메모 임시 저장 로드 실패:', error)
-  }
-}
-
-const saveMemoDraft = (value) => {
-  if (!memoDraftKey.value) {
-    return
-  }
-  if (!value || value.trim().length === 0) {
-    localStorage.removeItem(memoDraftKey.value)
-    memoLastSavedAt.value = null
-    return
-  }
-  const payload = {
-    memo: value,
-    savedAt: Date.now()
-  }
-  localStorage.setItem(memoDraftKey.value, JSON.stringify(payload))
-  memoLastSavedAt.value = payload.savedAt
-}
-
-const clearMemoDraft = (key = memoDraftKey.value) => {
-  if (typeof window === 'undefined') {
-    return
-  }
-  if (memoSaveTimeout) {
-    clearTimeout(memoSaveTimeout)
-    memoSaveTimeout = null
-  }
-  if (key) {
-    localStorage.removeItem(key)
-  }
-  memoLastSavedAt.value = null
-}
-
-watch(memo, (newValue) => {
-  if (!memoDraftKey.value) {
-    return
-  }
-  if (memoSaveTimeout) {
-    clearTimeout(memoSaveTimeout)
-  }
-  memoSaveTimeout = setTimeout(() => {
-    saveMemoDraft(newValue)
-  }, 500)
-})
-
-watch(
-  () => callStore.currentCall.id,
-  (newId, oldId) => {
-    const nextKey = resolveMemoDraftKey(newId)
-    const previousKey = memoDraftKey.value
-    if (previousKey && previousKey !== nextKey) {
-      clearMemoDraft(previousKey)
-    }
-    memoDraftKey.value = nextKey
-    skipDraftSaveOnUnmount = false
-    loadMemoDraft()
-  },
-  { immediate: true }
-)
-
-onBeforeUnmount(() => {
-  if (memoSaveTimeout) {
-    clearTimeout(memoSaveTimeout)
-    memoSaveTimeout = null
-  }
-  if (!skipDraftSaveOnUnmount && memo.value?.trim().length) {
-    saveMemoDraft(memo.value)
-  }
-})
-
-const getConsultationId = () => {
-  return callStore.currentCall.consultationId ?? callStore.currentCall.id
-}
-
-const saveMemoToServer = async () => {
-  const memoValue = memo.value?.trim()
-  if (!memoValue) {
-    return true
-  }
-  const consultationId = getConsultationId()
-  if (!consultationId) {
-    notificationStore.notifyWarning('상담 ID를 찾을 수 없어 메모를 저장하지 못했습니다')
-    return false
-  }
-
-  try {
-    await saveConsultationMemo(consultationId, memoValue)
-    notificationStore.notifySuccess('메모가 저장되었습니다')
-    return true
-  } catch (error) {
-    console.error('메모 저장 실패:', error)
-    notificationStore.notifyError('메모 저장에 실패했습니다')
-    return false
-  }
-}
-
-// 날짜 포맷팅 헬퍼 함수
+// 날짜 포맷팅 및 보증 상태 헬퍼
 const formatDate = (dateString) => {
   if (!dateString) return '-';
-  const date = new Date(dateString);
-  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '-';
+    return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
+  } catch { return '-'; }
 };
 
-// 보증 기간 상태 확인 헬퍼 함수
 const getWarrantyStatus = (warrantyEndsAt) => {
   if (!warrantyEndsAt) return { status: '정보 없음', isExpired: null, endDate: null };
   const endDate = new Date(warrantyEndsAt);
   const today = new Date();
   const isExpired = endDate <= today;
-
   return {
     status: isExpired ? '만료' : '이내',
     isExpired: isExpired,
@@ -365,189 +194,117 @@ const getWarrantyStatus = (warrantyEndsAt) => {
   };
 };
 
-// 고객 정보 로드
-const loadCustomerData = async () => {
+// 고객 데이터 로드 함수
+const loadCustomerData = async (regId) => {
+  if (!regId || regId === 'undefined') return;
+
   try {
     isLoadingCustomerInfo.value = true;
     customerInfoError.value = null;
+    console.log('🔍 [CounselorCallView] Loading registrationId:', regId);
 
-    // 1. registrationId 가져오기 (우선순위: callStore > route params > fallback)
-    const registrationId =
-      callStore.currentCall?.registrationId ||
-      router.currentRoute.value.params.registrationId ||
-      1; // 테스트용 fallback
-
-    console.log('🔍 Loading customer data for registrationId:', registrationId);
-
-    // 2. API 호출
-    const response = await fetchCustomerData(registrationId);
-
-    // fetchCustomerData는 이미 data를 펼쳐서 반환하므로 response 자체가 data
-    const apiData = response;
-
-    // 3. CustomerInfoPanel 컴포넌트가 기대하는 형식으로 매핑
-    const mappedData = {
-      id: apiData.id,
-      customerId: apiData.customerId,
-      customerName: apiData.customerName || '고객 정보 없음',
-      phone: apiData.customerPhone || '정보 없음',
-      productName: apiData.productName || '정보 없음',
-      productCategory: apiData.productCategory || '정보 없음',
-      modelCode: apiData.modelCode || '정보 없음',
-      modelNumber: apiData.modelCode || '정보 없음',
-      purchaseDate: formatDate(apiData.manufacturedAt),
-      warrantyStatus: getWarrantyStatus(apiData.warrantyEndsAt),
-      productImage: apiData.productImageUrl,
-      errorCode: apiData.errorCode || '정보 없음',
-      symptoms: apiData.symptom ? [apiData.symptom] : ['정보 없음'],
+    const response = await fetchCustomerData(regId);
+    
+    // API 응답 데이터 안전하게 매핑
+    customerInfo.value = {
+      id: response.id,
+      customerId: response.customerId,
+      customerName: response.customerName || '고객 정보 없음',
+      phone: response.customerPhone || response.phone || '정보 없음',
+      productName: response.productName || '정보 없음',
+      productCategory: response.productCategory || '정보 없음',
+      modelCode: response.modelCode || '정보 없음',
+      modelNumber: response.modelNumber || response.modelCode || '정보 없음',
+      purchaseDate: formatDate(response.manufacturedAt || response.purchaseDate),
+      warrantyStatus: getWarrantyStatus(response.warrantyEndsAt),
+      productImage: response.productImageUrl || response.productImage || '/images/default-product.png',
+      errorCode: response.errorCode || '정보 없음',
+      symptoms: response.symptom ? [response.symptom] : (response.symptoms || ['정보 없음']),
       consultationHistory: response.consultationHistory || []
     };
-
-    // 화면에 표시될 ref 객체에 할당
-    customerInfo.value = mappedData;
-
-    console.log('✅ 고객 정보 로드 성공:', customerInfo.value);
+    
+    console.log('✅ [CounselorCallView] Load Success:', customerInfo.value);
   } catch (error) {
-    console.error('❌ 고객 정보 로드 실패:', error);
-    customerInfoError.value = '고객 정보를 불러오는데 실패했습니다.';
-    customerInfo.value = mockCustomerInfo; // 실패 시 폴백
+    console.error('❌ [CounselorCallView] Load Failed:', error);
+    customerInfoError.value = '고객 정보를 불러오는 중 오류가 발생했습니다.';
+    customerInfo.value = mockCustomerInfo; 
   } finally {
     isLoadingCustomerInfo.value = false;
   }
 };
 
-// 통화 컨트롤 핸들러
-const handleMuteChanged = async (muted) => {
-  isMuted.value = muted
-  try {
-    await livekitSetMuted(muted)
-    console.log('[CounselorCall] 음소거 상태 변경:', muted)
-  } catch (error) {
-    console.error('[CounselorCall] 음소거 설정 실패:', error)
-    // 실패 시 UI 상태 롤백
-    isMuted.value = !muted
-  }
-}
+// [중요] ID 감시 및 데이터 로드 실행
+watch(
+  () => callStore.currentCall?.registrationId || router.currentRoute.value.params.registrationId,
+  (newId) => {
+    // 문자열 'undefined' 체크 추가
+    if (newId && String(newId) !== 'undefined') {
+      loadCustomerData(newId);
+    }
+  },
+  { immediate: true }
+);
 
-const handlePauseChanged = (paused) => {
-  isPaused.value = paused
-  // TODO: 일시정지 처리
-}
+// 메모 및 AI 관련 로직
+const memo = computed({
+  get: () => callStore.callMemo,
+  set: (val) => callStore.updateMemo(val)
+})
+const aiSummary = ref('')
+const memoLastSavedAt = ref(null)
+const memoDraftKey = computed(() => `callMemoDraft:${callStore.currentCall?.id || 'temp'}`)
+let memoSaveTimeout = null
+let skipDraftSaveOnUnmount = false
 
+const memoSaveLabel = computed(() => {
+  if (!memoLastSavedAt.value) return memo.value?.trim().length ? '임시 저장 전' : '';
+  return `임시 저장됨 · ${new Date(memoLastSavedAt.value).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}`;
+})
+
+// 통화 종료 핸들러
 const handleEndCall = async () => {
   try {
     isCallActive.value = false
+    const consultationId = callStore.currentCall.consultationId ?? callStore.currentCall.id;
+    if (consultationId && memo.value?.trim()) {
+      await saveConsultationMemo(consultationId, memo.value.trim());
+    }
     callStore.endCall()
-    const saved = await saveMemoToServer()
-    if (saved) {
-      clearMemoDraft()
-      skipDraftSaveOnUnmount = true
-    }
-    // TODO: await livekitService.disconnect()
+    skipDraftSaveOnUnmount = true
     router.push({ name: 'dashboard' })
-    console.log('통화 종료')
   } catch (error) {
-    console.error('통화 종료 실패:', error)
-    // TODO: 에러 토스트 표시
-  }
-
-}
-
-// Manual end modal request
-const handleManualEndRequest = () => {
-  showManualEndModal.value = true
-}
-
-// Manual end modal confirm
-const handleManualEndConfirm = async () => {
-  showManualEndModal.value = false
-  await handleEndCall()
-}
-
-
-// 자동 종료 모달 확인 핸들러
-const handleAutoTerminationConfirm = async () => {
-  showAutoTerminationModal.value = false
-
-  try {
-    // 통화 종료 처리
-    const callData = callStore.endCall()
-
-    // TODO: API 호출 - 블랙리스트 등록
-    // await addToBlacklist(callData.customerId, callStore.currentCall.agentId)
-
-    const saved = await saveMemoToServer()
-    if (saved) {
-      clearMemoDraft()
-      skipDraftSaveOnUnmount = true
-    }
-
-    // TODO: 통화 기록 저장
-    // await saveCallRecord(callData)
-
-    // LiveKit 연결 종료
-    // TODO: await livekitService.disconnect()
-
-    // 상태 초기화
-    callStore.resetCall()
-
-    // 대시보드로 이동
-    router.push({ name: 'dashboard' })
-
-    notificationStore.notifyInfo('고객이 블랙리스트에 등록되었습니다')
-  } catch (error) {
-    console.error('자동 종료 처리 실패:', error)
-    notificationStore.notifyError('통화 종료 처리에 실패했습니다')
+    console.error('종료 처리 실패:', error)
   }
 }
 
-// 욕설 표시/숨기기 토글
-const handleToggleProfanity = (index) => {
-  sttMessages.value[index].showOriginal = !sttMessages.value[index].showOriginal
-}
-
-/**
- * STT 메시지 추가 (실제 STT/WebSocket 연동 시 이 함수 호출)
- * @param {Object} message - STT 메시지 객체
- * @param {string} message.speaker - 화자 ('agent' | 'customer')
- * @param {string} message.text - 원본 텍스트
- * @param {string} message.maskedText - 마스킹된 텍스트
- * @param {boolean} message.hasProfanity - 폭언 포함 여부
- * @param {number} message.confidence - 신뢰도
- */
-const addSttMessage = (message) => {
-  const timestamp = new Date().toLocaleTimeString('ko-KR', {
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-
-  sttMessages.value.push({
-    ...message,
-    timestamp,
-    showOriginal: false
-  })
-
-  // 마스킹(폭언) 감지 시 알림 표시 및 카운트 증가
-  if (message.hasProfanity) {
-    // callStore에서 폭언 카운트 증가 (3회 도달 시 자동 종료 트리거)
-    const newCount = callStore.incrementProfanityCount()
-
-    // 알림 표시
-    notificationStore.notifyProfanity(newCount)
-
-    console.log(`[CounselorCall] 폭언 감지 (${newCount}/3회)`)
-  }
-}
-
-// 외부에서 사용할 수 있도록 expose (선택적)
-defineExpose({ addSttMessage })
-
-// 컴포넌트 마운트 시 고객 정보 로드
-onMounted(() => {
-  loadCustomerData()
+// 라이프사이클 및 기타 핸들러
+onBeforeUnmount(() => {
+  if (memoSaveTimeout) clearTimeout(memoSaveTimeout);
 })
-</script>
 
-<style scoped>
-/* CounselorCallView 전용 스타일 */
-</style>
+const handleMuteChanged = async (muted) => {
+  isMuted.value = muted
+  try { await livekitSetMuted(muted); } catch { isMuted.value = !muted; }
+}
+
+const handlePauseChanged = (paused) => { isPaused.value = paused }
+const handleManualEndRequest = () => { showManualEndModal.value = true }
+const handleManualEndConfirm = async () => { showManualEndModal.value = false; await handleEndCall(); }
+const handleAutoTerminationConfirm = async () => { 
+  showAutoTerminationModal.value = false; 
+  await handleEndCall(); 
+  notificationStore.notifyInfo('비정상 통화로 종료되었습니다.');
+}
+const handleToggleProfanity = (idx) => { sttMessages.value[idx].showOriginal = !sttMessages.value[idx].showOriginal }
+
+const addSttMessage = (msg) => {
+  const timestamp = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+  sttMessages.value.push({ ...msg, timestamp, showOriginal: false });
+  if (msg.hasProfanity) {
+    const count = callStore.incrementProfanityCount();
+    notificationStore.notifyProfanity(count);
+  }
+}
+
+defineExpose({ addSttMessage })
+</script>
