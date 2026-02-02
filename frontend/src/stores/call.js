@@ -6,6 +6,7 @@ export const useCallStore = defineStore('call', () => {
   // 현재 통화 정보
   const currentCall = ref({
     id: null,
+    registrationId: null, // 접수 ID (POST /api/v1/registrations 응답)
     customerId: null,
     roomToken: null,
     serverUrl: null,
@@ -89,6 +90,7 @@ export const useCallStore = defineStore('call', () => {
   const resetCall = () => {
     currentCall.value = {
       id: null,
+      registrationId: null,
       customerId: null,
       roomToken: null,
       serverUrl: null,

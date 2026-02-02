@@ -147,12 +147,16 @@ import { fetchCustomerData } from '@/services/customerService'
 import { saveConsultationMemo } from '@/services/consultationService'
 import { useNotificationStore } from '@/stores/notification'
 import { useCallStore } from '@/stores/call'
+import { useLiveKit } from '@/composables/useLiveKit'
 
 const router = useRouter()
 
 // 스토어
 const notificationStore = useNotificationStore()
 const callStore = useCallStore()
+
+// LiveKit composable
+const { setMuted: livekitSetMuted, isMuted: livekitIsMuted } = useLiveKit()
 
 // 통화 상태
 const isCallActive = ref(true)
@@ -413,9 +417,16 @@ const loadCustomerData = async () => {
 };
 
 // 통화 컨트롤 핸들러
-const handleMuteChanged = (muted) => {
+const handleMuteChanged = async (muted) => {
   isMuted.value = muted
-  // TODO: LiveKit 음소거 처리
+  try {
+    await livekitSetMuted(muted)
+    console.log('[CounselorCall] 음소거 상태 변경:', muted)
+  } catch (error) {
+    console.error('[CounselorCall] 음소거 설정 실패:', error)
+    // 실패 시 UI 상태 롤백
+    isMuted.value = !muted
+  }
 }
 
 const handlePauseChanged = (paused) => {

@@ -15,15 +15,28 @@ const getAuthToken = () => {
 /**
  * 대기열 등록 (고객 접수)
  * API: POST /api/v1/registrations
- * * @param {Object} payload - 접수 정보 (symptom, productId, errorCode, manufacturedAt, warrantyEndsAt)
- * @returns {Promise<Object>} 등록된 접수 상세 정보 (data 객체 전체)
+ *
+ * @param {Object} payload - 접수 정보
+ * @param {string} payload.symptom - 증상
+ * @param {number} payload.productId - 제품 ID
+ * @param {string} payload.errorCode - 에러 코드
+ * @param {string} payload.manufacturedAt - 제조일자 (YYYY-MM-DD)
+ * @param {string} payload.warrantyEndsAt - 보증 만료일 (YYYY-MM-DD)
+ *
+ * @returns {Promise<Object>} 대기열 등록 결과
+ * @returns {number} return.registrationId - 접수 ID
+ * @returns {number} return.customerId - 고객 ID
+ * @returns {number} return.waitingRank - 대기 순번
+ * @returns {string} return.queueType - 대기열 타입 (NORMAL, PRIORITY)
+ * @returns {number} return.estimatedWaitMinutes - 예상 대기 시간 (분)
+ * @returns {string} return.websocketTopic - WebSocket 토픽
  */
 export const registerQueue = async (payload) => {
   try {
     const token = getAuthToken()
-    
+
     const response = await axios.post(
-      `/api/v1/registrations`, 
+      `/api/v1/registrations`,
       {
         symptom: payload.symptom,
         productId: payload.productId,
@@ -32,7 +45,7 @@ export const registerQueue = async (payload) => {
         warrantyEndsAt: payload.warrantyEndsAt
       },
       {
-        headers: { 
+        headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
@@ -42,9 +55,9 @@ export const registerQueue = async (payload) => {
     const { isSuccess, data, message } = response.data
 
     if (isSuccess) {
-      console.log('✅ 대기열 등록 성공:', message)
-      // 서버 응답의 data 객체(id, customerName, productName 등 포함)를 그대로 반환합니다.
-      return data 
+      console.log('✅ 대기열 등록 성공:', message, data)
+      // 응답 데이터: { registrationId, customerId, waitingRank, queueType, estimatedWaitMinutes, websocketTopic }
+      return data
     } else {
       throw new Error(message || '대기열 등록에 실패했습니다.')
     }
