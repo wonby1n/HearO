@@ -33,3 +33,54 @@ export const saveConsultationMemo = async (consultationId, memo) => {
 
   return response.data
 }
+
+/**
+ * Get consultation rating
+ * API: GET /api/v1/consultations/{consultationId}/rating
+ *
+ * @param {string|number} consultationId
+ * @returns {Promise<Object>} { ratingId, consultationId, processRating, solutionRating, kindnessRating, feedback }
+ */
+export const fetchConsultationRating = async (consultationId) => {
+  try {
+    const token = getAuthToken()
+    const response = await axios.get(
+      `${API_BASE_URL}/consultations/${consultationId}/rating`,
+      token
+        ? {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        : undefined
+    )
+
+    if (response.data && response.data.isSuccess) {
+      return response.data.data
+    } else {
+      throw new Error(response.data?.message || '평점 조회 실패')
+    }
+  } catch (error) {
+    console.error('❌ 상담 평점 조회 에러:', error.response?.data || error.message)
+    throw error
+  }
+}
+
+/**
+ * Calculate average rating from individual ratings
+ *
+ * @param {Object} rating - { processRating, solutionRating, kindnessRating }
+ * @returns {number} Average rating (rounded to 1 decimal)
+ */
+export const calculateAverageRating = (rating) => {
+  if (!rating) return 0
+
+  const { processRating, solutionRating, kindnessRating } = rating
+
+  if (!processRating || !solutionRating || !kindnessRating) {
+    return 0
+  }
+
+  const average = (processRating + solutionRating + kindnessRating) / 3
+  return Math.round(average * 10) / 10 // 소수점 첫째자리까지
+}
