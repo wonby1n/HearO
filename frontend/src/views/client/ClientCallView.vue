@@ -108,11 +108,11 @@
         <!-- 음소거 버튼 -->
         <button
           @click="toggleMute"
-          :class="['control-btn', { active: isMuted }]"
+          :class="['control-btn', { active: livekitMuted }]"
           title="음소거"
         >
           <div class="control-icon-wrapper">
-            <svg v-if="!isMuted" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <svg v-if="!livekitMuted" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clip-rule="evenodd"/>
             </svg>
             <svg v-else class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -296,7 +296,7 @@ const {
 // 상태 관리
 const callDuration = ref(0)
 const queuePosition = ref(3) // 테스트용 대기 순번
-const isMuted = ref(false)
+// isMuted는 useLiveKit의 livekitMuted 사용 (중복 제거)
 const isSpeakerOn = ref(false) // 기본값 false (회색)
 const showConfirmModal = ref(false)
 const showAutoTerminationModal = ref(false)
@@ -347,15 +347,18 @@ const toggleSpeaker = () => {
 
 // 음소거 토글
 const toggleMute = async () => {
-  isMuted.value = !isMuted.value
-  if(isMuted.value === true){
+  // useLiveKit의 toggleMute가 상태를 업데이트함
+  await livekitToggleMute()
+
+  // STT 제어 (음소거 후 상태 확인)
+  if(livekitMuted.value === true){
     stopCustomerSTT();
   }
   else{
     startCustomerSTT();
   }
-  await livekitToggleMute()
-  console.log('[Client] 음소거 상태:', isMuted.value)
+
+  console.log('[Client] 음소거 상태:', livekitMuted.value)
 }
 
 
