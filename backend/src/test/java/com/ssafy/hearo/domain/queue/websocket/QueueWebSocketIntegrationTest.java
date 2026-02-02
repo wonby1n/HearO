@@ -480,4 +480,209 @@ class QueueWebSocketIntegrationTest {
         assertThat(response.get("success")).isEqualTo(false);
         assertThat(response.get("message")).isEqualTo("사용자 정보를 찾을 수 없습니다");
     }
+
+    @Test
+    @DisplayName("고객 제거 시 뒤 고객들이 순위 업데이트를 자동 수신한다")
+    @SuppressWarnings("unchecked")
+    void webSocket_ShouldReceiveAutoRankUpdateWhenCustomerRemoved() throws Exception {
+        // given - 대기열에 고객 3명 등록
+        String customerId1 = "auto-test-1";
+        String customerId2 = "auto-test-2";
+        String customerId3 = "auto-test-3";
+
+        queueService.enqueue(customerId1);
+        queueService.enqueue(customerId2);
+        queueService.enqueue(customerId3);
+
+        // customer-3으로 /topic/queue-rank/{customerId} 구독
+        String wsUrl = "ws://localhost:" + port + "/ws/queue?userId=" + customerId3;
+        CountDownLatch autoUpdateLatch = new CountDownLatch(1);
+        BlockingQueue<Map<String, Object>> autoRankMessages = new LinkedBlockingQueue<>();
+
+        StompSession session = stompClient.connectAsync(
+                wsUrl,
+                new WebSocketHttpHeaders(),
+                new StompSessionHandlerAdapter() {}
+        ).get(10, TimeUnit.SECONDS);
+
+        activeSessions.add(session);
+
+        // 자동 푸시 토픽 구독: /topic/queue-rank/{customerId}
+        session.subscribe("/topic/queue-rank/" + customerId3, new StompFrameHandler() {
+            @Override
+            public Type getPayloadType(StompHeaders headers) {
+                return Map.class;
+            }
+
+            @Override
+            public void handleFrame(StompHeaders headers, Object payload) {
+                autoRankMessages.add((Map<String, Object>) payload);
+                autoUpdateLatch.countDown();
+            }
+        });
+
+        Thread.sleep(1000);
+
+        // when - 앞의 고객 1명 제거 (customer-3의 순위가 3→2로 변경)
+        queueService.remove(customerId1);
+
+        // then - 자동으로 순위 업데이트 수신
+        boolean received = autoUpdateLatch.await(10, TimeUnit.SECONDS);
+        assertThat(received).isTrue();
+
+        Map<String, Object> autoUpdate = autoRankMessages.poll(5, TimeUnit.SECONDS);
+        assertThat(autoUpdate).isNotNull();
+        assertThat(autoUpdate.get("customerId")).isEqualTo(customerId3);
+        assertThat(autoUpdate.get("rank")).isEqualTo(2); // 순위가 3에서 2로 변경
+        assertThat(autoUpdate.get("status")).isEqualTo("WAITING");
+        assertThat(autoUpdate).containsKey("timestamp");
+    }
+
+    @Test
+    @DisplayName("pop 시 남은 고객들이 순위 업데이트를 자동 수신한다")
+    @SuppressWarnings("unchecked")
+    void webSocket_ShouldReceiveAutoRankUpdateOnPop() throws Exception {
+        // given - 대기열에 고객 3명 등록
+        String customerId1 = "pop-test-1";
+        String customerId2 = "pop-test-2";
+        String customerId3 = "pop-test-3";
+
+        queueService.enqueue(customerId1);
+        queueService.enqueue(customerId2);
+        queueService.enqueue(customerId3);
+
+        // customer-2로 연결 (초기 순위 2)
+        String wsUrl = "ws://localhost:" + port + "/ws/queue?userId=" + customerId2;
+        CountDownLatch autoUpdateLatch = new CountDownLatch(1);
+        BlockingQueue<Map<String, Object>> autoRankMessages = new LinkedBlockingQueue<>();
+
+        StompSession session = stompClient.connectAsync(
+                wsUrl,
+                new WebSocketHttpHeaders(),
+                new StompSessionHandlerAdapter() {}
+        ).get(10, TimeUnit.SECONDS);
+
+        activeSessions.add(session);
+
+        // 자동 푸시 토픽 구독
+        session.subscribe("/topic/queue-rank/" + customerId2, new StompFrameHandler() {
+            @Override
+            public Type getPayloadType(StompHeaders headers) {
+                return Map.class;
+            }
+
+            @Override
+            public void handleFrame(StompHeaders headers, Object payload) {
+                autoRankMessages.add((Map<String, Object>) payload);
+                autoUpdateLatch.countDown();
+            }
+        });
+
+        Thread.sleep(1000);
+
+        // when - pop으로 맨 앞 고객 추출
+        queueService.pop();
+
+        // then - 자동으로 순위 업데이트 수신
+        boolean received = autoUpdateLatch.await(10, TimeUnit.SECONDS);
+        assertThat(received).isTrue();
+
+        Map<String, Object> autoUpdate = autoRankMessages.poll(5, TimeUnit.SECONDS);
+        assertThat(autoUpdate).isNotNull();
+        assertThat(autoUpdate.get("customerId")).isEqualTo(customerId2);
+        assertThat(autoUpdate.get("rank")).isEqualTo(1); // 순위가 2에서 1로 변경
+        assertThat(autoUpdate.get("status")).isEqualTo("WAITING");
+    }
+
+    @Test
+    @DisplayName("여러 고객이 동시에 순위 업데이트를 자동 수신한다")
+    @SuppressWarnings("unchecked")
+    void webSocket_ShouldReceiveAutoRankUpdateForMultipleCustomers() throws Exception {
+        // given - 대기열에 고객 4명 등록
+        String customerId1 = "multi-test-1";
+        String customerId2 = "multi-test-2";
+        String customerId3 = "multi-test-3";
+        String customerId4 = "multi-test-4";
+
+        queueService.enqueue(customerId1);
+        queueService.enqueue(customerId2);
+        queueService.enqueue(customerId3);
+        queueService.enqueue(customerId4);
+
+        // customer-3, customer-4 둘 다 연결
+        CountDownLatch customer3Latch = new CountDownLatch(1);
+        CountDownLatch customer4Latch = new CountDownLatch(1);
+        BlockingQueue<Map<String, Object>> customer3Messages = new LinkedBlockingQueue<>();
+        BlockingQueue<Map<String, Object>> customer4Messages = new LinkedBlockingQueue<>();
+
+        // Customer 3 연결
+        String wsUrl3 = "ws://localhost:" + port + "/ws/queue?userId=" + customerId3;
+        StompSession session3 = stompClient.connectAsync(
+                wsUrl3,
+                new WebSocketHttpHeaders(),
+                new StompSessionHandlerAdapter() {}
+        ).get(10, TimeUnit.SECONDS);
+        activeSessions.add(session3);
+
+        session3.subscribe("/topic/queue-rank/" + customerId3, new StompFrameHandler() {
+            @Override
+            public Type getPayloadType(StompHeaders headers) {
+                return Map.class;
+            }
+
+            @Override
+            public void handleFrame(StompHeaders headers, Object payload) {
+                customer3Messages.add((Map<String, Object>) payload);
+                customer3Latch.countDown();
+            }
+        });
+
+        // Customer 4 연결
+        String wsUrl4 = "ws://localhost:" + port + "/ws/queue?userId=" + customerId4;
+        List<Transport> transports4 = new ArrayList<>();
+        transports4.add(new WebSocketTransport(new StandardWebSocketClient()));
+        WebSocketStompClient client4 = new WebSocketStompClient(new SockJsClient(transports4));
+        client4.setMessageConverter(new MappingJackson2MessageConverter());
+
+        StompSession session4 = client4.connectAsync(
+                wsUrl4,
+                new WebSocketHttpHeaders(),
+                new StompSessionHandlerAdapter() {}
+        ).get(10, TimeUnit.SECONDS);
+        activeSessions.add(session4);
+
+        session4.subscribe("/topic/queue-rank/" + customerId4, new StompFrameHandler() {
+            @Override
+            public Type getPayloadType(StompHeaders headers) {
+                return Map.class;
+            }
+
+            @Override
+            public void handleFrame(StompHeaders headers, Object payload) {
+                customer4Messages.add((Map<String, Object>) payload);
+                customer4Latch.countDown();
+            }
+        });
+
+        Thread.sleep(1000);
+
+        // when - 맨 앞 고객 제거
+        queueService.remove(customerId1);
+
+        // then - 두 고객 모두 순위 업데이트 수신
+        boolean received3 = customer3Latch.await(10, TimeUnit.SECONDS);
+        boolean received4 = customer4Latch.await(10, TimeUnit.SECONDS);
+
+        assertThat(received3).isTrue();
+        assertThat(received4).isTrue();
+
+        Map<String, Object> update3 = customer3Messages.poll(5, TimeUnit.SECONDS);
+        Map<String, Object> update4 = customer4Messages.poll(5, TimeUnit.SECONDS);
+
+        assertThat(update3).isNotNull();
+        assertThat(update3.get("rank")).isEqualTo(2); // 3에서 2로
+
+        assertThat(update4).isNotNull();
+        assertThat(update4.get("rank")).isEqualTo(3); // 4에서 3으로
+    }
 }

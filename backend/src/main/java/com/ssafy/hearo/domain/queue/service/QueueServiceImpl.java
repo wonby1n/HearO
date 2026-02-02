@@ -82,6 +82,9 @@ public class QueueServiceImpl implements QueueService {
             return false;
         }
 
+        // 이동 전 순위 조회 (영향받는 고객 알림용)
+        Optional<Long> rankBefore = getWaitingRank(customerId);
+
         // Blacklist Queue로 이동 (원래 timestamp 유지)
         zSetOps.remove(NORMAL_QUEUE_KEY, customerId);
         zSetOps.add(BLACKLIST_QUEUE_KEY, customerId, score);
@@ -92,12 +95,23 @@ public class QueueServiceImpl implements QueueService {
         QueueSizes sizes = getQueueSizes();
         queueEventPublisher.publishQueueUpdate(sizes.normalQueueSize(), sizes.blacklistQueueSize());
 
+        // 이동한 고객의 새 순위 전송
+        Optional<Long> newRank = getWaitingRank(customerId);
+        newRank.ifPresent(rank -> queueEventPublisher.sendRankUpdate(customerId, rank));
+
+        // 이동 후 영향받는 고객들에게 순위 업데이트 전송
+        // Blacklist로 이동 시 기존 위치 이후의 Normal Queue 고객들 순위가 당겨짐
+        rankBefore.ifPresent(this::notifyAffectedCustomers);
+
         return true;
     }
 
     @Override
     public boolean remove(String customerId) {
         ZSetOperations<String, String> zSetOps = redisTemplate.opsForZSet();
+
+        // 제거 전 순위 조회 (영향받는 고객 알림용)
+        Optional<Long> rankBefore = getWaitingRank(customerId);
 
         Long removedFromNormal = zSetOps.remove(NORMAL_QUEUE_KEY, customerId);
         Long removedFromBlacklist = zSetOps.remove(BLACKLIST_QUEUE_KEY, customerId);
@@ -111,6 +125,9 @@ public class QueueServiceImpl implements QueueService {
             // 대기열 변경 알림
             QueueSizes sizes = getQueueSizes();
             queueEventPublisher.publishQueueUpdate(sizes.normalQueueSize(), sizes.blacklistQueueSize());
+
+            // 제거된 고객 위치 이후의 고객들에게 순위 업데이트 전송
+            rankBefore.ifPresent(this::notifyAffectedCustomers);
         }
 
         return removed;
@@ -131,6 +148,9 @@ public class QueueServiceImpl implements QueueService {
             QueueSizes sizes = getQueueSizes();
             queueEventPublisher.publishQueueUpdate(sizes.normalQueueSize(), sizes.blacklistQueueSize());
 
+            // 순위 1부터 모든 고객에게 업데이트 전송
+            notifyAffectedCustomers(1);
+
             return Optional.of(customerId);
         }
 
@@ -144,6 +164,9 @@ public class QueueServiceImpl implements QueueService {
             // 대기열 변경 알림
             QueueSizes sizes = getQueueSizes();
             queueEventPublisher.publishQueueUpdate(sizes.normalQueueSize(), sizes.blacklistQueueSize());
+
+            // 순위 1부터 모든 고객에게 업데이트 전송
+            notifyAffectedCustomers(1);
 
             return Optional.of(customerId);
         }
@@ -201,6 +224,8 @@ public class QueueServiceImpl implements QueueService {
                 skippedCount = tempStack.size();
                 restoreTempStack(tempStack, BLACKLIST_QUEUE_KEY);
                 publishQueueUpdate();
+                // 순위 1부터 모든 고객에게 업데이트 전송
+                notifyAffectedCustomers(1);
                 return new PopResult(
                         blacklistResult.customerId(),
                         blacklistResult.matchableCounselorIds(),
@@ -223,6 +248,8 @@ public class QueueServiceImpl implements QueueService {
                 movedToBlacklistCount = tempStack.size();
                 moveTempStackToBlacklistQueue(tempStack);
                 publishQueueUpdate();
+                // 순위 1부터 모든 고객에게 업데이트 전송
+                notifyAffectedCustomers(1);
                 return new PopResult(
                         normalResult.customerId(),
                         normalResult.matchableCounselorIds(),
@@ -235,6 +262,10 @@ public class QueueServiceImpl implements QueueService {
             movedToBlacklistCount = tempStack.size();
             moveTempStackToBlacklistQueue(tempStack);
             publishQueueUpdate();
+            // Blacklist로 이동된 고객들도 순위 변경이 있으므로 전체 알림
+            if (movedToBlacklistCount > 0) {
+                notifyAffectedCustomers(1);
+            }
 
             log.info("매칭 가능한 고객 없음. Blacklist 스킵: {}, Normal→Blacklist 이동: {}",
                     skippedCount, movedToBlacklistCount);
@@ -351,4 +382,66 @@ public class QueueServiceImpl implements QueueService {
      * 고객 ID와 score를 함께 저장하는 내부 클래스
      */
     private record CustomerWithScore(String customerId, double score) {}
+
+    @Override
+    public Map<String, Long> getCustomersFromRank(long fromRank) {
+        Map<String, Long> result = new LinkedHashMap<>();
+        ZSetOperations<String, String> zSetOps = redisTemplate.opsForZSet();
+
+        Long blacklistSize = zSetOps.zCard(BLACKLIST_QUEUE_KEY);
+        blacklistSize = blacklistSize != null ? blacklistSize : 0;
+
+        // fromRank가 Blacklist 범위 내인 경우
+        if (fromRank <= blacklistSize) {
+            // Blacklist에서 fromRank-1 인덱스부터 끝까지 조회
+            Set<String> blacklistCustomers = zSetOps.range(BLACKLIST_QUEUE_KEY, fromRank - 1, -1);
+            if (blacklistCustomers != null) {
+                long rank = fromRank;
+                for (String customerId : blacklistCustomers) {
+                    result.put(customerId, rank++);
+                }
+            }
+            // Normal Queue 전체 조회
+            Set<String> normalCustomers = zSetOps.range(NORMAL_QUEUE_KEY, 0, -1);
+            if (normalCustomers != null) {
+                long rank = blacklistSize + 1;
+                for (String customerId : normalCustomers) {
+                    result.put(customerId, rank++);
+                }
+            }
+        } else {
+            // fromRank가 Normal Queue 범위인 경우
+            long normalStartIndex = fromRank - blacklistSize - 1;
+            Set<String> normalCustomers = zSetOps.range(NORMAL_QUEUE_KEY, normalStartIndex, -1);
+            if (normalCustomers != null) {
+                long rank = fromRank;
+                for (String customerId : normalCustomers) {
+                    result.put(customerId, rank++);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    @Override
+    public Map<String, Long> getAllCustomersWithRanks() {
+        return getCustomersFromRank(1);
+    }
+
+    /**
+     * 대기열 변경 후 영향받는 고객들에게 순위 업데이트 전송
+     * @param affectedFromRank 이 순위부터 영향을 받음 (이전에 이 순위에 있던 고객부터)
+     */
+    private void notifyAffectedCustomers(long affectedFromRank) {
+        if (affectedFromRank <= 0) {
+            return;
+        }
+
+        Map<String, Long> affectedCustomers = getCustomersFromRank(affectedFromRank);
+        if (!affectedCustomers.isEmpty()) {
+            log.debug("순위 변경 알림 전송: {}명 (순위 {}부터)", affectedCustomers.size(), affectedFromRank);
+            queueEventPublisher.sendBatchRankUpdates(affectedCustomers);
+        }
+    }
 }

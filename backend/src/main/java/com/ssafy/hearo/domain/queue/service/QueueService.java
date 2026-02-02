@@ -99,6 +99,20 @@ public interface QueueService {
      */
     Optional<QueueType> getQueueType(String customerId);
 
+    /**
+     * 지정된 순위 이후의 모든 대기 고객 ID와 새 순위를 조회
+     * 대기열 변경으로 순위가 바뀐 고객들에게 알림을 보내기 위해 사용
+     * @param fromRank 이 순위부터 조회 (inclusive, 1-indexed)
+     * @return customerId -> newRank 맵
+     */
+    java.util.Map<String, Long> getCustomersFromRank(long fromRank);
+
+    /**
+     * 전체 대기열의 모든 고객과 순위 조회
+     * @return customerId -> rank 맵
+     */
+    java.util.Map<String, Long> getAllCustomersWithRanks();
+
     record QueueSizes(long normalQueueSize, long blacklistQueueSize) {
         public long totalSize() {
             return normalQueueSize + blacklistQueueSize;
