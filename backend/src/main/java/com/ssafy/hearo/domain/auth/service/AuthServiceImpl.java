@@ -138,6 +138,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional
     public void logout(HttpServletRequest request, HttpServletResponse response) {
         // Extract refresh token from cookie
         String refreshToken = extractRefreshTokenFromCookie(request);
