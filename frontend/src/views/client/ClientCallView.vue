@@ -175,6 +175,94 @@ import { useCustomerStore } from '@/stores/customer'
 import { useLiveKit } from '@/composables/useLiveKit'
 import { AUTO_TERMINATION_REDIRECT_DELAY_MS } from '@/constants/call'
 
+// =========================
+// 고객 STT(Web Speech) → 상담원으로 전송
+// =========================
+let recognition = null
+
+const getSpeechRecognition = () => {
+  return window.SpeechRecognition || window.webkitSpeechRecognition || null
+}
+
+const stopCustomerSTT = () => {
+  try {
+    if (recognition) {
+      recognition.onresult = null
+      recognition.onerror = null
+      recognition.onend = null
+      recognition.stop()
+      recognition = null
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
+const sendCustomerSttToCounselor = async (text) => {
+  const r = room.value || callStore.livekitRoom
+  if (!r) return
+  const payload = {
+    type: 'stt',
+    from: r.localParticipant?.identity ?? 'customer',
+    text,
+    ts: Date.now()
+  }
+  try {
+    const bytes = new TextEncoder().encode(JSON.stringify(payload))
+    r.localParticipant.publishData(bytes, { reliable: true })
+  } catch (e) {
+    console.warn('[ClientCallView] STT 전송 실패:', e)
+  }
+}
+
+const startCustomerSTT = async () => {
+  // room 연결된 이후에만
+  if (!(room.value || callStore.livekitRoom)) return
+
+  const SR = getSpeechRecognition()
+  if (!SR) {
+    console.warn('[ClientCallView] Web Speech STT 미지원 브라우저')
+    return
+  }
+
+  stopCustomerSTT()
+
+  recognition = new SR()
+  recognition.lang = 'ko-KR'
+  recognition.interimResults = true
+  recognition.continuous = true
+
+  recognition.onerror = (ev) => {
+    console.warn('[ClientCallView] STT 오류:', ev?.error)
+  }
+
+  recognition.onend = () => {
+    // 통화 중이면 자동 재시작
+    if (callStore.isInCall) {
+      try { recognition?.start?.() } catch {}
+    }
+  }
+
+  recognition.onresult = async (event) => {
+    let finalText = ''
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const res = event.results[i]
+      const t = res[0]?.transcript ?? ''
+      if (res.isFinal) finalText += t
+    }
+
+    const cleaned = finalText.trim()
+    if (cleaned) await sendCustomerSttToCounselor(cleaned)
+  }
+
+  try {
+    recognition.start()
+    console.log('[ClientCallView] 고객 STT 시작')
+  } catch (e) {
+    console.warn('[ClientCallView] 고객 STT 시작 실패:', e)
+  }
+}
+
 const router = useRouter()
 const callStore = useCallStore()
 const customerStore = useCustomerStore()
@@ -283,6 +371,12 @@ const toggleSpeaker = () => {
 // 음소거 토글
 const toggleMute = async () => {
   isMuted.value = !isMuted.value
+  if(isMuted.value === true){
+    stopCustomerSTT();
+  }
+  else{
+    startCustomerSTT();
+  }
   await livekitToggleMute()
   console.log('[Client] 음소거 상태:', isMuted.value)
 }
@@ -374,14 +468,15 @@ onMounted(async () => {
     })
   }
 
-  // 테스트용: 바로 통화 중 상태로 설정
-  // localStorage에서 customerId 가져오기
-  const customerId = sessionStorage.getItem('clientCustomerId') || localStorage.getItem('clientCustomerId') || customerStore.currentCustomer.id
-  callStore.startCall({
-    id: `client-call-${Date.now()}`,
-    customerId: customerId ? parseInt(customerId) : null,
-    roomToken: 'test-token'
-  })
+ 
+    const customerId = sessionStorage.getItem('clientCustomerId') || localStorage.getItem('clientCustomerId') || customerStore.currentCustomer.id
+    startCustomerSTT()
+    callStore.startCall({
+      id: `client-call-${Date.now()}`,
+      customerId: customerId ? parseInt(customerId) : null,
+      roomToken: 'test-token'
+    })
+  
 
   // 통화 시간 타이머
   timerInterval = setInterval(() => {
@@ -407,6 +502,8 @@ onUnmounted(async () => {
     await callStore.livekitRoom.disconnect()
     callStore.setLivekitRoom(null)
   }
+
+  stopCustomerSTT()
 
   // 자체 LiveKit 연결 종료
   if (isConnected.value) {

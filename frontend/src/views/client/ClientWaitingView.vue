@@ -405,9 +405,8 @@ const onAgentConnected = () => {
 
 // 컴포넌트 마운트 시 초기화
 onMounted(async () => {
-  // ARS 음성 자동 재생
-  playARSAudio()
-
+  
+  
   // 고객 ID 확인
   const customerId = customerStore.currentCustomer?.id
   if (!customerId) {
@@ -417,7 +416,8 @@ onMounted(async () => {
 
   // STOMP 기반 매칭 알림 시작 (LiveKit 자동 연결 포함)
   startWaiting(customerId)
-
+  // ARS 음성 자동 재생
+  playARSAudio()
   // 초기 대기 순번 조회 (순번 표시용)
   await fetchQueuePosition()
 
