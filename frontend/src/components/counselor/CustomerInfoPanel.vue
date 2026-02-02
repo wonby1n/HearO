@@ -43,12 +43,19 @@
 
         <div class="space-y-3">
           <!-- 제품 이미지 -->
-          <div v-if="productImg" class="flex justify-center mb-4">
-                <img
-                  :src="productImg"
-                  :alt="customerInfo.productName"
-                  class="w-40 h-40 object-contain rounded-md border border-gray-100 shadow-sm"
-                />
+          <div class="flex justify-center mb-4">
+            <img
+              v-if="productImg && !imageLoadFailed"
+              :src="productImg"
+              :alt="customerInfo.productName"
+              class="w-40 h-40 object-contain rounded-md border border-gray-100 shadow-sm"
+              @error="handleImageError"
+            />
+            <div v-else class="w-40 h-40 flex items-center justify-center bg-gray-100 rounded-md border border-gray-200">
+              <svg class="w-16 h-16 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"/>
+              </svg>
+            </div>
           </div>
 
           <!-- 제품 정보 -->
@@ -151,7 +158,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 
 const props = defineProps({
   customerInfo: {
@@ -217,6 +224,13 @@ const warrantyClass = computed(() => {
   }
   return warranty.isExpired ? 'text-red-600' : 'text-blue-600'
 })
+
+// 이미지 로드 실패 시 처리
+const imageLoadFailed = ref(false)
+const handleImageError = () => {
+  imageLoadFailed.value = true
+  console.warn('제품 이미지 로드 실패:', props.customerInfo.productImageUrl)
+}
 </script>
 
 <style scoped>

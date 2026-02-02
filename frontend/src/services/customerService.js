@@ -89,9 +89,25 @@ export const fetchCustomerInfo = async (registrationId) => {
 export const fetchCustomerHistory = async (customerId) => {
   try {
     // TODO: 실제 API 엔드포인트 구현 시 아래 주석 해제 및 적용
-    // const response = await axios.get(`/api/v1/customers/${customerId}/consultations`)
-    // return response.data.data
-    
+    /*
+    const token = getAuthToken()
+    const response = await axios.get(
+      `/api/v1/customers/${customerId}/consultations`,
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    )
+
+    const { isSuccess, data, message } = response.data
+
+    if (isSuccess) {
+      return data || []
+    } else {
+      throw new Error(message || '상담 이력 조회 실패')
+    }
+    */
+
+    // 현재는 빈 배열 반환
     return []
   } catch (error) {
     console.error('❌ 상담 이력 조회 에러:', error)
