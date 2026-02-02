@@ -1,4 +1,4 @@
-import { ref, onUnmounted } from 'vue'
+import { ref } from 'vue'
 import SockJS from 'sockjs-client'
 import { Client } from '@stomp/stompjs'
 
@@ -95,9 +95,9 @@ export function useMatchingNotification(options = {}) {
     isMatched.value = false // 플래그 리셋
   }
 
-  onUnmounted(() => {
-    disconnect()
-  })
+  // Note: onUnmounted 제거
+  // 이 composable은 setup() 밖에서 동적으로 생성되므로 lifecycle hooks 사용 불가
+  // useCallConnection에서 명시적으로 disconnect() 호출하여 정리
 
   return {
     isConnected,

@@ -423,19 +423,10 @@ const onAgentConnected = () => {
 
 // 컴포넌트 마운트 시 초기화
 onMounted(async () => {
-
-
-  // localStorage에서 최신 customerId 다시 읽기 (재로그인 시 갱신되도록)
-  const latestCustomerId = sessionStorage.getItem('clientCustomerId') || localStorage.getItem('clientCustomerId')
-
-  // customerStore 업데이트 (localStorage와 동기화)
-  if (latestCustomerId && latestCustomerId !== String(customerStore.currentCustomer?.id)) {
-    console.log('[ClientWaiting] customerId 갱신:', customerStore.currentCustomer?.id, '->', latestCustomerId)
-    customerStore.setCustomerInfo({ id: parseInt(latestCustomerId) })
-  }
-
-  // 고객 ID 확인
+  // customerStore를 single source of truth로 사용
+  // (ClientVerificationForm에서 이미 업데이트됨)
   const customerId = customerStore.currentCustomer?.id
+
   if (!customerId) {
     console.error('[ClientWaiting] 고객 ID가 없습니다')
     return

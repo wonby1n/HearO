@@ -269,7 +269,8 @@ const {
       clearInterval(timerInterval)
     }
 
-    // call store 정리
+    // call store 정리 (안전한 순서: 참조 정리 → 상태 업데이트)
+    callStore.setLivekitRoom(null)
     callStore.endCall()
     callStore.resetCall()
 
@@ -462,7 +463,8 @@ onMounted(async () => {
       // 마이크 종료 (STT 중지)
       stopCustomerSTT()
 
-      // call store 정리
+      // call store 정리 (안전한 순서: 참조 정리 → 상태 업데이트)
+      callStore.setLivekitRoom(null)
       callStore.endCall()
       callStore.resetCall()
 
