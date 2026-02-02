@@ -11,9 +11,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "customers", indexes = {
-        @Index(name = "idx_customers_phone", columnList = "phone")
-})
+@Table(name = "customers",
+        indexes = {
+                @Index(name = "idx_customers_phone", columnList = "phone")
+        },
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_customers_name_phone", columnNames = {"name", "phone"})
+        }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Customer extends BaseTimeEntity {

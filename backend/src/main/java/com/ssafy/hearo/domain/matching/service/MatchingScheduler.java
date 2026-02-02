@@ -4,12 +4,15 @@ import com.ssafy.hearo.domain.matching.dto.MatchingResult;
 import com.ssafy.hearo.domain.queue.service.QueueEventPublisher;
 import com.ssafy.hearo.domain.queue.service.QueueService;
 import com.ssafy.hearo.domain.queue.service.QueueService.PopResult;
+import com.ssafy.hearo.domain.registration.entity.Registration;
+import com.ssafy.hearo.domain.registration.repository.RegistrationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -26,6 +29,7 @@ public class MatchingScheduler {
     private final CounselorAvailabilityService counselorAvailabilityService;
     private final QueueEventPublisher queueEventPublisher;
     private final ApplicationEventPublisher eventPublisher;
+    private final RegistrationRepository registrationRepository;
 
     /**
      * 5초마다 실행되는 자동 매칭 프로세스
@@ -95,6 +99,9 @@ public class MatchingScheduler {
             eventPublisher.publishEvent(new MatchingCompletedEvent(
                     result.customerId(), selectedCounselor, roomName));
 
+            // WebSocket으로 고객/상담원에게 매칭 알림 전송
+            sendMatchingNotifications(result.customerId(), selectedCounselor, roomName);
+
             log.info("매칭 완료: 고객={}, 상담원={}, 방={}",
                     result.customerId(), selectedCounselor, roomName);
 
@@ -113,6 +120,59 @@ public class MatchingScheduler {
         return String.format("room-%s-%d-%s",
                 customerId, counselorId,
                 UUID.randomUUID().toString().substring(0, 8));
+    }
+
+    /**
+     * WebSocket으로 고객/상담원에게 매칭 알림 전송
+     */
+    private void sendMatchingNotifications(String customerId, Long counselorId, String roomName) {
+        // customerId에서 DB PK 추출 (예: "customer_123" -> 123)
+        Integer customerDbId = extractCustomerDbId(customerId);
+
+        // 고객용 identity 생성
+        String customerIdentity = "customer_" + customerDbId;
+        // 상담원용 identity 생성
+        String counselorIdentity = "counselor_" + counselorId;
+
+        // 고객에게 매칭 알림 전송
+        queueEventPublisher.sendMatchingToCustomer(customerId, customerIdentity, roomName);
+
+        // 상담원에게 매칭 알림 전송 (registrationId, customerId 포함)
+        Long registrationId = findLatestRegistrationId(customerDbId);
+        queueEventPublisher.sendMatchingToCounselor(counselorId, registrationId, customerDbId,
+                counselorIdentity, roomName);
+    }
+
+    /**
+     * customerId 문자열에서 DB PK 추출
+     * 예: "customer_123" -> 123, "123" -> 123
+     */
+    private Integer extractCustomerDbId(String customerId) {
+        if (customerId == null) {
+            return null;
+        }
+        // "customer_" 접두사가 있으면 제거
+        String idPart = customerId.startsWith("customer_")
+                ? customerId.substring("customer_".length())
+                : customerId;
+        try {
+            return Integer.parseInt(idPart);
+        } catch (NumberFormatException e) {
+            log.warn("customerId에서 숫자 추출 실패: {}", customerId);
+            return null;
+        }
+    }
+
+    /**
+     * 고객의 최신 접수 ID 조회
+     */
+    private Long findLatestRegistrationId(Integer customerDbId) {
+        if (customerDbId == null) {
+            return null;
+        }
+        Optional<Registration> registration = registrationRepository
+                .findTopByCustomerIdOrderByCreatedAtDesc(customerDbId);
+        return registration.map(r -> r.getId().longValue()).orElse(null);
     }
 
     /**

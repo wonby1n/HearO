@@ -2,9 +2,12 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
 export const useCustomerStore = defineStore('customer', () => {
+  // localStorage에서 customerId 복원
+  const savedCustomerId = sessionStorage.getItem('clientCustomerId') || localStorage.getItem('clientCustomerId')
+
   // 현재 고객 정보
   const currentCustomer = ref({
-    id: null,
+    id: savedCustomerId ? parseInt(savedCustomerId) : null,
     name: '',
     phone: '',
     productInfo: {
@@ -53,6 +56,11 @@ export const useCustomerStore = defineStore('customer', () => {
     currentCustomer.value = {
       ...currentCustomer.value,
       ...customerData
+    }
+    // customerId가 변경되면 localStorage에 저장
+    if (customerData.id) {
+      sessionStorage.setItem('clientCustomerId', String(customerData.id))
+      localStorage.setItem('clientCustomerId', String(customerData.id))
     }
   }
 

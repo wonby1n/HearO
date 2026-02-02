@@ -76,9 +76,21 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import { useDashboardStore } from '@/stores/dashboard'
+import { useAgentStore } from '@/stores/agent'
+import { useCallConnection } from '@/composables/useCallConnection'
 
 const authStore = useAuthStore()
 const dashboardStore = useDashboardStore()
+const agentStore = useAgentStore()
+
+// 통화 연결 관리 (상담원용)
+const { startListening, disconnect: disconnectCall, matchedData, navigateToCall } = useCallConnection('counselor', {
+  onMatched: (data) => {
+    console.log('[DashboardHeader] 매칭 알림 수신:', data)
+    // DashboardStore에 매칭 데이터 저장 (모달 표시용)
+    dashboardStore.setMatchedData(data)
+  }
+})
 
 // --- 상태 변수 ---
 const currentTime = ref(new Date())
@@ -143,14 +155,48 @@ const stopHeartbeat = () => {
 
 const handleBeforeUnload = () => {
   if (dashboardStore.consultationStatus.isActive) {
-    fetch('/api/v1/users/me/heartbeat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ isHeartbeatActive: false }),
-      keepalive: true
-    })
+    // 병렬 처리로 페이지 종료 전 완료 확률 향상
+    Promise.all([
+      fetch('/api/v1/users/me/heartbeat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isHeartbeatActive: false }),
+        keepalive: true
+      }),
+      fetch('/api/v1/users/me/status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'REST' }),
+        keepalive: true
+      })
+    ]).catch(err => console.error('[BeforeUnload] 요청 실패:', err))
   }
 }
+
+
+// --- 상담사 상태 업데이트 ---
+const updateCounselorStatus = async (status) => {
+
+  try {
+    const response = await axios.patch('/api/v1/users/me/status', {
+      status: status
+    })
+
+    if (response.data.isSuccess) {
+    }
+  } catch (error) {
+    // 401은 interceptor가 처리하므로 여기서는 다른 에러만 처리
+    if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') {
+      console.error('[Status Update] 네트워크 연결 불안정:', error.message)
+    } else if (error.response?.status !== 401) {
+      console.error('[Status Update] 실패:', error.response?.data || error.message)
+    }
+  }
+}
+
+
+
+
 
 const toggleConsultationStatus = () => {
   const newStatus = !dashboardStore.consultationStatus.isActive
@@ -160,12 +206,36 @@ const toggleConsultationStatus = () => {
 // --- Watchers ---
 watch(
   () => dashboardStore.consultationStatus.isActive,
-  (isActive) => {
+  (isActive, oldValue) => {
+    // 초기 로드 시 실행 방지 (undefined → false 변경 시 무시)
+    if (oldValue === undefined && !isActive) {
+      return
+    }
+
+    const status = isActive ? 'AVAILABLE' : 'REST'
+    updateCounselorStatus(status)
+
+    // 하트비트 관리
     if (isActive) {
       startHeartbeat()
+      // 상담 대기 상태로 변경
+      agentStore.currentStatus = 'AVAILABLE'
+
+      // 매칭 알림 구독 시작
+      const counselorId = authStore.user?.id
+      if (counselorId) {
+        console.log('[DashboardHeader] 매칭 알림 구독 시작, counselorId:', counselorId)
+        startListening(counselorId)
+      }
     } else {
       sendHeartbeat(false)
       stopHeartbeat()
+      // 휴식 상태로 변경
+      agentStore.currentStatus = 'REST'
+
+      // 매칭 알림 구독 해제 (LiveKit도 완전히 종료)
+      disconnectCall(true) // true: LiveKit도 끊기
+      console.log('[DashboardHeader] 매칭 알림 구독 해제 (LiveKit 포함)')
     }
   }
 )
@@ -189,7 +259,18 @@ watch(
 onMounted(() => {
   clockInterval = setInterval(() => { currentTime.value = new Date() }, 1000)
   window.addEventListener('beforeunload', handleBeforeUnload)
-  if (dashboardStore.consultationStatus.isActive) startHeartbeat()
+
+  // 상담 ON 상태면 하트비트 및 매칭 알림 재시작
+  if (dashboardStore.consultationStatus.isActive) {
+    startHeartbeat()
+
+    // STOMP 재연결 (통화 종료 후 대시보드로 돌아왔을 때)
+    const counselorId = authStore.user?.id
+    if (counselorId) {
+      console.log('[DashboardHeader] 상담 ON 상태 - 매칭 알림 재연결, counselorId:', counselorId)
+      startListening(counselorId)
+    }
+  }
 })
 
 onUnmounted(() => {
@@ -198,6 +279,13 @@ onUnmounted(() => {
   stopHeartbeat()
   if (countChangeTimer) clearTimeout(countChangeTimer)
   if (countAnimationTimer) clearTimeout(countAnimationTimer)
+
+  // 페이지 이동 시에는 LiveKit 연결 유지 (STOMP만 정리)
+  // CounselorCallView에서 계속 사용할 수 있도록 함
+  if (dashboardStore.consultationStatus.isActive) {
+    console.log('[DashboardHeader] 언마운트 - LiveKit 연결 유지, STOMP만 정리')
+    disconnectCall(false) // false: LiveKit은 유지
+  }
 })
 </script>
 

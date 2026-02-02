@@ -155,6 +155,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
 
 const router = useRouter()
 
@@ -197,37 +198,50 @@ const handlePhoneInput = (event) => {
 }
 
 // 인증번호 발송
-const sendVerification = () => {
+const sendVerification = async () => {
   if (!isPhoneValid.value) return
 
-  // TODO: 실제 API 호출
-  // 현재는 발송만 시뮬레이션
-  verificationSent.value = true
-  console.log('인증번호 발송:', {
-    carrier: formData.value.carrier,
-    name: formData.value.name,
-    phone: formData.value.phone
-  })
+  try {
+    const response = await axios.post('/api/v1/auth/customer/login', {
+      name: formData.value.name,
+      phone: formData.value.phone
+    })
+
+    if (response.data.accessToken) {
+      // JWT 토큰을 localStorage에 저장
+      sessionStorage.setItem('customerAccessToken', response.data.accessToken)
+      sessionStorage.setItem('customerId', response.data.customerId)
+      localStorage.setItem('customerAccessToken', response.data.accessToken)
+      localStorage.setItem('customerId', response.data.customerId)
+    }
+
+    // 인증번호 입력 화면 표시
+    verificationSent.value = true
+
+  } catch (error) {
+    console.error('❌ API 호출 실패!')
+
+    alert('본인 인증에 실패했습니다. 다시 시도해주세요.')
+  }
+
 }
 
 // 인증번호 재발송
-const resendVerification = () => {
+const resendVerification = async () => {
   // 인증 상태 초기화
   verificationError.value = ''
   verificationSuccess.value = false
   formData.value.verificationCode = ''
 
-  // TODO: 실제 API 호출
-  console.log('인증번호 재발송:', {
-    carrier: formData.value.carrier,
-    name: formData.value.name,
-    phone: formData.value.phone
-  })
+
+  // 기존 sendVerification 로직 재사용
+  await sendVerification()
 }
 
 // 인증번호 확인
-const verifyCode = () => {
+const verifyCode = async () => {
   if (formData.value.verificationCode.length !== 6) return
+
 
   // 인증번호 검증 (961018만 통과)
   if (formData.value.verificationCode !== '961018') {
@@ -236,11 +250,28 @@ const verifyCode = () => {
     return
   }
 
-  // 인증 성공
-  verificationError.value = ''
-  verificationSuccess.value = true
+  try {
 
-  console.log('인증 성공:', formData.value)
+    const response = await axios.post('/api/v1/auth/customer/login', {
+      name: formData.value.name,
+      phone: formData.value.phone
+    })
+
+    // accessToken 저장
+    const { accessToken, customerId } = response.data
+    sessionStorage.setItem('customerAccessToken', accessToken)
+    sessionStorage.setItem('clientCustomerId', String(customerId))
+    localStorage.setItem('customerAccessToken', accessToken)
+    localStorage.setItem('clientCustomerId', String(customerId))
+
+    // 인증 성공 상태 표시
+    verificationError.value = ''
+    verificationSuccess.value = true
+  } catch (error) {
+    console.error('[ClientVerification] 로그인 실패:', error)
+    verificationError.value = '로그인에 실패했습니다. 다시 시도해주세요.'
+    verificationSuccess.value = false
+  }
 }
 
 // 인증 에러 메시지 초기화
@@ -250,18 +281,16 @@ const clearVerificationError = () => {
 
 // 뒤로 가기
 const handleBack = () => {
-  router.push({ name: 'client-consultation-info' })
+  router.push({ name: 'client-landing' })
 }
 
 // 폼 제출
 const handleSubmit = () => {
   if (!isFormComplete.value) return
 
-  // TODO: 실제 API 호출
-  console.log('인증 완료:', formData.value)
-
-  // 임시로 localStorage에 저장
+  // 인증 정보를 localStorage에 저장
   localStorage.setItem('clientVerification', JSON.stringify(formData.value))
+
 
   // 다음 단계로 이동 (3/3 단계 - 약관 동의)
   router.push({ name: 'client-consultation-consent' })

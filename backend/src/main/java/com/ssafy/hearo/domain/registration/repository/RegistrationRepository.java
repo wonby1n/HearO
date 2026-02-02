@@ -16,4 +16,5 @@ public interface RegistrationRepository extends JpaRepository<Registration, Inte
            where r.id = :registrationId
            """)
     Optional<Registration> findDetailById(Integer registrationId);
+    Optional<Registration> findTopByCustomerIdOrderByCreatedAtDesc(Integer customerId);
 }

@@ -13,6 +13,7 @@ import {
  * @param {Function} options.onTrackSubscribed - 트랙 구독 시 콜백
  * @param {Function} options.onTrackUnsubscribed - 트랙 구독 해제 시 콜백
  * @param {Function} options.onDisconnected - 연결 해제 시 콜백
+ * @param {Function} options.onParticipantDisconnected - 참가자 연결 해제 시 콜백
  * @param {Function} options.onError - 에러 발생 시 콜백
  */
 export function useLiveKit(options = {}) {
@@ -25,6 +26,11 @@ export function useLiveKit(options = {}) {
   const error = ref(null)
   const isMuted = ref(false)
 
+  // 기본 동작: 원격 오디오 자동 attach
+  // 상담원 측에서 딜레이/필터 파이프라인을 구성하려면 false로 두고,
+  // options.onTrackSubscribed에서 별도 처리하면 됨.
+  const autoAttachRemoteAudio = options.autoAttachRemoteAudio ?? true
+
   // 연결 상태 computed
   const isConnected = ref(false)
   const isConnecting = ref(false)
@@ -36,13 +42,19 @@ export function useLiveKit(options = {}) {
    * @param {Object} roomOptions - 룸 옵션
    */
   const connect = async (serverUrl, token, roomOptions = {}) => {
+    // 중복 연결 방지: 이미 연결 중이면 무시
+    if (isConnecting.value || isConnected.value) {
+      console.warn('[LiveKit] 이미 연결 중이므로 중복 연결 시도 무시')
+      return room.value
+    }
+
     try {
       error.value = null
       isConnecting.value = true
       connectionState.value = ConnectionState.Connecting
 
-      // 기존 룸이 있으면 정리
-      if (room.value) {
+      // 기존 룸이 있으면 정리 (Disconnected 상태일 때만)
+      if (room.value && connectionState.value === ConnectionState.Disconnected) {
         await disconnect()
       }
 
@@ -99,10 +111,12 @@ export function useLiveKit(options = {}) {
           publication
         })
 
-        // 오디오 요소에 연결
-        const audioElement = track.attach()
-        audioElement.id = `audio-${participant.identity}`
-        document.body.appendChild(audioElement)
+        // 오디오 요소 자동 attach (기본)
+        if (autoAttachRemoteAudio) {
+          const audioElement = track.attach()
+          audioElement.id = `audio-${participant.identity}`
+          document.body.appendChild(audioElement)
+        }
       }
 
       options.onTrackSubscribed?.(track, publication, participant)
@@ -117,8 +131,10 @@ export function useLiveKit(options = {}) {
           t => t.participant !== participant.identity
         )
 
-        // 오디오 요소 제거
-        track.detach().forEach(el => el.remove())
+        // 오디오 요소 제거 (auto attach를 켠 경우에만)
+        if (autoAttachRemoteAudio) {
+          track.detach().forEach(el => el.remove())
+        }
       }
 
       options.onTrackUnsubscribed?.(track, publication, participant)
@@ -134,6 +150,9 @@ export function useLiveKit(options = {}) {
     roomInstance.on(RoomEvent.ParticipantDisconnected, (participant) => {
       console.log('[LiveKit] 참가자 연결 해제:', participant.identity)
       updateParticipants(roomInstance)
+
+      // 상대방이 나갔을 때 콜백 호출
+      options.onParticipantDisconnected?.(participant)
     })
 
     // 연결 해제
@@ -191,20 +210,31 @@ export function useLiveKit(options = {}) {
     }
 
     try {
-      await room.value.localParticipant.setMicrophoneEnabled(true)
+      // DataCloneError 회피: 브라우저 API로 직접 MediaStream 가져오기
+      console.log('[LiveKit] 마이크 권한 요청 중...')
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
 
-      const micTrack = room.value.localParticipant.getTrackPublication(Track.Source.Microphone)
-      if (micTrack?.track) {
-        localAudioTrack.value = micTrack.track
+      console.log('[LiveKit] 마이크 스트림 획득, LiveKit에 publish 중...')
+      const audioTracks = stream.getAudioTracks()
+      if (audioTracks.length > 0) {
+        // LiveKit에 트랙 publish
+        const publication = await room.value.localParticipant.publishTrack(audioTracks[0])
+        localAudioTrack.value = publication.track
+        isMuted.value = false
+        console.log('[LiveKit] 마이크 활성화 성공')
+        return localAudioTrack.value
+      } else {
+        throw new Error('오디오 트랙을 찾을 수 없습니다')
       }
-
-      isMuted.value = false
-      console.log('[LiveKit] 마이크 활성화')
-
-      return localAudioTrack.value
     } catch (err) {
       console.error('[LiveKit] 마이크 활성화 실패:', err)
       error.value = err
+
+      // 권한 거부 에러인 경우 사용자에게 알림
+      if (err.name === 'NotAllowedError') {
+        console.warn('[LiveKit] 마이크 권한이 거부되었습니다. 브라우저 설정에서 마이크 권한을 허용해주세요.')
+      }
+
       throw err
     }
   }
@@ -309,8 +339,11 @@ export function useLiveKit(options = {}) {
   }
 
   // 컴포넌트 언마운트 시 정리
+  // 주의: 자동 disconnect를 제거하여 페이지 이동 시에도 연결 유지
+  // disconnect는 명시적으로만 호출되어야 함
   onUnmounted(() => {
-    disconnect()
+    console.log('[LiveKit] useLiveKit 언마운트 - 자동 disconnect 생략')
+    // disconnect() 제거 - call store가 room을 관리하므로 여기서 끊지 않음
   })
 
   return {

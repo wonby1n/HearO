@@ -69,6 +69,22 @@ onUnmounted(() => {
     clearTimeout(redirectTimer)
   }
 })
+
+// 다음으로 버튼 클릭 시 만족도 조사로 이동
+const clientReview = () => {
+  router.push({
+    name: 'client-review',
+    query: { consultationId: route.query.consultationId }
+  })
+}
+
+// 재연결 버튼 클릭 시 재연결 페이지로 이동
+const handleReconnect = () => {
+  router.push({
+    name: 'client-reconnect',
+    query: { consultationId: route.query.consultationId }
+  })
+}
 </script>
 
 <style scoped>

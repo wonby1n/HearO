@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import axios from 'axios'
 import router from '@/router'
+import { useAgentStore } from './agent'
 
 export const useAuthStore = defineStore('auth', () => {
   // 상태
@@ -33,12 +34,9 @@ export const useAuthStore = defineStore('auth', () => {
     requestInterceptorId = axios.interceptors.request.use(
       (config) => {
         const token = accessToken.value
-        console.log('[Axios Interceptor] Request to:', config.url)
-        console.log('[Axios Interceptor] Token exists:', !!token)
 
         if (token) {
           config.headers.Authorization = `Bearer ${token}`
-          console.log('[Axios Interceptor] Added Authorization header')
         }
         return config
       },
@@ -55,11 +53,24 @@ export const useAuthStore = defineStore('auth', () => {
         console.error('[Axios Interceptor] Response error:', error.response?.status, error.config?.url)
 
         if (error.response?.status === 401) {
-          // 로그인/리프레시 요청이 아닌 경우에만 로그아웃
-          const isAuthEndpoint = error.config?.url?.includes('/api/v1/auth/')
-          if (!isAuthEndpoint) {
+          // 공개 엔드포인트 목록 (인증 없이 접근 가능)
+          const publicEndpoints = [
+            '/api/v1/auth/',
+            '/api/v1/products/',
+            '/api/v1/queue/',
+            '/api/v1/calls/'
+          ]
+
+          // 공개 엔드포인트인 경우 자동 로그아웃하지 않음
+          const isPublicEndpoint = publicEndpoints.some(endpoint =>
+            error.config?.url?.includes(endpoint)
+          )
+
+          if (!isPublicEndpoint) {
             console.warn('[Axios Interceptor] 401 Unauthorized - logging out')
             logout()
+          } else {
+            console.warn('[Axios Interceptor] 401 on public endpoint - not logging out')
           }
         }
         return Promise.reject(error)
@@ -90,9 +101,12 @@ export const useAuthStore = defineStore('auth', () => {
       // 토큰 및 사용자 정보 저장
       accessToken.value = token
       user.value = userData
-      
+
       localStorage.setItem('accessToken', token)
       localStorage.setItem('user', JSON.stringify(userData))
+
+      // 로그인 시 상담 상태 초기화 (heartbeat를 false로 시작)
+      localStorage.setItem('consultationStatus', JSON.stringify({ isActive: false }))
 
       return { success: true }
     } catch (err) {
@@ -103,7 +117,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // 로그아웃
+  // 로그아웃 (상담 모드가 OFF인 상태에서만 호출됨)
   const logout = async () => {
     try {
       // 백엔드 로그아웃 API 호출 (refreshToken 쿠키 삭제)
@@ -117,6 +131,11 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
     localStorage.removeItem('accessToken')
     localStorage.removeItem('user')
+    localStorage.removeItem('consultationStatus') // 상담 상태 초기화
+
+    // agentStore 리셋 (에너지 레벨 초기화)
+    const agentStore = useAgentStore()
+    agentStore.logout()
 
     // 로그인 페이지로 리다이렉트
     router.push('/login')

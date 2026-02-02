@@ -163,6 +163,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCustomerStore } from '@/stores/customer'
 import { useNotificationStore } from '@/stores/notification'
+import axios from 'axios'
 
 const router = useRouter()
 const customerStore = useCustomerStore()
@@ -203,18 +204,78 @@ const handleBack = () => {
   router.push({ name: 'client-consultation-verification' })
 }
 
-const handleSubmit = () => {
+const handleSubmit = async () => {
   if (!isFormComplete.value) return
 
-  // 약관 동의 정보 저장
-  customerStore.saveConsent(agreements.value)
+  try {
+    // 1단계에서 저장한 상담 데이터 가져오기
+    const consultationDataStr = localStorage.getItem('clientConsultationData')
+    if (!consultationDataStr) {
+      notificationStore.notifyWarning('상담 정보가 없습니다. 처음부터 다시 시작해주세요.')
+      router.push({ name: 'client-landing' })
+      return
+    }
 
-  // 성공 알림
-  notificationStore.notifySuccess('약관 동의가 완료되었습니다')
+    const consultationData = JSON.parse(consultationDataStr)
 
-  // 상담사 연결 (추후 구현)
-  // TODO: 상담사 연결 로직 구현 후 주석 해제
-  // router.push({ name: 'client-call' })
+    // 2단계에서 받은 accessToken 가져오기
+    const accessToken = sessionStorage.getItem('customerAccessToken') || localStorage.getItem('customerAccessToken')
+    if (!accessToken) {
+      notificationStore.notifyWarning('인증 정보가 없습니다. 본인 인증을 다시 진행해주세요.')
+      router.push({ name: 'client-consultation-verification' })
+      return
+    }
+
+    // productId 가져오기
+    const productId = localStorage.getItem('clientProductId')
+    if (!productId) {
+      notificationStore.notifyWarning('제품 정보가 없습니다. 처음부터 다시 진행해주세요.')
+      router.push({ name: 'client-landing' })
+      return
+    }
+
+    // 📦 데이터 전송 (누락되었던 manufacturedAt, warrantyEndsAt 추가)
+    const payload = {
+      symptom: consultationData.symptom,
+      errorCode: consultationData.errorCode,
+      productId: parseInt(productId),
+      manufacturedAt: consultationData.manufacturedAt,
+      warrantyEndsAt: consultationData.warrantyEndsAt
+    }
+
+    console.log('🚀 API 전송 본문:', payload)
+
+    // 대기열 등록 API 호출
+    const response = await axios.post('/api/v1/registrations', payload, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      }
+    })
+
+    console.log('✅ 등록 성공 응답:', response.data)
+
+    // 약관 동의 정보 저장
+    customerStore.saveConsent(agreements.value)
+
+    // 성공 알림
+    notificationStore.notifySuccess('상담 접수가 완료되었습니다')
+
+    // localStorage 정리 (인증 정보 외 임시 데이터 삭제)
+    localStorage.removeItem('clientConsultationData')
+
+    // 대기 페이지로 이동
+    router.push({ name: 'client-waiting' })
+
+  } catch (error) {
+    console.error('❌ 대기열 등록 실패:', error.response?.data || error.message)
+
+    if (error.response?.status === 401) {
+      notificationStore.notifyWarning('인증이 만료되었습니다. 본인 인증을 다시 진행해주세요.')
+      router.push({ name: 'client-consultation-verification' })
+    } else {
+      notificationStore.notifyWarning('접수 중 오류가 발생했습니다. 다시 시도해주세요.')
+    }
+  }
 }
 </script>
 
@@ -226,7 +287,6 @@ const handleSubmit = () => {
   background: #f5f5f7;
   display: flex;
   flex-direction: column;
-  /* 시스템 폰트 스택 적용 */
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans KR", sans-serif;
   color: #1d1d1f;
   -webkit-font-smoothing: antialiased;
@@ -367,7 +427,6 @@ const handleSubmit = () => {
   border: 1px solid #f0f0f2;
 }
 
-/* 약관 헤더 */
 .term-header {
   width: 100%;
   padding: 16px;
@@ -427,7 +486,6 @@ const handleSubmit = () => {
   transform: rotate(180deg);
 }
 
-/* 약관 상세 내용 디자인 개선 */
 .term-content {
   padding: 0 16px 16px 16px;
   animation: slideDown 0.3s ease-out;

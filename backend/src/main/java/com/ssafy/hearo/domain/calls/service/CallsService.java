@@ -1,7 +1,5 @@
-package com.ssafy.hearo.domain.calls;
+package com.ssafy.hearo.domain.calls.service;
 
-
-import org.springframework.stereotype.Service;
 
 public interface CallsService {
     String createToken(String identity, String roomName);

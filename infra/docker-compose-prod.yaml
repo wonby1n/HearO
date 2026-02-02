@@ -6,7 +6,7 @@ services:
     restart: always
     ports:
       - "8000:8080"
-    env_file:              
+    env_file:
       - ./.env
     networks:
       - ssafy-network 
