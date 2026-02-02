@@ -1,6 +1,6 @@
 <template>
   <!-- [피드백 반영] data-color 속성을 통해 CSS 변수를 제어합니다. -->
-  <div 
+  <div
     class="stats-card card flex flex-col items-center justify-center h-full p-4 bg-white rounded-2xl shadow-sm border border-gray-50 transition-all hover:shadow-md"
     :data-color="color"
   >
@@ -30,8 +30,6 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-
 const props = defineProps({
   icon: {
     type: String,
