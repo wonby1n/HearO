@@ -73,7 +73,7 @@
         <div class="question-item">
           <label class="question-label">추가 의견이 있으면 작성해주세요.</label>
           <textarea
-            v-model="additionalComment"
+            v-model="feedback"
             class="comment-textarea"
             placeholder="상담 중 불편하셨던 점이나 칭찬하고 싶은 내용을 적어주세요."
             rows="4"
@@ -108,7 +108,7 @@ const notificationStore = useNotificationStore()
 const processRating = ref(0)
 const solutionRating = ref(0)
 const kindnessRating = ref(0)
-const additionalComment = ref('')
+const feedback = ref('')
 const isLoading = ref(false)
 
 // 폼 유효성 검사 (두 별점 모두 선택해야 제출 가능)
@@ -126,41 +126,48 @@ const handleSubmit = async () => {
   if (!isFormValid.value || isLoading.value) return
 
   const consultationId = route.query.consultationId
-  // TODO: API 연동 시 consultationId 검증 활성화
-  // if (!consultationId) {
-  //   notificationStore.notifyError('상담 정보를 찾을 수 없습니다')
-  //   return
-  // }
+  console.log('📝 [ClientReview] consultationId:', consultationId)
 
-  const reviewData = {
-    processRating: processRating.value,
-    solutionRating: solutionRating.value,
-    kindnessRating: kindnessRating.value,
-    additionalComment: additionalComment.value,
-    consultationId
+  if (!consultationId) {
+    notificationStore.notifyError('상담 정보를 찾을 수 없습니다')
+    console.error('❌ [ClientReview] consultationId가 없습니다')
+    return
   }
 
+  const reviewData = {
+    processRating: Number(processRating.value),
+    solutionRating: Number(solutionRating.value),
+    kindnessRating: Number(kindnessRating.value),
+    feedback: feedback.value.trim()
+  }
+
+  console.log('📤 [ClientReview] 제출 데이터:', reviewData)
   isLoading.value = true
 
   try {
-    // TODO: API 연동 시 주석 해제
-    // const response = await fetch(`/api/v1/consultations/${consultationId}/review`, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({
-    //     processRating: reviewData.processRating,
-    //     solutionRating: reviewData.solutionRating,
-    //     kindnessRating: reviewData.kindnessRating,
-    //     comment: reviewData.additionalComment
-    //   })
-    // })
-    //
-    // if (!response.ok) throw new Error('리뷰 제출 실패')
+    const response = await fetch(`/api/v1/consultations/${consultationId}/rating`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(reviewData)
+    })
+
+    console.log('📡 [ClientReview] 응답 상태:', response.status)
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('❌ [ClientReview] API 에러:', errorText)
+      throw new Error(`리뷰 제출 실패: ${response.status}`)
+    }
+
+    const result = await response.json()
+    console.log('✅ [ClientReview] 제출 성공:', result)
+
+    notificationStore.notifySuccess('리뷰가 제출되었습니다')
 
     // API 성공 후에만 페이지 이동
     router.push({ name: 'client-final' })
   } catch (error) {
-    console.error('리뷰 제출 중 오류:', error)
+    console.error('❌ [ClientReview] 리뷰 제출 중 오류:', error)
     notificationStore.notifyError('리뷰 제출에 실패했습니다')
     // 에러 발생 시 페이지 이동하지 않음
   } finally {
