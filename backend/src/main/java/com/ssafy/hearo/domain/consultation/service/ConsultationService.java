@@ -1,18 +1,18 @@
 package com.ssafy.hearo.domain.consultation.service;
 
-import com.ssafy.hearo.domain.consultation.dto.ConsultationEndRequest;
-import com.ssafy.hearo.domain.consultation.dto.ConsultationEndResponse;
-import com.ssafy.hearo.domain.consultation.dto.ConsultationPatchRequest;
-import com.ssafy.hearo.domain.consultation.dto.ConsultationSummaryResponse;
+import com.ssafy.hearo.domain.consultation.dto.*;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
 public interface ConsultationService {
-    public List<ConsultationSummaryResponse> getLatest3ByCustomerId(Integer customerId);
 
-    ConsultationEndResponse endAndSave(Long userId, ConsultationEndRequest request);
+    List<ConsultationSummaryResponse> getLatest3ByCustomerId(Integer customerId);
+
+    ConsultationStartResponse startConsultation(Long userId, ConsultationStartRequest request);
+
+    ConsultationEndResponse finalizeConsultation(Integer consultationId, Long userId, ConsultationFinalizeRequest request);
 
     void patchConsultation(Integer consultationId, ConsultationPatchRequest request);
 }
