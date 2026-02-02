@@ -77,11 +77,13 @@ import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useAgentStore } from '@/stores/agent'
+import { useCallStore } from '@/stores/call'
 import { useCallConnection } from '@/composables/useCallConnection'
 
 const authStore = useAuthStore()
 const dashboardStore = useDashboardStore()
 const agentStore = useAgentStore()
+const callStore = useCallStore()
 
 // 통화 연결 관리 (상담원용)
 const {
