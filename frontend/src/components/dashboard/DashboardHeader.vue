@@ -87,14 +87,24 @@ const callStore = useCallStore()
 
 // 통화 연결 관리 (상담원용)
 const { startListening, disconnect: disconnectCall, matchedData, navigateToCall } = useCallConnection('counselor', {
-  onMatched: (data) => {
+  onMatched: async (data) => {
+    console.log('[DashboardHeader] 매칭 알림 수신:', data)
+
     // DashboardStore에 매칭 데이터 저장 (모달 표시용)
     dashboardStore.setMatchedData(data)
+
     // CallStore에도 저장 (CounselorCallView에서 registrationId 참조용)
     callStore.initiateCall({
       registrationId: data.registrationId,
       customerId: data.customerId
     })
+
+    // 통화 시작: status를 IN_CALL로 변경
+    const success = await updateCounselorStatus('IN_CALL')
+    if (success) {
+      agentStore.currentStatus = 'IN_CALL'
+      console.log('[DashboardHeader] 통화 시작 - status: IN_CALL')
+    }
   }
 })
 
