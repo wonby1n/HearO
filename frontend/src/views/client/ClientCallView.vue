@@ -77,14 +77,16 @@
         <button
           @click="toggleSpeaker"
           :class="['control-btn', { active: isSpeakerOn }]"
-          title="스피커"
+          :title="isSpeakerOn ? '스피커 끄기' : '스피커 켜기'"
         >
           <div class="control-icon-wrapper">
+            <!-- 스피커 켜짐 (소리 큼) -->
             <svg v-if="isSpeakerOn" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clip-rule="evenodd"/>
             </svg>
+            <!-- 스피커 꺼짐 (소리 작음 - 단일 파동) -->
             <svg v-else class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
+              <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM11.828 5.757a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clip-rule="evenodd"/>
             </svg>
           </div>
         </button>
@@ -175,6 +177,94 @@ import { useCustomerStore } from '@/stores/customer'
 import { useLiveKit } from '@/composables/useLiveKit'
 import { AUTO_TERMINATION_REDIRECT_DELAY_MS } from '@/constants/call'
 
+// =========================
+// 고객 STT(Web Speech) → 상담원으로 전송
+// =========================
+let recognition = null
+
+const getSpeechRecognition = () => {
+  return window.SpeechRecognition || window.webkitSpeechRecognition || null
+}
+
+const stopCustomerSTT = () => {
+  try {
+    if (recognition) {
+      recognition.onresult = null
+      recognition.onerror = null
+      recognition.onend = null
+      recognition.stop()
+      recognition = null
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
+const sendCustomerSttToCounselor = async (text) => {
+  const r = room.value || callStore.livekitRoom
+  if (!r) return
+  const payload = {
+    type: 'stt',
+    from: r.localParticipant?.identity ?? 'customer',
+    text,
+    ts: Date.now()
+  }
+  try {
+    const bytes = new TextEncoder().encode(JSON.stringify(payload))
+    r.localParticipant.publishData(bytes, { reliable: true })
+  } catch (e) {
+    console.warn('[ClientCallView] STT 전송 실패:', e)
+  }
+}
+
+const startCustomerSTT = async () => {
+  // room 연결된 이후에만
+  if (!(room.value || callStore.livekitRoom)) return
+
+  const SR = getSpeechRecognition()
+  if (!SR) {
+    console.warn('[ClientCallView] Web Speech STT 미지원 브라우저')
+    return
+  }
+
+  stopCustomerSTT()
+
+  recognition = new SR()
+  recognition.lang = 'ko-KR'
+  recognition.interimResults = true
+  recognition.continuous = true
+
+  recognition.onerror = (ev) => {
+    console.warn('[ClientCallView] STT 오류:', ev?.error)
+  }
+
+  recognition.onend = () => {
+    // 통화 중이면 자동 재시작
+    if (callStore.isInCall) {
+      try { recognition?.start?.() } catch {}
+    }
+  }
+
+  recognition.onresult = async (event) => {
+    let finalText = ''
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const res = event.results[i]
+      const t = res[0]?.transcript ?? ''
+      if (res.isFinal) finalText += t
+    }
+
+    const cleaned = finalText.trim()
+    if (cleaned) await sendCustomerSttToCounselor(cleaned)
+  }
+
+  try {
+    recognition.start()
+    console.log('[ClientCallView] 고객 STT 시작')
+  } catch (e) {
+    console.warn('[ClientCallView] 고객 STT 시작 실패:', e)
+  }
+}
+
 const router = useRouter()
 const callStore = useCallStore()
 const customerStore = useCustomerStore()
@@ -232,7 +322,7 @@ const {
 const callDuration = ref(0)
 const queuePosition = ref(3) // 테스트용 대기 순번
 const isMuted = ref(false)
-const isSpeakerOn = ref(true)
+const isSpeakerOn = ref(false) // 기본값 false (회색)
 const showConfirmModal = ref(false)
 const showAutoTerminationModal = ref(false)
 
@@ -283,6 +373,12 @@ const toggleSpeaker = () => {
 // 음소거 토글
 const toggleMute = async () => {
   isMuted.value = !isMuted.value
+  if(isMuted.value === true){
+    stopCustomerSTT();
+  }
+  else{
+    startCustomerSTT();
+  }
   await livekitToggleMute()
   console.log('[Client] 음소거 상태:', isMuted.value)
 }
@@ -374,14 +470,15 @@ onMounted(async () => {
     })
   }
 
-  // 테스트용: 바로 통화 중 상태로 설정
-  // localStorage에서 customerId 가져오기
-  const customerId = sessionStorage.getItem('clientCustomerId') || localStorage.getItem('clientCustomerId') || customerStore.currentCustomer.id
-  callStore.startCall({
-    id: `client-call-${Date.now()}`,
-    customerId: customerId ? parseInt(customerId) : null,
-    roomToken: 'test-token'
-  })
+ 
+    const customerId = sessionStorage.getItem('clientCustomerId') || localStorage.getItem('clientCustomerId') || customerStore.currentCustomer.id
+    startCustomerSTT()
+    callStore.startCall({
+      id: `client-call-${Date.now()}`,
+      customerId: customerId ? parseInt(customerId) : null,
+      roomToken: 'test-token'
+    })
+  
 
   // 통화 시간 타이머
   timerInterval = setInterval(() => {
@@ -407,6 +504,8 @@ onUnmounted(async () => {
     await callStore.livekitRoom.disconnect()
     callStore.setLivekitRoom(null)
   }
+
+  stopCustomerSTT()
 
   // 자체 LiveKit 연결 종료
   if (isConnected.value) {

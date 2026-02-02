@@ -56,7 +56,7 @@ public class RegistrationService {
 
     @Transactional(readOnly = true)
     public RegistrationDetailResponse getRegistrationDetail(Integer registrationId) {
-        Registration registration = registrationRepository.findById(registrationId)
+        Registration registration = registrationRepository.findDetailById(registrationId)
                 .orElseThrow(() -> new EntityNotFoundException("해당 접수 내역을 찾을 수 없습니다. ID: " + registrationId));
 
         return RegistrationDetailResponse.from(registration);

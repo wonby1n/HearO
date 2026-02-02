@@ -2,7 +2,7 @@
   <div class="bg-white rounded-lg shadow-sm border border-gray-200 h-full flex flex-col">
     <!-- 고객 정보 섹션 -->
     <div class="bg-primary-600 text-white px-6 py-4 rounded-t-lg">
-      <h3 class="text-sm font-semibold mb-1">사스케</h3>
+      <h3 class="text-sm font-semibold mb-1">{{ customerInfo.customerName || '고객 정보 없음' }}</h3>
       <p class="text-lg font-medium">{{ maskedPhone }}</p>
     </div>
 
@@ -43,31 +43,50 @@
 
         <div class="space-y-3">
           <!-- 제품 이미지 -->
-          <div v-if="customerInfo.productImage" class="flex justify-center">
+          <div class="flex justify-center mb-4">
             <img
-              :src="customerInfo.productImage"
+              v-if="productImg && !imageLoadFailed"
+              :src="productImg"
               :alt="customerInfo.productName"
-              class="w-32 h-32 object-contain"
+              class="w-40 h-40 object-contain rounded-md border border-gray-100 shadow-sm"
+              @error="handleImageError"
             />
+            <div v-else class="w-40 h-40 flex items-center justify-center bg-gray-100 rounded-md border border-gray-200">
+              <svg class="w-16 h-16 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"/>
+              </svg>
+            </div>
           </div>
 
           <!-- 제품 정보 -->
           <div class="space-y-2 text-sm">
             <div>
               <span class="text-gray-500">제품:</span>
-              <span class="ml-2 font-medium text-gray-900">{{ customerInfo.productName }}</span>
+              <span class="ml-2 font-medium text-gray-900">{{ customerInfo.productName || '정보 없음' }}</span>
             </div>
             <div>
-              <span class="text-gray-500">가전제품 / 냉장고</span>
+              <span class="text-gray-500">카테고리:</span>
+              <span class="ml-2 font-medium text-gray-900">{{ customerInfo.productCategory || '정보 없음' }}</span>
             </div>
             <div>
               <span class="text-gray-500">모델명:</span>
-              <span class="ml-2 font-medium text-gray-900">{{ customerInfo.modelNumber }}</span>
+              <span class="ml-2 font-medium text-gray-900">{{ customerInfo.modelCode || '정보 없음' }}</span>
             </div>
             <div>
-              <span class="text-gray-500">구매일시 / 보증:</span>
-              <span class="ml-2 text-gray-900">{{ customerInfo.purchaseDate }}</span>
-              <span class="ml-2 text-gray-900">보증 기간 {{ customerInfo.warrantyStatus }}</span>
+              <span class="text-gray-500">구매일시:</span>
+              <span class="ml-2 text-gray-900">{{ customerInfo.purchaseDate || '정보 없음' }}</span>
+            </div>
+            <div>
+              <span class="text-gray-500">보증기간:</span>
+              <span
+                class="ml-2 font-semibold"
+                :class="warrantyClass"
+              >
+                {{ warrantyStatusText }}
+              </span>
+              <span v-if="customerInfo.warrantyStatus?.endDate" class="ml-2 text-xs text-gray-500">
+                ({{ customerInfo.warrantyStatus.endDate }} 까지)
+              </span>
             </div>
           </div>
         </div>
@@ -83,7 +102,14 @@
         </div>
 
         <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-          <ul class="space-y-2 text-sm text-gray-900">
+          <!-- 에러 코드 (있는 경우) -->
+          <div v-if="customerInfo.errorCode && customerInfo.errorCode !== '정보 없음'" class="mb-3 pb-3 border-b border-red-200">
+            <span class="text-xs text-gray-600">에러 코드:</span>
+            <span class="ml-2 font-mono font-semibold text-red-700">{{ customerInfo.errorCode }}</span>
+          </div>
+
+          <!-- 증상 목록 -->
+          <ul v-if="customerInfo.symptoms && customerInfo.symptoms.length > 0" class="space-y-2 text-sm text-gray-900">
             <li
               v-for="(symptom, index) in customerInfo.symptoms"
               :key="index"
@@ -93,6 +119,9 @@
               <span>{{ symptom }}</span>
             </li>
           </ul>
+          <div v-else class="text-sm text-gray-500 text-center py-2">
+            증상 정보가 없습니다.
+          </div>
         </div>
       </section>
 
@@ -129,18 +158,22 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 
 const props = defineProps({
   customerInfo: {
     type: Object,
     default: () => ({
+      customerName: '고객 정보 없음',
       phone: '010-1234-5678',
       productName: '삼성',
+      productCategory: '정보 없음',
+      modelCode: 'SSAFY-E106',
       modelNumber: 'SSAFY-E106',
       purchaseDate: '2026.01.12',
-      warrantyStatus: '이내',
+      warrantyStatus: { status: '정보 없음', isExpired: null, endDate: null },
       productImage: null,
+      errorCode: null,
       symptoms: [],
       consultationHistory: []
     })
@@ -155,9 +188,17 @@ const props = defineProps({
   }
 })
 
+// ✅ 제품 이미지 경로 계산
+const productImg = computed(() => {
+  const url = props.customerInfo.productImageUrl
+  return url ? `https://i14e106.p.ssafy.io${url}` : null
+})
+
 // 전화번호 마스킹 (010-****-5678)
 const maskedPhone = computed(() => {
-  if (!props.customerInfo.phone) return '010-****-****'
+  if (!props.customerInfo.phone || props.customerInfo.phone === '정보 없음') {
+    return '010-****-****'
+  }
 
   const parts = props.customerInfo.phone.split('-')
   if (parts.length === 3) {
@@ -165,6 +206,31 @@ const maskedPhone = computed(() => {
   }
   return props.customerInfo.phone
 })
+
+// 보증 상태 텍스트
+const warrantyStatusText = computed(() => {
+  const warranty = props.customerInfo.warrantyStatus
+  if (!warranty || warranty.status === '정보 없음') {
+    return '정보 없음'
+  }
+  return warranty.isExpired ? '보증기간 만료' : '보증기간 이내'
+})
+
+// 상태별 스타일 클래스
+const warrantyClass = computed(() => {
+  const warranty = props.customerInfo.warrantyStatus
+  if (!warranty || warranty.status === '정보 없음') {
+    return 'text-gray-900'
+  }
+  return warranty.isExpired ? 'text-red-600' : 'text-blue-600'
+})
+
+// 이미지 로드 실패 시 처리
+const imageLoadFailed = ref(false)
+const handleImageError = () => {
+  imageLoadFailed.value = true
+  console.warn('제품 이미지 로드 실패:', props.customerInfo.productImageUrl)
+}
 </script>
 
 <style scoped>

@@ -352,8 +352,9 @@ const playARSAudio = () => {
 
   // 새 Audio 객체 생성
   arsAudio.value = new Audio(ARSvoiceFile)
+  arsAudio.value.loop = true // 무한 반복 재생
   isARSPlaying.value = true
-  console.log('[Client] ARS 음성 재생 시작')
+  console.log('[Client] ARS 음성 재생 시작 (무한 반복)')
 
   arsAudio.value.play()
     .then(() => {
@@ -364,7 +365,7 @@ const playARSAudio = () => {
       isARSPlaying.value = false
     })
 
-  // 음성 재생 완료 이벤트
+  // 무한 반복 재생으로 설정되어 ended 이벤트는 발생하지 않음
   arsAudio.value.addEventListener('ended', onARSAudioEnded)
 }
 
@@ -405,9 +406,8 @@ const onAgentConnected = () => {
 
 // 컴포넌트 마운트 시 초기화
 onMounted(async () => {
-  // ARS 음성 자동 재생
-  playARSAudio()
-
+  
+  
   // 고객 ID 확인
   const customerId = customerStore.currentCustomer?.id
   if (!customerId) {
@@ -417,7 +417,8 @@ onMounted(async () => {
 
   // STOMP 기반 매칭 알림 시작 (LiveKit 자동 연결 포함)
   startWaiting(customerId)
-
+  // ARS 음성 자동 재생
+  playARSAudio()
   // 초기 대기 순번 조회 (순번 표시용)
   await fetchQueuePosition()
 

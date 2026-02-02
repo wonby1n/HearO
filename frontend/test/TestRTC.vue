@@ -819,7 +819,7 @@ async function onClickSttMessage(m) {
  * 10) 분석 API
  * ========================= */
 async function analyzeViolence(text) {
-  const res = await fetch("http://localhost:8001/analyze", {
+  const res = await fetch("http://localhost:8000/unsmile", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text }),

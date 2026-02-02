@@ -2,7 +2,7 @@ package com.ssafy.hearo.domain.registration.controller;
 
 import com.ssafy.hearo.domain.queue.dto.QueueStatusResponse;
 import com.ssafy.hearo.domain.registration.dto.RegistrationRequest;
-import com.ssafy.hearo.domain.queue.dto.RegistrationResponse;
+import com.ssafy.hearo.domain.registration.dto.RegistrationResponse;
 import com.ssafy.hearo.domain.queue.service.QueueService;
 import com.ssafy.hearo.domain.registration.dto.RegistrationDetailResponse;
 import com.ssafy.hearo.domain.registration.service.RegistrationService;

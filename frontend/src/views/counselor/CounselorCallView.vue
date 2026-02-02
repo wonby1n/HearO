@@ -52,7 +52,7 @@
         </div>
 
         <!-- 중앙: STT 자막 영역 (6 columns) -->
-        <div class="lg:col-span-6 h-full">
+        <div class="lg:col-span-6">
           <STTChatPanel
             :messages="sttMessages"
             @toggle-profanity="handleToggleProfanity"
@@ -145,15 +145,18 @@ import ManualEndCallModal from '@/components/call/ManualEndCallModal.vue'
 import { mockCustomerInfo, mockSttMessages } from '@/mocks/counselor'
 import { fetchCustomerData } from '@/services/customerService'
 import { saveConsultationMemo } from '@/services/consultationService'
-import { RoomEvent } from 'livekit-client'
 import { useNotificationStore } from '@/stores/notification'
 import { useCallStore } from '@/stores/call'
+import { useLiveKit } from '@/composables/useLiveKit'
 
 const router = useRouter()
 
 // 스토어
 const notificationStore = useNotificationStore()
 const callStore = useCallStore()
+
+// LiveKit composable
+const { setMuted: livekitSetMuted, isMuted: livekitIsMuted } = useLiveKit()
 
 // 통화 상태
 const isCallActive = ref(true)
@@ -341,44 +344,69 @@ const saveMemoToServer = async () => {
   }
 }
 
+// 날짜 포맷팅 헬퍼 함수
+const formatDate = (dateString) => {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
+};
+
+// 보증 기간 상태 확인 헬퍼 함수
+const getWarrantyStatus = (warrantyEndsAt) => {
+  if (!warrantyEndsAt) return { status: '정보 없음', isExpired: null, endDate: null };
+  const endDate = new Date(warrantyEndsAt);
+  const today = new Date();
+  const isExpired = endDate <= today;
+
+  return {
+    status: isExpired ? '만료' : '이내',
+    isExpired: isExpired,
+    endDate: formatDate(warrantyEndsAt)
+  };
+};
+
 // 고객 정보 로드
 const loadCustomerData = async () => {
   try {
     isLoadingCustomerInfo.value = true;
     customerInfoError.value = null;
 
-    // 1. 등록 ID 가져오기 (예시: 1)
-    const registrationId = 1; 
+    // 1. registrationId 가져오기 (우선순위: callStore > route params > fallback)
+    const registrationId =
+      callStore.currentCall?.registrationId ||
+      router.currentRoute.value.params.registrationId ||
+      1; // 테스트용 fallback
+
+    console.log('🔍 Loading customer data for registrationId:', registrationId);
 
     // 2. API 호출
     const response = await fetchCustomerData(registrationId);
 
-    if (response && response.isSuccess) {
-      const apiData = response.data; // 백엔드에서 온 데이터
+    // fetchCustomerData는 이미 data를 펼쳐서 반환하므로 response 자체가 data
+    const apiData = response;
 
-      // 3. 스토어 및 로컬 상태 구조에 맞게 매핑
-      const mappedData = {
-        id: apiData.id,
-        // 상담원 화면이 기대하는 평탄한 구조로 일단 customerInfo에 저장
-        symptom: apiData.symptom,
-        errorCode: apiData.errorCode,
-        productName: apiData.productName,
-        modelCode: apiData.modelCode,
-        productImageUrl: apiData.productImageUrl,
-        manufacturedAt: apiData.manufacturedAt,
-        warrantyEndsAt: apiData.warrantyEndsAt
-      };
+    // 3. CustomerInfoPanel 컴포넌트가 기대하는 형식으로 매핑
+    const mappedData = {
+      id: apiData.id,
+      customerId: apiData.customerId,
+      customerName: apiData.customerName || '고객 정보 없음',
+      phone: apiData.customerPhone || '정보 없음',
+      productName: apiData.productName || '정보 없음',
+      productCategory: apiData.productCategory || '정보 없음',
+      modelCode: apiData.modelCode || '정보 없음',
+      modelNumber: apiData.modelCode || '정보 없음',
+      purchaseDate: formatDate(apiData.manufacturedAt),
+      warrantyStatus: getWarrantyStatus(apiData.warrantyEndsAt),
+      productImage: apiData.productImageUrl,
+      errorCode: apiData.errorCode || '정보 없음',
+      symptoms: apiData.symptom ? [apiData.symptom] : ['정보 없음'],
+      consultationHistory: response.consultationHistory || []
+    };
 
-      // 화면에 표시될 ref 객체에 할당
-      customerInfo.value = mappedData;
-      
-      // (선택사항) 만약 공통 스토어에도 저장해야 한다면:
-      // customerStore.setCustomerInfo(mappedData); 
+    // 화면에 표시될 ref 객체에 할당
+    customerInfo.value = mappedData;
 
-      console.log('✅ 데이터 매핑 성공:', customerInfo.value);
-    } else {
-      throw new Error(response.message || '데이터 구조 이상');
-    }
+    console.log('✅ 고객 정보 로드 성공:', customerInfo.value);
   } catch (error) {
     console.error('❌ 고객 정보 로드 실패:', error);
     customerInfoError.value = '고객 정보를 불러오는데 실패했습니다.';
@@ -389,9 +417,16 @@ const loadCustomerData = async () => {
 };
 
 // 통화 컨트롤 핸들러
-const handleMuteChanged = (muted) => {
+const handleMuteChanged = async (muted) => {
   isMuted.value = muted
-  // TODO: LiveKit 음소거 처리
+  try {
+    await livekitSetMuted(muted)
+    console.log('[CounselorCall] 음소거 상태 변경:', muted)
+  } catch (error) {
+    console.error('[CounselorCall] 음소거 설정 실패:', error)
+    // 실패 시 UI 상태 롤백
+    isMuted.value = !muted
+  }
 }
 
 const handlePauseChanged = (paused) => {
@@ -408,17 +443,7 @@ const handleEndCall = async () => {
       clearMemoDraft()
       skipDraftSaveOnUnmount = true
     }
-
-    // LiveKit 연결 종료
-    if (callStore.livekitRoom) {
-      console.log('[CounselorCallView] LiveKit 연결 종료')
-      await callStore.livekitRoom.disconnect()
-      callStore.setLivekitRoom(null)
-    }
-
-    // call store 완전히 리셋
-    callStore.resetCall()
-
+    // TODO: await livekitService.disconnect()
     router.push({ name: 'dashboard' })
     console.log('통화 종료')
   } catch (error) {
@@ -461,11 +486,7 @@ const handleAutoTerminationConfirm = async () => {
     // await saveCallRecord(callData)
 
     // LiveKit 연결 종료
-    if (callStore.livekitRoom) {
-      console.log('[CounselorCallView] LiveKit 연결 종료 (자동 종료)')
-      await callStore.livekitRoom.disconnect()
-      callStore.setLivekitRoom(null)
-    }
+    // TODO: await livekitService.disconnect()
 
     // 상태 초기화
     callStore.resetCall()
@@ -521,29 +542,9 @@ const addSttMessage = (message) => {
 // 외부에서 사용할 수 있도록 expose (선택적)
 defineExpose({ addSttMessage })
 
-// 컴포넌트 마운트 시 고객 정보 로드 및 LiveKit 연결 확인
+// 컴포넌트 마운트 시 고객 정보 로드
 onMounted(() => {
   loadCustomerData()
-
-  // call store에 저장된 LiveKit room 확인
-  if (callStore.livekitRoom) {
-    console.log('[CounselorCallView] 기존 LiveKit 연결 사용:', callStore.livekitRoom.name)
-
-    // 고객이 통화를 종료했을 때 이벤트 리스너 추가
-    callStore.livekitRoom.on(RoomEvent.ParticipantDisconnected, (participant) => {
-      console.log('[CounselorCallView] 고객이 통화를 종료했습니다:', participant.identity)
-
-      // 통화 종료 모달 표시 (통화 요약 및 메모 저장)
-      isCallActive.value = false
-      showManualEndModal.value = true
-
-      notificationStore.notifyInfo('고객이 통화를 종료했습니다')
-    })
-  } else {
-    console.warn('[CounselorCallView] LiveKit 연결이 없습니다. 대시보드로 돌아가세요.')
-    // 선택적: 연결이 없으면 대시보드로 리다이렉트
-    // router.push('/dashboard')
-  }
 })
 </script>
 
