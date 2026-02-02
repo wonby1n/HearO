@@ -324,15 +324,27 @@ const saveMemoToServer = async () => {
 const handleEndCall = async () => {
   try {
     isCallActive.value = false;
-    callStore.endCall();
+    
+    // 1. 스토어 상태 변경
+    callStore.endCall(); 
+    
+    // 2. 서버에 메모 저장
     const saved = await saveMemoToServer();
     if (saved) {
       clearMemoDraft();
       skipDraftSaveOnUnmount = true;
     }
+
+    // 3. LiveKit 연결 종료 (실제 로직 추가 필요)
+    // await disconnectLiveKit(); 
+
+    // 4. 스토어 초기화 (이게 빠져있었음!)
+    callStore.resetCall(); 
+
     router.push({ name: 'dashboard' });
   } catch (error) {
-    console.error('종료 실패:', error);
+    console.error('종료 프로세스 실패:', error);
+    notificationStore.notifyError('통화 종료 중 오류가 발생했습니다.');
   }
 }
 
