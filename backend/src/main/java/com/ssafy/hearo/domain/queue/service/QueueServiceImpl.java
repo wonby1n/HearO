@@ -259,6 +259,8 @@ public class QueueServiceImpl implements QueueService {
             boolean isNormalQueue) {
 
         ZSetOperations<String, String> zSetOps = redisTemplate.opsForZSet();
+        // 대기열 항목 만료 시간 (5분)
+        final long QUEUE_ENTRY_TIMEOUT_MS = 5 * 60 * 1000;
 
         while (true) {
             // 큐의 첫 번째 고객 조회
@@ -277,6 +279,17 @@ public class QueueServiceImpl implements QueueService {
 
             // 큐에서 제거
             zSetOps.remove(queueKey, customerId);
+
+            // 대기열 항목이 너무 오래되었는지 확인 (유령 고객 필터링)
+            long now = System.currentTimeMillis();
+            long entryAge = now - score.longValue();
+            if (entryAge > QUEUE_ENTRY_TIMEOUT_MS) {
+                log.warn("{}에서 유령 고객 {} 제거 (대기 시간: {}초)",
+                        isNormalQueue ? "Normal Queue" : "Blacklist Queue",
+                        customerId, entryAge / 1000);
+                // 임시 스택에 추가하지 않고 그냥 버림 (연결이 끊긴 것으로 간주)
+                continue;
+            }
 
             // 매칭 가능한 상담원 확인
             Set<Long> matchableCounselors = findMatchableCounselors(customerId, availableCounselorIds);

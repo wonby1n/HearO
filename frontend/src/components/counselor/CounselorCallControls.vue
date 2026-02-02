@@ -1,22 +1,5 @@
 <template>
   <div class="flex items-center gap-3">
-    <!-- 일시정지 버튼 -->
-    <button @click="togglePause" :class="[
-      'flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 active:scale-95',
-      localPaused ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : 'bg-gray-800 hover:bg-gray-900 text-white'
-    ]" :title="localPaused ? '재개' : '일시정지'">
-      <svg v-if="!localPaused" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-        <path fill-rule="evenodd"
-          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z"
-          clip-rule="evenodd" />
-      </svg>
-      <svg v-else class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-        <path fill-rule="evenodd"
-          d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-          clip-rule="evenodd" />
-      </svg>
-    </button>
-
     <!-- 음소거 버튼 -->
     <button @click="toggleMute" :class="[
       'flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 active:scale-95',
@@ -56,10 +39,6 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
-  isPaused: {
-    type: Boolean,
-    default: false
-  },
   disabled: {
     type: Boolean,
     default: false
@@ -67,17 +46,10 @@ const props = defineProps({
 })
 
 // 이벤트 정의
-const emit = defineEmits(['mute-changed', 'pause-changed', 'call-end-requested'])
+const emit = defineEmits(['mute-changed', 'call-end-requested'])
 
 // props를 ref로 변환 (반응성 유지)
 const localMuted = toRef(props, 'isMuted')
-const localPaused = toRef(props, 'isPaused')
-
-// 일시정지 토글
-const togglePause = () => {
-  if (props.disabled) return
-  emit('pause-changed', !localPaused.value)
-}
 
 // 음소거 토글
 const toggleMute = () => {

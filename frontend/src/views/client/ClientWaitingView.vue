@@ -15,16 +15,19 @@
 
       <!-- 상태 텍스트 -->
       <div class="status-text">
-        <h2 class="status-title">잠시만 기다려주세요</h2>
+        <h2 class="status-title">
+          {{ connectionState === 'connected' ? '상담사 연결 중입니다' : '잠시만 기다려주세요' }}
+        </h2>
 
-        <!-- 대기 순번 배지 -->
-        <div class="queue-badge">
+        <!-- 대기 순번 배지 (매칭 전에만 표시) -->
+        <div v-if="connectionState !== 'connected'" class="queue-badge">
           <span>대기 순번 {{ queuePosition }}번</span>
         </div>
 
         <p class="status-description">
-          보다 정확한 상담을 위해<br />
-          전문 상담사를 배정 중입니다.
+          {{ connectionState === 'connected'
+            ? '상담사가 곧 입장합니다.\n잠시만 기다려주세요.'
+            : '보다 정확한 상담을 위해\n전문 상담사를 배정 중입니다.' }}
         </p>
       </div>
 
@@ -110,17 +113,20 @@ import { useRouter } from 'vue-router'
 import { useCallConnection } from '@/composables/useCallConnection'
 import { useCallStore } from '@/stores/call'
 import { useCustomerStore } from '@/stores/customer'
+import { RoomEvent } from 'livekit-client'
 import ARSvoiceFile from '@/assets/ARSvoice.mp3'
 
 const router = useRouter()
 const callStore = useCallStore()
 const customerStore = useCustomerStore()
-const { connectionState, startWaiting } = useCallConnection('customer')
 
-// 연결 완료 시 자동으로 통화 화면으로 이동
-watch(connectionState, (newState) => {
-  if (newState === 'connected') {
-    console.log('[ClientWaiting] 연결 완료 - 통화 화면으로 이동')
+// 통화 화면으로 정상 이동 중인지 플래그
+const isNavigatingToCall = ref(false)
+
+// 상담사 입장 감지를 위한 콜백 설정
+const { connectionState, startWaiting, disconnect: disconnectLiveKit } = useCallConnection('customer', {
+  onCounselorJoined: () => {
+    console.log('[ClientWaiting] 상담사 입장 감지 - 통화 화면으로 이동')
 
     // ARS 음성 정리
     if (arsAudio.value) {
@@ -132,8 +138,19 @@ watch(connectionState, (newState) => {
     stopQueuePolling()
     disconnectQueueSocket()
 
+    // 정상 이동 플래그 설정
+    isNavigatingToCall.value = true
+
     // 통화 화면으로 이동
     router.push('/client/call')
+  }
+})
+
+// LiveKit 연결 완료 시 UI 업데이트 (상담사 대기 중 표시)
+watch(connectionState, (newState) => {
+  if (newState === 'connected') {
+    console.log('[ClientWaiting] LiveKit 연결 완료 - 상담사 입장 대기 중...')
+    // UI를 "상담사 연결 중..." 상태로 변경 (자동 이동 안 함)
   }
 })
 
@@ -406,14 +423,25 @@ const onAgentConnected = () => {
 
 // 컴포넌트 마운트 시 초기화
 onMounted(async () => {
-  
-  
+
+
+  // localStorage에서 최신 customerId 다시 읽기 (재로그인 시 갱신되도록)
+  const latestCustomerId = sessionStorage.getItem('clientCustomerId') || localStorage.getItem('clientCustomerId')
+
+  // customerStore 업데이트 (localStorage와 동기화)
+  if (latestCustomerId && latestCustomerId !== String(customerStore.currentCustomer?.id)) {
+    console.log('[ClientWaiting] customerId 갱신:', customerStore.currentCustomer?.id, '->', latestCustomerId)
+    customerStore.setCustomerInfo({ id: parseInt(latestCustomerId) })
+  }
+
   // 고객 ID 확인
   const customerId = customerStore.currentCustomer?.id
   if (!customerId) {
     console.error('[ClientWaiting] 고객 ID가 없습니다')
     return
   }
+
+  console.log('[ClientWaiting] STOMP 구독 시작 - customerId:', customerId)
 
   // STOMP 기반 매칭 알림 시작 (LiveKit 자동 연결 포함)
   startWaiting(customerId)
@@ -427,7 +455,9 @@ onMounted(async () => {
 })
 
 // 컴포넌트 언마운트 시 정리
-onUnmounted(() => {
+onUnmounted(async () => {
+  console.log('[ClientWaiting] 컴포넌트 언마운트 - 리소스 정리')
+
   stopQueuePolling()
   disconnectQueueSocket()
 
@@ -438,6 +468,20 @@ onUnmounted(() => {
     arsAudio.value = null
   }
 
+  // LiveKit 연결 정리 (비정상 이탈인 경우만)
+  if (connectionState.value === 'connected' && !isNavigatingToCall.value) {
+    console.log('[ClientWaiting] 비정상 이탈 감지 - LiveKit 연결 종료')
+    try {
+      await disconnectLiveKit()
+
+      // callStore에서도 제거
+      if (callStore.livekitRoom) {
+        callStore.setLivekitRoom(null)
+      }
+    } catch (error) {
+      console.error('[ClientWaiting] LiveKit 연결 종료 실패:', error)
+    }
+  }
 })
 
 // 외부에서 사용할 수 있도록 노출

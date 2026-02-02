@@ -1,7 +1,7 @@
 <template>
   <DashboardLayout>
     <!-- 상단 헤더: 상담 상태 및 실시간 정보 -->
-    <DashboardHeader />
+    <DashboardHeader ref="dashboardHeaderRef" />
 
     <div class="container mx-auto px-6 py-6">
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -99,6 +99,9 @@ const agentStore = useAgentStore()
 const isModalOpen = ref(false)
 const isTimeModalOpen = ref(false)
 
+// DashboardHeader 컴포넌트 ref
+const dashboardHeaderRef = ref(null)
+
 // 매칭 데이터 감지하여 모달 열기
 watch(
   () => dashboardStore.matchedData,
@@ -127,11 +130,24 @@ watch(
   }
 )
 
-// 모달 닫기 시 통화 화면으로 이동
-const handleModalClose = () => {
+// 모달 닫기 시 LiveKit 연결 후 통화 화면으로 이동
+const handleModalClose = async () => {
   isModalOpen.value = false
-  dashboardStore.clearMatchedData()
-  router.push('/counselor/call')
+
+  try {
+    // 상담사가 확인했으므로 이제 LiveKit에 연결
+    console.log('[DashboardView] 상담사 확인 - LiveKit 연결 시작')
+    await dashboardHeaderRef.value?.connectToCall()
+    console.log('[DashboardView] LiveKit 연결 완료 - 통화 화면으로 이동')
+
+    dashboardStore.clearMatchedData()
+    router.push('/counselor/call')
+  } catch (error) {
+    console.error('[DashboardView] LiveKit 연결 실패:', error)
+    // 에러 발생 시에도 통화 화면으로 이동 (CounselorCallView에서 재시도)
+    dashboardStore.clearMatchedData()
+    router.push('/counselor/call')
+  }
 }
 
 // TimeModal 완료 시 자동으로 닫기

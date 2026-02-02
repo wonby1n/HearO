@@ -144,6 +144,9 @@ export function useLiveKit(options = {}) {
     roomInstance.on(RoomEvent.ParticipantConnected, (participant) => {
       console.log('[LiveKit] 참가자 연결:', participant.identity)
       updateParticipants(roomInstance)
+
+      // 외부 콜백 호출
+      options.onParticipantConnected?.(participant)
     })
 
     // 참가자 연결 해제
@@ -316,6 +319,14 @@ export function useLiveKit(options = {}) {
     if (!room.value) return
 
     try {
+      // 마이크 명시적으로 끄기
+      try {
+        await room.value.localParticipant.setMicrophoneEnabled(false)
+        console.log('[LiveKit] 마이크 비활성화')
+      } catch (micErr) {
+        console.warn('[LiveKit] 마이크 비활성화 실패 (무시):', micErr)
+      }
+
       cleanupResources()
       await room.value.disconnect()
       room.value = null

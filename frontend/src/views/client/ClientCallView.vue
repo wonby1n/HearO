@@ -140,30 +140,6 @@
       </div>
     </Teleport>
 
-    <!-- 개발 모드 전용: 폭언 테스트 버튼 -->
-    <div v-if="isDev" class="dev-test-panel">
-      <div class="dev-panel-header">
-        <span class="dev-badge">DEV</span>
-        <span class="dev-title">폭언 테스트</span>
-      </div>
-      <div class="dev-panel-content">
-        <div class="dev-status">
-          <span>{{ callStore.currentCall.profanityCount }} / 3회</span>
-          <span v-if="callStore.autoTerminationTriggered" class="triggered">🚨 트리거됨</span>
-        </div>
-        <div class="dev-buttons">
-          <button @click="testAddProfanity" class="dev-btn add">
-            폭언 +1
-          </button>
-          <button @click="testTriggerNow" class="dev-btn trigger">
-            즉시 종료
-          </button>
-          <button @click="testReset" class="dev-btn reset">
-            리셋
-          </button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -174,6 +150,7 @@ import { useCallStore } from '@/stores/call'
 import { useCustomerStore } from '@/stores/customer'
 import { useLiveKit } from '@/composables/useLiveKit'
 import { AUTO_TERMINATION_REDIRECT_DELAY_MS } from '@/constants/call'
+import { RoomEvent } from 'livekit-client'
 
 // =========================
 // 고객 STT(Web Speech) → 상담원으로 전송
@@ -266,9 +243,6 @@ const startCustomerSTT = async () => {
 const router = useRouter()
 const callStore = useCallStore()
 const customerStore = useCustomerStore()
-
-// 개발 모드 체크
-const isDev = import.meta.env.DEV
 
 // LiveKit composable
 const {
@@ -396,6 +370,9 @@ const endCall = async () => {
     clearInterval(timerInterval)
   }
 
+  // 마이크 종료 (STT 중지)
+  stopCustomerSTT()
+
   // call store의 LiveKit 연결 종료 (ClientWaitingView에서 만든 연결)
   if (callStore.livekitRoom) {
     console.log('[ClientCallView] LiveKit 연결 종료')
@@ -423,30 +400,6 @@ const handleDisconnected = (reason) => {
   }
 }
 
-// ========================================
-// 개발 모드 전용: 테스트 함수들
-// ========================================
-
-// 폭언 1회 추가
-const testAddProfanity = () => {
-  callStore.incrementProfanityCount()
-  console.log(`[TEST] 폭언 ${callStore.currentCall.profanityCount}/3회`)
-}
-
-// 즉시 자동 종료 트리거
-const testTriggerNow = () => {
-  callStore.currentCall.profanityCount = 3
-  callStore.autoTerminationTriggered = true
-  console.log('[TEST] 자동 종료 즉시 트리거! 3초 후 이동합니다.')
-}
-
-// 폭언 카운트 리셋
-const testReset = () => {
-  callStore.currentCall.profanityCount = 0
-  callStore.autoTerminationTriggered = false
-  console.log('[TEST] 폭언 카운트 리셋 완료')
-}
-
 // 컴포넌트 마운트 시 초기화
 onMounted(async () => {
   // 테스트용 고객 정보 설정
@@ -468,7 +421,7 @@ onMounted(async () => {
     })
   }
 
- 
+
     const customerId = sessionStorage.getItem('clientCustomerId') || localStorage.getItem('clientCustomerId') || customerStore.currentCustomer.id
     startCustomerSTT()
     callStore.startCall({
@@ -476,7 +429,7 @@ onMounted(async () => {
       customerId: customerId ? parseInt(customerId) : null,
       roomToken: 'test-token'
     })
-  
+
 
   // 통화 시간 타이머
   timerInterval = setInterval(() => {
@@ -484,6 +437,40 @@ onMounted(async () => {
       callDuration.value++
     }
   }, 1000)
+
+  // 마이크 활성화 (통화 화면 진입 시)
+  if (callStore.livekitRoom) {
+    console.log('[ClientCallView] 기존 LiveKit 연결 사용:', callStore.livekitRoom.name)
+
+    try {
+      await enableMicrophone()
+      console.log('[ClientCallView] 마이크 활성화 완료')
+    } catch (err) {
+      console.error('[ClientCallView] 마이크 활성화 실패:', err)
+    }
+
+    callStore.livekitRoom.on(RoomEvent.ParticipantDisconnected, (participant) => {
+      console.log('[ClientCallView] 상담원이 통화를 종료했습니다:', participant.identity)
+
+      // 타이머 정리
+      if (timerInterval) {
+        clearInterval(timerInterval)
+      }
+
+      // 마이크 종료 (STT 중지)
+      stopCustomerSTT()
+
+      // call store 정리
+      callStore.endCall()
+      callStore.resetCall()
+
+      // 통화 종료 페이지로 이동
+      router.push({
+        name: 'client-call-end',
+        query: { duration: callDuration.value, reason: 'counselor_ended' }
+      })
+    })
+  }
 })
 
 // 컴포넌트 언마운트 시 정리
@@ -806,105 +793,4 @@ onUnmounted(async () => {
   line-height: 1.6;
 }
 
-/* 개발 모드 전용: 테스트 패널 */
-.dev-test-panel {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  background: white;
-  border: 2px solid #3b82f6;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 9999;
-  min-width: 200px;
-}
-
-.dev-panel-header {
-  background: #3b82f6;
-  padding: 8px 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border-radius: 10px 10px 0 0;
-}
-
-.dev-badge {
-  background: #1e40af;
-  color: white;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.dev-title {
-  color: white;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.dev-panel-content {
-  padding: 12px;
-}
-
-.dev-status {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  padding: 8px;
-  background: #f1f5f9;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #475569;
-}
-
-.dev-status .triggered {
-  color: #dc2626;
-  font-size: 12px;
-}
-
-.dev-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.dev-btn {
-  padding: 8px 12px;
-  border: none;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.dev-btn.add {
-  background: #fbbf24;
-  color: #78350f;
-}
-
-.dev-btn.add:hover {
-  background: #f59e0b;
-}
-
-.dev-btn.trigger {
-  background: #ef4444;
-  color: white;
-}
-
-.dev-btn.trigger:hover {
-  background: #dc2626;
-}
-
-.dev-btn.reset {
-  background: #e5e7eb;
-  color: #475569;
-}
-
-.dev-btn.reset:hover {
-  background: #d1d5db;
-}
 </style>

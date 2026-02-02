@@ -84,12 +84,27 @@ const dashboardStore = useDashboardStore()
 const agentStore = useAgentStore()
 
 // 통화 연결 관리 (상담원용)
-const { startListening, disconnect: disconnectCall, matchedData, navigateToCall } = useCallConnection('counselor', {
+const {
+  startListening,
+  disconnect: disconnectCall,
+  matchedData,
+  navigateToCall,
+  connectToCall // 모달 확인 시 사용할 수동 연결 함수
+} = useCallConnection('counselor', {
   onMatched: (data) => {
     console.log('[DashboardHeader] 매칭 알림 수신:', data)
-    // DashboardStore에 매칭 데이터 저장 (모달 표시용)
-    dashboardStore.setMatchedData(data)
+
+    // 1초 대기 후 모달 표시 (고객 연결/이탈 처리 시간 확보)
+    setTimeout(() => {
+      console.log('[DashboardHeader] 매칭 모달 표시 (1초 지연)')
+      dashboardStore.setMatchedData(data)
+    }, 1000)
   }
+})
+
+// DashboardView에서 사용할 수 있도록 connectToCall 노출
+defineExpose({
+  connectToCall
 })
 
 // --- 상태 변수 ---
@@ -150,6 +165,14 @@ const stopHeartbeat = () => {
     console.log('[Heartbeat] 중지')
     clearInterval(heartbeatInterval)
     heartbeatInterval = null
+  }
+}
+
+// Visibility API: 탭이 포그라운드로 올 때 즉시 하트비트 전송
+const handleVisibilityChange = () => {
+  if (document.visibilityState === 'visible' && dashboardStore.consultationStatus.isActive) {
+    console.log('[Heartbeat] 탭 활성화 - 즉시 하트비트 전송')
+    sendHeartbeat()
   }
 }
 
@@ -259,6 +282,8 @@ watch(
 onMounted(() => {
   clockInterval = setInterval(() => { currentTime.value = new Date() }, 1000)
   window.addEventListener('beforeunload', handleBeforeUnload)
+  // Visibility API: 브라우저 throttling 대응
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 
   // 상담 ON 상태면 하트비트 및 매칭 알림 재시작
   if (dashboardStore.consultationStatus.isActive) {
@@ -275,6 +300,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
   if (clockInterval) clearInterval(clockInterval)
   stopHeartbeat()
   if (countChangeTimer) clearTimeout(countChangeTimer)
