@@ -20,7 +20,15 @@ public class ConsultationController {
     private final ConsultationService consultationService;
     private final ConsultationRatingService ratingService;
 
-    // ========== 기존 상담 로직 ==========
+    @PostMapping
+    public ResponseEntity<BaseResponse<ConsultationStartResponse>> start(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestBody ConsultationStartRequest request
+    ) {
+        if (userDetails == null) throw new IllegalArgumentException("인증 정보가 없습니다.");
+        ConsultationStartResponse response = consultationService.startConsultation(userDetails.getId(), request);
+        return ResponseEntity.ok(BaseResponse.success(response));
+    }
 
     @GetMapping("/latest")
     public ResponseEntity<BaseResponse<List<ConsultationSummaryResponse>>> getLatestConsultations(GetLatestConsultationRequest request) {
@@ -30,22 +38,18 @@ public class ConsultationController {
         return ResponseEntity.ok(BaseResponse.success(result));
     }
 
-    // ========== 상담 종료 저장(POST) ==========
+    // ========== 상담 종료 후 추가정보 업데이트(PATCH) ==========
 
-    @PostMapping
-    public ResponseEntity<BaseResponse<ConsultationEndResponse>> endAndSave(
+    @PatchMapping("/{consultationId}/end")
+    public ResponseEntity<BaseResponse<ConsultationEndResponse>> finalizeAfterMatch(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @RequestBody ConsultationEndRequest request
+            @PathVariable Integer consultationId,
+            @RequestBody ConsultationFinalizeRequest request
     ) {
-        System.out.println(userDetails.getUsername());
-        if (userDetails == null) {
-            throw new IllegalArgumentException("인증 정보가 없습니다.");
-        }
-        ConsultationEndResponse response = consultationService.endAndSave(userDetails.getId(), request);
+        if (userDetails == null) throw new IllegalArgumentException("인증 정보가 없습니다.");
+        ConsultationEndResponse response = consultationService.finalizeConsultation(consultationId, userDetails.getId(), request);
         return ResponseEntity.ok(BaseResponse.success(response));
     }
-
-    // ========== 상담 종료 후 추가정보 업데이트(PATCH) ==========
 
     @PatchMapping("/{consultationId}")
     public ResponseEntity<BaseResponse<Void>> patchAfterEnd(
