@@ -9,6 +9,7 @@ import com.ssafy.hearo.domain.customer.entity.Customer;
 import com.ssafy.hearo.domain.customer.repository.CustomerRepository;
 import com.ssafy.hearo.domain.user.entity.User;
 import com.ssafy.hearo.domain.user.repository.UserRepository;
+import com.ssafy.hearo.domain.user.service.UserStateService;
 import com.ssafy.hearo.global.security.jwt.JwtTokenProvider;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -42,6 +43,7 @@ public class AuthServiceImpl implements AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordEncoder passwordEncoder;
     private final RedisTemplate<String, String> redisTemplate;
+    private final UserStateService userStateService;
 
     @Override
     public LoginResponse login(LoginRequest request, HttpServletResponse response) {
@@ -144,6 +146,9 @@ public class AuthServiceImpl implements AuthService {
             try {
                 Long userId = jwtTokenProvider.extractUserId(refreshToken);
                 String jti = jwtTokenProvider.extractJti(refreshToken);
+
+                // (추가) 로그아웃 시 REST 전환 + 히스토리 저장
+                userStateService.switchToRestOnLogout(userId);
 
                 // Delete refresh token from Redis
                 String refreshKey = REFRESH_TOKEN_PREFIX + userId;
