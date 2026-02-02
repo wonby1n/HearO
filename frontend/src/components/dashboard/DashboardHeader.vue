@@ -144,7 +144,6 @@ const sendHeartbeat = async (forceStatus = null) => {
     const status = forceStatus !== null ? forceStatus : !!dashboardStore.consultationStatus.isActive
     const response = await axios.post('/api/v1/users/me/heartbeat', { isHeartbeatActive: status })
 
-    console.log('[Heartbeat] 응답 성공:', response.data)
   } catch (error) {
     console.error('[Heartbeat] 전송 실패:', error.response?.data || error.message)
   } finally {
@@ -163,7 +162,6 @@ const startHeartbeat = () => {
 
 const stopHeartbeat = () => {
   if (heartbeatInterval) {
-    console.log('[Heartbeat] 중지')
     clearInterval(heartbeatInterval)
     heartbeatInterval = null
   }
@@ -192,14 +190,15 @@ const handleBeforeUnload = () => {
 
 // --- 상담사 상태 업데이트 ---
 const updateCounselorStatus = async (status) => {
-
   try {
     const response = await axios.patch('/api/v1/users/me/status', {
       status: status
     })
 
     if (response.data.isSuccess) {
+      return true
     }
+    return false
   } catch (error) {
     // 401은 interceptor가 처리하므로 여기서는 다른 에러만 처리
     if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') {
@@ -207,6 +206,7 @@ const updateCounselorStatus = async (status) => {
     } else if (error.response?.status !== 401) {
       console.error('[Status Update] 실패:', error.response?.data || error.message)
     }
+    return false
   }
 }
 
@@ -222,20 +222,30 @@ const toggleConsultationStatus = () => {
 // --- Watchers ---
 watch(
   () => dashboardStore.consultationStatus.isActive,
-  (isActive, oldValue) => {
+  async (isActive, oldValue) => {
     // 초기 로드 시 실행 방지 (undefined → false 변경 시 무시)
     if (oldValue === undefined && !isActive) {
       return
     }
 
     const status = isActive ? 'AVAILABLE' : 'REST'
-    updateCounselorStatus(status)
 
-    // 하트비트 관리
+    // 1. 먼저 status 변경 시도
+    const statusUpdateSuccess = await updateCounselorStatus(status)
+
+    if (!statusUpdateSuccess) {
+      console.error('[DashboardHeader] Status 변경 실패, 원래 상태로 롤백')
+      dashboardStore.consultationStatus.isActive = !isActive
+      return
+    }
+
+    // 2. status 변경 성공 후에만 heartbeat 및 기타 작업 진행
     if (isActive) {
-      startHeartbeat()
-      // 상담 대기 상태로 변경
+      // 상담 ON
       agentStore.currentStatus = 'AVAILABLE'
+
+      // heartbeat 시작 (status가 AVAILABLE일 때만)
+      startHeartbeat()
 
       // 매칭 알림 구독 시작
       const counselorId = authStore.user?.id
@@ -244,10 +254,12 @@ watch(
         startListening(counselorId)
       }
     } else {
+      // 상담 OFF
+      agentStore.currentStatus = 'REST'
+
+      // heartbeat 중지 (status가 REST일 때)
       sendHeartbeat(false)
       stopHeartbeat()
-      // 휴식 상태로 변경
-      agentStore.currentStatus = 'REST'
 
       // 매칭 알림 구독 해제 (LiveKit도 완전히 종료)
       disconnectCall(true) // true: LiveKit도 끊기

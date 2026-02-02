@@ -1,4 +1,4 @@
-import { ref, onUnmounted } from 'vue'
+import { ref } from 'vue'
 import SockJS from 'sockjs-client'
 import { Client } from '@stomp/stompjs'
 
@@ -49,12 +49,11 @@ export function useMatchingNotification(options = {}) {
           })
 
           console.log('[STOMP] 고객 매칭 알림 구독 완료')
-        } else {
-          console.error('[STOMP] customerId가 없어서 구독하지 못함!')
         }
 
         // 상담원용 매칭 알림 구독
         if (counselorId) {
+          console.log('[STOMP] 상담원 매칭 알림 구독 시작, counselorId:', counselorId)
           client.value.subscribe(`/topic/counselor/${counselorId}`, (message) => {
             const data = JSON.parse(message.body)
 
@@ -71,6 +70,7 @@ export function useMatchingNotification(options = {}) {
               onMatched?.(data)
             }
           })
+          console.log('[STOMP] 상담원 매칭 알림 구독 완료')
         }
       },
 
@@ -95,9 +95,7 @@ export function useMatchingNotification(options = {}) {
     isMatched.value = false // 플래그 리셋
   }
 
-  onUnmounted(() => {
-    disconnect()
-  })
+  // ⚠️ onUnmounted 제거: async context에서 호출되므로 부모 컴포넌트에서 cleanup 처리
 
   return {
     isConnected,
