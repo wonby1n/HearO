@@ -133,3 +133,29 @@ export const getMyConsultations = async (page = 0, size = 10) => {
     throw error
   }
 }
+
+/**
+ * Get consultations by customer ID (paginated)
+ * API: GET /api/v1/consultations/customer/{customerId}
+ *
+ * @param {number} customerId - Customer ID
+ * @param {number} page - Page number (0-indexed)
+ * @param {number} size - Page size
+ * @returns {Promise<Object>} Paginated consultation list
+ */
+export const getConsultationsByCustomer = async (customerId, page = 0, size = 10) => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/consultations/customer/${customerId}`, {
+      params: { page, size }
+    })
+
+    if (response.data && response.data.isSuccess) {
+      return response.data.data
+    } else {
+      throw new Error(response.data?.message || '고객 상담 이력 조회 실패')
+    }
+  } catch (error) {
+    console.error('❌ 고객 상담 이력 조회 에러:', error.response?.data || error.message)
+    throw error
+  }
+}

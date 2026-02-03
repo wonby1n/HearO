@@ -31,8 +31,13 @@
               {{ consultation.productCategory || '미분류' }}
             </span>
           </div>
-          <div class="col-span-2 flex items-center text-sm font-medium text-gray-900">
-            {{ consultation.customerName }}
+          <div class="col-span-2 flex items-center text-sm">
+            <button
+              @click.stop="handleCustomerClick(consultation.customerId)"
+              class="font-medium text-primary-700 hover:text-primary-900 hover:underline transition-all"
+            >
+              {{ consultation.customerName }}
+            </button>
           </div>
           <div class="col-span-2 flex items-center text-sm text-gray-600">
             {{ formatPhoneNumber(consultation.customerPhone) }}
@@ -217,8 +222,14 @@ defineProps({
   }
 })
 
+const emit = defineEmits(['customer-click'])
+
 const expandedId = ref(null)
 const activeTab = ref({})
+
+const handleCustomerClick = (customerId) => {
+  emit('customer-click', customerId)
+}
 
 // 탭 정의
 const tabs = [
