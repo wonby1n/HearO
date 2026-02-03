@@ -23,7 +23,7 @@ public class RagServiceImpl implements RagService {
     private static final String CHROMA_TENANT = "default_tenant";
     private static final String CHROMA_DB = "default_database";
 
-    private static final String CHROMA_COLLECTION_ID = "e0611d78-5855-41e0-8e97-2e6dc2551080";
+    private static final String CHROMA_COLLECTION_ID = "ce2b08aa-1c8d-4e95-bb91-e81fe42a95a4";
     ;
 
     private static final int TOP_K = 5;
@@ -155,7 +155,7 @@ public class RagServiceImpl implements RagService {
 
             double distance = (dist0 != null && i < dist0.size()) ? dist0.get(i).asDouble() : -1.0;
             // cosine distance면 보통 0에 가까울수록 유사 (환경에 따라 1-score로 쓰기)
-            double score = (distance >= 0) ? (1.0 - distance) : 0.0;
+            double score = (distance >= 0) ? (1.0 / (1.0 + distance)) : 0.0;
 
             String source = "";
             if (metas0 != null && i < metas0.size()) {
