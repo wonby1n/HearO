@@ -1,6 +1,8 @@
 package com.ssafy.hearo.global.init;
 
 import com.ssafy.hearo.domain.consultation.entity.Consultation;
+import com.ssafy.hearo.domain.consultation.entity.ConsultationRating;
+import com.ssafy.hearo.domain.consultation.repository.ConsultationRatingRepository;
 import com.ssafy.hearo.domain.consultation.repository.ConsultationRepository;
 import com.ssafy.hearo.domain.customer.entity.Customer;
 import com.ssafy.hearo.domain.customer.repository.CustomerRepository;
@@ -17,6 +19,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Component
@@ -28,6 +31,7 @@ public class TestDataInit implements CommandLineRunner {
     private final CustomerRepository customerRepository;
     private final RegistrationRepository registrationRepository;
     private final ConsultationRepository consultationRepository;
+    private final ConsultationRatingRepository consultationRatingRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -120,9 +124,25 @@ public class TestDataInit implements CommandLineRunner {
 
         consultationRepository.save(consultation);
 
+        // 3. ConsultationRating (상담 평가) 생성
+        if (consultationRatingRepository.count() > 0) return;
+
+        ConsultationRating rating = ConsultationRating.builder()
+                .consultation(consultation)
+                .processRating(new BigDecimal("4.5"))
+                .solutionRating(new BigDecimal("5.0"))
+                .kindnessRating(new BigDecimal("4.0"))
+                .feedback("상담원이 친절하게 응대해주셔서 좋았습니다.")
+                .build();
+        
+        // 양방향 연관관계 설정 (Consultation 엔티티에 setRating 메서드가 있다고 가정)
+        consultation.setRating(rating);
+        consultationRatingRepository.save(rating);
+
         System.out.println("=========================================");
         System.out.println("🎉 테스트 데이터 세팅 완료!");
         System.out.println("👉 상담 ID (consultationId): " + consultation.getId());
+        System.out.println("👉 상담 평가 ID (ratingId): " + rating.getId());
         System.out.println("=========================================");
     }
 }
