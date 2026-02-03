@@ -91,7 +91,6 @@ import CallMemoPanel from '@/components/counselor/CallMemoPanel.vue'
 import AIGuidePanel from '@/components/counselor/AIGuidePanel.vue'
 import AutoTerminationModal from '@/components/call/AutoTerminationModal.vue'
 import ManualEndCallModal from '@/components/call/ManualEndCallModal.vue'
-import { mockSttMessages } from '@/mocks/counselor'
 import { saveConsultationMemo } from '@/services/consultationService'
 import { useNotificationStore } from '@/stores/notification'
 import { useCallStore } from '@/stores/call'
@@ -117,6 +116,7 @@ const dashboardStore = useDashboardStore()
 // --- 상태 정의 ---
 const isCallActive = ref(true)
 const isMuted = ref(false)
+let currentMicStream = null // getUserMedia stream 참조 — 종료 시 트랙 정리용
 
 // 오디오 파이프라인 상태
 let audioCtx = null
@@ -137,7 +137,14 @@ let vadStartAt = 0
 const showAutoTerminationModal = ref(false)
 const showManualEndModal = ref(false)
 
-const sttMessages = ref(mockSttMessages)
+// 폭언 3회 → 자동 종료 트리거 감지
+watch(() => callStore.autoTerminationTriggered, (triggered) => {
+  if (triggered) {
+    showAutoTerminationModal.value = true
+  }
+})
+
+const sttMessages = ref([])
 const aiSummary = ref('')
 
 // --- 메모 드래프트 관리 (복구된 핵심 로직) ---
@@ -245,6 +252,31 @@ const saveMemoToServer = async () => {
   }
 }
 
+// 마이크 정리: stored stream 트랙 stop + LiveKit 트랙 unpublish
+const stopLocalMicrophone = async () => {
+  if (currentMicStream) {
+    currentMicStream.getTracks().forEach(track => track.stop())
+    currentMicStream = null
+  }
+
+  if (callStore.livekitRoom) {
+    try {
+      const localParticipant = callStore.livekitRoom.localParticipant
+      const audioPublication = localParticipant.getTrackPublication(Track.Source.Microphone)
+      if (audioPublication?.track?.mediaStreamTrack) {
+        audioPublication.track.mediaStreamTrack.stop()
+      }
+      if (audioPublication) {
+        await localParticipant.unpublishTrack(audioPublication.track)
+      }
+    } catch (err) {
+      console.error('[CounselorCallView] 마이크 정리 실패:', err)
+    }
+  }
+
+  isMuted.value = true
+}
+
 // 통화 컨트롤 핸들러
 // 음소거 토글 핸들러
 const handleMuteChanged = async (muted) => {
@@ -277,8 +309,12 @@ const handleMuteChanged = async (muted) => {
       console.log('[CounselorCallView] 오디오 트랙이 없어서 마이크 활성화 시도')
 
       try {
-        // 마이크 권한 요청 및 활성화
+        // 기존 stream 정리 후 새로운 마이크 권한 요청
+        if (currentMicStream) {
+          currentMicStream.getTracks().forEach(t => t.stop())
+        }
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        currentMicStream = stream
         const audioTracks = stream.getAudioTracks()
 
         if (audioTracks.length > 0) {
@@ -309,44 +345,6 @@ const handleMuteChanged = async (muted) => {
   }
 }
 
-const handleEndCall = async () => {
-  try {
-    isCallActive.value = false
-
-    // 메모 저장
-    const saved = await saveMemoToServer()
-    if (saved) {
-      clearMemoDraft()
-      skipDraftSaveOnUnmount = true
-    }
-
-    // LiveKit 연결 종료
-    if (callStore.livekitRoom) {
-      console.log('[CounselorCallView] LiveKit 연결 종료')
-      await callStore.livekitRoom.disconnect()
-      callStore.setLivekitRoom(null)
-    }
-
-    // 상담사 상태를 AVAILABLE로 복구 (새 매칭 가능하도록)
-    try {
-      await axios.patch('/api/v1/users/me/status', { status: 'AVAILABLE' })
-      console.log('[CounselorCallView] 상담사 상태 AVAILABLE로 복구')
-    } catch (statusError) {
-      console.error('[CounselorCallView] 상태 복구 실패:', statusError)
-      // 상태 복구 실패해도 통화 종료는 계속 진행
-    }
-
-    // call store 완전히 리셋
-    callStore.resetCall()
-
-    router.push({ name: 'dashboard' })
-  } catch (error) {
-    console.error('통화 종료 실패:', error)
-    // TODO: 에러 토스트 표시
-  }
-
-}
-
 // Manual end modal request
 const handleManualEndRequest = async () => {
   console.log('[CounselorCallView] 통화 종료 버튼 클릭')
@@ -360,31 +358,9 @@ const handleManualEndRequest = async () => {
       console.log('[CounselorCallView] LiveKit 연결 즉시 종료 (통화 종료 버튼)')
 
       try {
-        // 1. 마이크 트랙 즉시 정리 (다음 상담 시 연결 실패 방지)
-        const localParticipant = callStore.livekitRoom.localParticipant
-        const audioPublication = localParticipant.getTrackPublication(Track.Source.Microphone)
-
-        if (audioPublication) {
-          console.log('[CounselorCallView] 마이크 트랙 unpublish 시작')
-          console.log('[CounselorCallView] audioPublication:', audioPublication)
-          console.log('[CounselorCallView] audioPublication.track:', audioPublication.track)
-
-          // MediaStreamTrack 먼저 중지
-          if (audioPublication.track?.mediaStreamTrack) {
-            console.log('[CounselorCallView] MediaStreamTrack stop 시작')
-            audioPublication.track.mediaStreamTrack.stop()
-            console.log('[CounselorCallView] 마이크 MediaStreamTrack 중지 완료')
-          } else {
-            console.warn('[CounselorCallView] MediaStreamTrack이 없습니다')
-          }
-
-          // 트랙 unpublish
-          console.log('[CounselorCallView] unpublishTrack 시작')
-          await localParticipant.unpublishTrack(audioPublication.track)
-          console.log('[CounselorCallView] unpublishTrack 완료')
-        } else {
-          console.warn('[CounselorCallView] audioPublication이 없습니다')
-        }
+        // 1. 마이크 정리 (stream 및 LiveKit 트랙)
+        await stopLocalMicrophone()
+        console.log('[CounselorCallView] 마이크 정리 완료')
 
         // 2. LiveKit 룸 연결 종료
         await callStore.livekitRoom.disconnect()
@@ -466,7 +442,14 @@ const handleAutoTerminationConfirm = async () => {
     // LiveKit 연결 종료
     if (callStore.livekitRoom) {
       console.log('[CounselorCallView] LiveKit 연결 종료 (자동 종료)')
-      await callStore.livekitRoom.disconnect()
+
+      try {
+        await stopLocalMicrophone()
+        await callStore.livekitRoom.disconnect()
+      } catch (disconnectError) {
+        console.error('[CounselorCallView] LiveKit 연결 종료 실패 (자동 종료):', disconnectError)
+      }
+
       callStore.setLivekitRoom(null)
     }
 
@@ -848,16 +831,11 @@ onMounted(() => {
 
     const room = callStore.livekitRoom
 
-    // === 고객이 방에 있는지 확인 (1:1 연결) ===
-    if (room.remoteParticipants.size === 0) {
-      console.warn('[CounselorCallView] 고객이 방에 없음 - 이미 나간 것으로 판단')
-      isCallActive.value = false
-      showManualEndModal.value = true
-      notificationStore.notifyWarning('고객이 이미 나갔습니다')
-      return
+    if (room.remoteParticipants.size > 0) {
+      console.log('[CounselorCallView] 고객 이미 방에 있음')
+    } else {
+      console.log('[CounselorCallView] 고객 아직 미입장 - ParticipantConnected 대기')
     }
-
-    console.log('[CounselorCallView] 고객 확인됨')
 
     // === 마이크 활성화 (통화 화면 진입 시) ===
     ;(async () => {
@@ -871,6 +849,7 @@ onMounted(() => {
             autoGainControl: true
           }
         })
+        currentMicStream = stream
 
         const audioTrack = stream.getAudioTracks()[0]
         if (audioTrack) {
@@ -942,13 +921,24 @@ onMounted(() => {
     })()
 
     // 고객이 통화를 종료했을 때 이벤트 리스너 추가
-    callStore.livekitRoom.on(RoomEvent.ParticipantDisconnected, (participant) => {
+    callStore.livekitRoom.on(RoomEvent.ParticipantDisconnected, async (participant) => {
       console.log('[CounselorCallView] 고객이 통화를 종료했습니다:', participant.identity)
 
-      // 통화 종료 모달 표시 (통화 요약 및 메모 저장)
       isCallActive.value = false
-      showManualEndModal.value = true
 
+      // 마이크 정리 및 LiveKit 연결 종료
+      await stopLocalMicrophone()
+      if (callStore.livekitRoom) {
+        try {
+          await callStore.livekitRoom.disconnect()
+        } catch (err) {
+          console.error('[CounselorCallView] LiveKit 연결 종료 실패 (고객 종료):', err)
+        }
+        callStore.setLivekitRoom(null)
+      }
+
+      // 통화 종료 모달 표시 (메모 저장용)
+      showManualEndModal.value = true
       notificationStore.notifyInfo('고객이 통화를 종료했습니다')
     })
   } else {
@@ -960,6 +950,12 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   console.log('[CounselorCallView] 컴포넌트 unmount 시작')
+
+  // 마이크 stream 정리 (동기: 즉시 실행하여 브라우저 마이크 점유 해제)
+  if (currentMicStream) {
+    currentMicStream.getTracks().forEach(track => track.stop())
+    currentMicStream = null
+  }
 
   // 매칭 데이터 정리 (대시보드로 돌아갈 때)
   dashboardStore.clearMatchedData()

@@ -269,7 +269,10 @@ const {
       clearInterval(timerInterval)
     }
 
-    // call store 정리 (안전한 순서: 참조 정리 → 상태 업데이트)
+    // consultationId를 resetCall 전에 저장
+    const consultationId = callStore.currentCall?.consultationId || callStore.currentCall?.registrationId
+
+    // call store 정리
     callStore.setLivekitRoom(null)
     callStore.endCall()
     callStore.resetCall()
@@ -280,7 +283,7 @@ const {
       query: {
         duration: callDuration.value,
         reason: 'counselor_ended',
-        consultationId: callStore.currentCall?.consultationId
+        consultationId
       }
     })
   },
@@ -317,6 +320,7 @@ watch(() => callStore.autoTerminationTriggered, (triggered) => {
     autoRedirectTimer = setTimeout(async () => {
       try {
         const finalDuration = callDuration.value
+        const consultationId = callStore.currentCall?.consultationId || callStore.currentCall?.registrationId
 
         if (timerInterval) {
           clearInterval(timerInterval)
@@ -330,7 +334,7 @@ watch(() => callStore.autoTerminationTriggered, (triggered) => {
           query: {
             duration: finalDuration,
             autoTerminated: 'true',
-            consultationId: callStore.currentCall?.consultationId
+            consultationId
           }
         })
       } catch (error) {
@@ -397,6 +401,8 @@ const endCall = async () => {
   // 자체 LiveKit 연결도 종료 (혹시 있다면)
   await disconnect()
 
+  const consultationId = callStore.currentCall?.consultationId || callStore.currentCall?.registrationId
+
   callStore.endCall()
   callStore.resetCall()
 
@@ -405,7 +411,7 @@ const endCall = async () => {
     name: 'client-call-end',
     query: {
       duration: finalDuration,
-      consultationId: callStore.currentCall?.consultationId
+      consultationId
     }
   })
 }
@@ -460,10 +466,28 @@ onMounted(async () => {
     console.log('[ClientCallView] 기존 LiveKit 연결 사용:', callStore.livekitRoom.name)
 
     try {
-      await enableMicrophone()
-      console.log('[ClientCallView] 마이크 활성화 완료')
+      // callStore.livekitRoom을 직접 사용해서 마이크 활성화
+      // (useLiveKit의 room.value와 callStore.livekitRoom은 다른 객체)
+      console.log('[ClientCallView] 마이크 권한 요청 중...')
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      })
+
+      const audioTrack = stream.getAudioTracks()[0]
+      if (audioTrack) {
+        await callStore.livekitRoom.localParticipant.publishTrack(audioTrack)
+        console.log('[ClientCallView] ✅ 마이크 활성화 완료')
+
+        // 고객 STT 시작
+        startCustomerSTT()
+      }
     } catch (err) {
-      console.error('[ClientCallView] 마이크 활성화 실패:', err)
+      console.error('[ClientCallView] ❌ 마이크 활성화 실패:', err)
+      alert('마이크 권한을 허용해주세요')
     }
 
     callStore.livekitRoom.on(RoomEvent.ParticipantDisconnected, (participant) => {
@@ -477,7 +501,10 @@ onMounted(async () => {
       // 마이크 종료 (STT 중지)
       stopCustomerSTT()
 
-      // call store 정리 (안전한 순서: 참조 정리 → 상태 업데이트)
+      // consultationId를 resetCall 전에 저장
+      const consultationId = callStore.currentCall?.consultationId || callStore.currentCall?.registrationId
+
+      // call store 정리
       callStore.setLivekitRoom(null)
       callStore.endCall()
       callStore.resetCall()
@@ -485,7 +512,11 @@ onMounted(async () => {
       // 통화 종료 페이지로 이동
       router.push({
         name: 'client-call-end',
-        query: { duration: callDuration.value, reason: 'counselor_ended' }
+        query: {
+          duration: callDuration.value,
+          reason: 'counselor_ended',
+          consultationId
+        }
       })
     })
   }

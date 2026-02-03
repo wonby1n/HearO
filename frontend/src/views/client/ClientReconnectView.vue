@@ -22,26 +22,104 @@
 
     <!-- 하단 버튼 -->
     <div class="button-section">
-      <button type="button" class="reconnect-button" @click="handleReconnect">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="refresh-icon">
+      <button
+        type="button"
+        class="reconnect-button"
+        @click="handleReconnect"
+        :disabled="isReconnecting"
+        :class="{ 'reconnecting': isReconnecting }"
+      >
+        <svg
+          v-if="!isReconnecting"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          class="refresh-icon"
+        >
           <path d="M1 4v6h6" />
           <path d="M23 20v-6h-6" />
           <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10M23 14l-4.64 4.36A9 9 0 0 1 3.51 15" />
         </svg>
-        상담 재연결하기
+        <svg
+          v-else
+          class="spinner"
+          viewBox="0 0 24 24"
+          fill="none"
+        >
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" opacity="0.25"/>
+          <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        {{ isReconnecting ? '재연결 중...' : '상담 재연결하기' }}
       </button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { useRouter } from 'vue-router'
+import { ref } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useCallStore } from '@/stores/call'
+import { registerQueue } from '@/services/customerService'
 
 const router = useRouter()
+const route = useRoute()
+const callStore = useCallStore()
+
+const isReconnecting = ref(false)
 
 // 상담 재연결
-const handleReconnect = () => {
-  router.push({ name: 'client-landing' })
+const handleReconnect = async () => {
+  if (isReconnecting.value) return
+
+  try {
+    isReconnecting.value = true
+    console.log('[ClientReconnect] 재연결 시작')
+
+    // 1. localStorage에서 제품 정보 읽기
+    const productId = localStorage.getItem('clientProductId')
+    if (!productId) {
+      throw new Error('제품 정보를 찾을 수 없습니다. 처음부터 다시 시작해주세요.')
+    }
+
+    // 2. 같은 제품으로 새 상담 요청 생성
+    console.log('[ClientReconnect] 새 상담 요청 생성 (productId:', productId, ')')
+    const result = await registerQueue({
+      symptom: '이전 상담 내용 재연결',
+      productId: parseInt(productId)
+    })
+
+    console.log('[ClientReconnect] 재연결 성공:', result)
+
+    // 3. callStore에 저장
+    callStore.initiateCall({
+      registrationId: result.registrationId,
+      customerId: result.customerId,
+      roomToken: null,
+      serverUrl: null
+    })
+
+    // 4. 대기 화면으로 이동
+    router.push({
+      name: 'client-waiting',
+      params: {
+        registrationId: result.registrationId
+      },
+      query: {
+        waitingRank: result.waitingRank,
+        estimatedWaitMinutes: result.estimatedWaitMinutes,
+        websocketTopic: result.websocketTopic,
+        reconnected: 'true' // 재연결 표시
+      }
+    })
+  } catch (error) {
+    console.error('[ClientReconnect] 재연결 실패:', error)
+    alert('재연결에 실패했습니다. 처음부터 다시 시도해주세요.')
+    // 실패 시 처음 화면으로
+    router.push({ name: 'client-landing' })
+  } finally {
+    isReconnecting.value = false
+  }
 }
 </script>
 
@@ -124,12 +202,36 @@ const handleReconnect = () => {
   gap: 8px;
 }
 
-.reconnect-button:hover {
+.reconnect-button:hover:not(:disabled) {
   background: #2563eb;
+}
+
+.reconnect-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.reconnect-button.reconnecting {
+  background: #60a5fa;
 }
 
 .refresh-icon {
   width: 20px;
   height: 20px;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>
