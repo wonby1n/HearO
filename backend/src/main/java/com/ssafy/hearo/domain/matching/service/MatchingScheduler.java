@@ -27,6 +27,7 @@ public class MatchingScheduler {
 
     private final QueueService queueService;
     private final CounselorAvailabilityService counselorAvailabilityService;
+    private final CounselorScoreService counselorScoreService;
     private final QueueEventPublisher queueEventPublisher;
     private final ApplicationEventPublisher eventPublisher;
     private final RegistrationRepository registrationRepository;
@@ -84,8 +85,9 @@ public class MatchingScheduler {
                 break;
             }
 
-            // 매칭 가능한 상담원 중 하나 선택 (첫 번째)
-            Long selectedCounselor = result.matchableCounselorIds().iterator().next();
+            // 매칭 가능한 상담원 중 최적의 상담원 선택 (가중치 기반)
+            Long selectedCounselor = counselorScoreService.selectBestCounselor(
+                    result.customerId(), result.matchableCounselorIds());
 
             // 상담 세션 생성
             String roomName = generateRoomName(result.customerId(), selectedCounselor);

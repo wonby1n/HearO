@@ -4,6 +4,9 @@ jwt:
   access-token-expiry-ms: 1800000
   refresh-token-expiry-ms: 604800000
 
+gms:
+  url: http://localhost:8080/test
+
 spring:
   jpa:
     hibernate:
