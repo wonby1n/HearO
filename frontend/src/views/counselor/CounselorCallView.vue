@@ -399,15 +399,24 @@ const handleManualEndRequest = async () => {
 
         if (audioPublication) {
           console.log('[CounselorCallView] 마이크 트랙 unpublish 시작')
+          console.log('[CounselorCallView] audioPublication:', audioPublication)
+          console.log('[CounselorCallView] audioPublication.track:', audioPublication.track)
 
-          // 트랙 unpublish
-          await localParticipant.unpublishTrack(audioPublication.track)
-
-          // MediaStreamTrack 완전히 중지
+          // MediaStreamTrack 먼저 중지
           if (audioPublication.track?.mediaStreamTrack) {
+            console.log('[CounselorCallView] MediaStreamTrack stop 시작')
             audioPublication.track.mediaStreamTrack.stop()
             console.log('[CounselorCallView] 마이크 MediaStreamTrack 중지 완료')
+          } else {
+            console.warn('[CounselorCallView] MediaStreamTrack이 없습니다')
           }
+
+          // 트랙 unpublish
+          console.log('[CounselorCallView] unpublishTrack 시작')
+          await localParticipant.unpublishTrack(audioPublication.track)
+          console.log('[CounselorCallView] unpublishTrack 완료')
+        } else {
+          console.warn('[CounselorCallView] audioPublication이 없습니다')
         }
 
         // 2. LiveKit 룸 연결 종료
