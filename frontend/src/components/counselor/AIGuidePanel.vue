@@ -118,7 +118,7 @@ const handleSearch = async () => {
     console.log('[AIGuidePanel] AI 답변:', response)
   } catch (err) {
     console.error('[AIGuidePanel] 검색 실패:', err)
-    error.value = 'AI 답변을 가져오는데 실패했습니다. 다시 시도해주세요.'
+    error.value = 'AI 답변을 가져오는데 실패했습니다. 에러코드를 다시 확인하시거나, 잠시 후 다시 시도해주세요.'
   } finally {
     isLoading.value = false
   }
