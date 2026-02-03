@@ -19,4 +19,6 @@ public interface ConsultationService {
     void patchConsultation(Integer consultationId, ConsultationPatchRequest request);
 
     Page<ConsultationListResponse> getMyConsultations(Long userId, Pageable pageable);
+
+    Page<ConsultationListResponse> getConsultationsByCustomerId(Integer customerId, Pageable pageable);
 }
