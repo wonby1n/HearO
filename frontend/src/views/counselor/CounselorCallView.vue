@@ -96,6 +96,7 @@ import { useNotificationStore } from '@/stores/notification'
 import { useCallStore } from '@/stores/call'
 import { useDashboardStore } from '@/stores/dashboard'
 import axios from 'axios'
+import { useAudioRecorder } from '@/composables/useAudioRecorder'
 
 // 로컬 AI 서버 엔드포인트 (Vite env로 덮어쓸 수 있음) 
 const TOXIC_API_URL = import.meta.env.VITE_TOXIC_API_URL || 'http://127.0.0.1:8000/unsmile'
@@ -113,6 +114,17 @@ const router = useRouter()
 const notificationStore = useNotificationStore()
 const callStore = useCallStore()
 const dashboardStore = useDashboardStore()
+const { startRecording, addTrack: addRecordingTrack, stopRecording, downloadRecording, cleanup: cleanupRecorder } = useAudioRecorder()
+
+// 음성 녹음 종료 및 파일 다운로드 (공통 헬퍼 — 수동·자동종료·고객종료 공유)
+const stopAndSaveRecording = async () => {
+  const recording = await stopRecording()
+  if (recording) {
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+    downloadRecording(recording.blob, `녹음_${date}_${Date.now()}`)
+  }
+}
+
 // --- 상태 정의 ---
 const isCallActive = ref(true)
 const isMuted = ref(false)
@@ -354,6 +366,9 @@ const handleManualEndRequest = async () => {
     isCallActive.value = false
     callStore.endCall()
 
+    // 음성 녹음 종료 및 파일 다운로드
+    await stopAndSaveRecording()
+
     if (callStore.livekitRoom) {
       console.log('[CounselorCallView] LiveKit 연결 즉시 종료 (통화 종료 버튼)')
 
@@ -438,6 +453,9 @@ const handleAutoTerminationConfirm = async () => {
 
     // TODO: 통화 기록 저장
     // await saveCallRecord(callData)
+
+    // 음성 녹음 종료 및 파일 다운로드
+    await stopAndSaveRecording()
 
     // LiveKit 연결 종료
     if (callStore.livekitRoom) {
@@ -837,6 +855,9 @@ onMounted(() => {
       console.log('[CounselorCallView] 고객 아직 미입장 - ParticipantConnected 대기')
     }
 
+    // 음성 녹음 시작 (고객 + 상담원 믹스)
+    startRecording()
+
     // === 마이크 활성화 (통화 화면 진입 시) ===
     ;(async () => {
       try {
@@ -861,6 +882,9 @@ onMounted(() => {
           // 마이크가 활성화되었으므로 음소거 상태는 false
           isMuted.value = false
           console.log('[CounselorCallView] 마이크 활성화 완료 (음소거 해제 상태)')
+
+          // 상담원 마이크를 녹음 믹스에 추가
+          addRecordingTrack(audioTrack)
         }
       } catch (err) {
         console.error('[CounselorCallView] 마이크 활성화 실패:', err)
@@ -879,6 +903,7 @@ onMounted(() => {
         for (const pub of p.audioTrackPublications.values()) {
           if (pub.track) {
             await attachDelayedCustomerAudio(pub.track, p.identity)
+            addRecordingTrack(pub.track.mediaStreamTrack)
           }
         }
       }
@@ -887,6 +912,7 @@ onMounted(() => {
       room.on(RoomEvent.TrackSubscribed, async (track, publication, participant) => {
         if (track.kind === Track.Kind.Audio) {
           await attachDelayedCustomerAudio(track, participant.identity)
+          addRecordingTrack(track.mediaStreamTrack)
         }
       })
 
@@ -926,6 +952,9 @@ onMounted(() => {
 
       isCallActive.value = false
 
+      // 음성 녹음 종료 및 파일 다운로드
+      await stopAndSaveRecording()
+
       // 마이크 정리 및 LiveKit 연결 종료
       await stopLocalMicrophone()
       if (callStore.livekitRoom) {
@@ -963,6 +992,9 @@ onBeforeUnmount(() => {
 
   // Whisper/VAD 정리
   stopCounselorWhisperVad()
+
+  // 음성 녹음 정리
+  cleanupRecorder()
 
   // 오디오 파이프라인 정리
   try {
