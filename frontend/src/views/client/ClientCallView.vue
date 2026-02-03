@@ -515,7 +515,7 @@ onMounted(async () => {
         query: {
           duration: callDuration.value,
           reason: 'counselor_ended',
-          consultationId
+          consultationId: callStore.currentCall?.consultationId
         }
       })
     })

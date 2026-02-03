@@ -20,6 +20,7 @@ public class ConsultationListResponse {
     private String subtitle;
     private String aiSummary;
     private String fullTranscript;
+    private String userMemo;
     private String symptom;
     private String errorCode;
     private TerminationReason terminationReason;
@@ -43,6 +44,7 @@ public class ConsultationListResponse {
                 .subtitle(consultation.getSubtitle())
                 .aiSummary(consultation.getAiSummary())
                 .fullTranscript(consultation.getFullTranscript())
+                .userMemo(consultation.getUserMemo())
                 .symptom(consultation.getRegistration().getSymptom())
                 .errorCode(consultation.getRegistration().getErrorCode())
                 .terminationReason(consultation.getTerminationReason())

@@ -67,6 +67,7 @@ const loadCustomerData = async () => {
     console.log('[CustomerInfoSection] Registration ID:', registrationId);
 
     const response = await fetchCustomerData(registrationId);
+    console.log('[CustomerInfoSection] fetchCustomerData 응답:', response);
 
     // 과거 상담 이력 조회
     let consultationHistory = []

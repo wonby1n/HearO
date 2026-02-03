@@ -10,6 +10,45 @@ const getAuthToken = () => {
 }
 
 /**
+ * Start consultation (상담 시작)
+ * API: POST /api/v1/consultations
+ *
+ * @param {Object} payload
+ * @param {number} payload.customerId - 고객 ID
+ * @param {number} payload.registrationId - 접수 ID
+ * @returns {Promise<Object>} { consultationId }
+ */
+export const startConsultation = async (payload) => {
+  try {
+    const token = getAuthToken()
+    const response = await axios.post(
+      `${API_BASE_URL}/consultations`,
+      {
+        customerId: payload.customerId,
+        registrationId: payload.registrationId
+      },
+      token
+        ? {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        : undefined
+    )
+
+    if (response.data && response.data.isSuccess) {
+      console.log('✅ [consultationService] 상담 시작 성공:', response.data.data)
+      return response.data.data
+    } else {
+      throw new Error(response.data?.message || '상담 시작 실패')
+    }
+  } catch (error) {
+    console.error('❌ 상담 시작 에러:', error.response?.data || error.message)
+    throw error
+  }
+}
+
+/**
  * Save consultation memo
  * API: PUT /api/v1/consultations/{consultationId}/memo
  *
