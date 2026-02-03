@@ -1,5 +1,7 @@
 <template>
   <div class="min-h-screen bg-gray-50">
+    <!--숨겨진 음성 재생 컨테이너-->
+    <div ref="audioContainer" style="display: none;"></div>
     <!-- 자동 종료 모달 (시스템 트리거) -->
     <AutoTerminationModal
       :show="showAutoTerminationModal"
@@ -94,7 +96,6 @@ import { saveConsultationMemo } from '@/services/consultationService'
 import { useNotificationStore } from '@/stores/notification'
 import { useCallStore } from '@/stores/call'
 import { useDashboardStore } from '@/stores/dashboard'
-import { useAudioStream } from '@/composables/useAudioStream'
 import axios from 'axios'
 
 // 로컬 AI 서버 엔드포인트 (Vite env로 덮어쓸 수 있음) 
@@ -113,11 +114,24 @@ const router = useRouter()
 const notificationStore = useNotificationStore()
 const callStore = useCallStore()
 const dashboardStore = useDashboardStore()
-const { initAudioContext } = useAudioStream()
-
 // --- 상태 정의 ---
 const isCallActive = ref(true)
 const isMuted = ref(false)
+
+// 오디오 파이프라인 상태
+let audioCtx = null
+const pipelines = new Map() // participantId -> { gain, delay, blocked, fallbackEl, analyser }
+const audioContainer = ref(null)
+
+// 상담원 Whisper VAD 상태
+let vadCtx = null
+let vadStream = null
+let vadSource = null
+let vadProcessor = null
+let vadBuffers = []
+let vadSpeeching = false
+let vadLastVoiceAt = 0
+let vadStartAt = 0
 
 // 자동 종료 모달
 const showAutoTerminationModal = ref(false)
@@ -516,6 +530,310 @@ const addSttMessage = (message) => {
   }
 }
 
+// ---- 오디오 파이프라인 헬퍼 ----
+const ensureAudioContext = async () => {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+  }
+  if (audioCtx.state === 'suspended') {
+    try { await audioCtx.resume() } catch {}
+  }
+  return audioCtx
+}
+
+const attachDelayedCustomerAudio = async (track, participantId) => {
+  if (!track?.mediaStreamTrack) return
+
+  const ctx = await ensureAudioContext()
+  if (pipelines.has(participantId)) return
+
+  // 1. 즉시 재생용 Fallback 오디오 생성 (지연 없음)
+  // Web Audio가 활성화되기 전에도 소리가 나게 하여 끊김을 방지합니다.
+  const fallbackEl = track.attach()
+  audioContainer.value?.appendChild(fallbackEl)
+
+  // 2. Web Audio 파이프라인 구성
+  const stream = new MediaStream([track.mediaStreamTrack])
+  const source = ctx.createMediaStreamSource(stream)
+
+  const delayNode = ctx.createDelay(10)
+  delayNode.delayTime.value = CUSTOMER_AUDIO_DELAY_SEC
+
+  const gainNode = ctx.createGain()
+  gainNode.gain.value = 1
+
+  // 3. 신호 감지용 Analyser 추가 (TestRTC의 핵심)
+  const analyser = ctx.createAnalyser()
+  analyser.fftSize = 256
+  const pcmData = new Float32Array(analyser.fftSize)
+
+  // 연결: Source -> Delay -> Gain -> Destination & Analyser
+  source.connect(delayNode)
+  delayNode.connect(gainNode)
+  gainNode.connect(ctx.destination)
+  gainNode.connect(analyser)
+
+  pipelines.set(participantId, {
+    gain: gainNode,
+    delay: delayNode,
+    blocked: false,
+    fallbackEl,
+    analyser
+  })
+
+  // 4. 지연된 소리가 나오기 시작하는지 감시 루프
+  const checkSignal = () => {
+    const pipe = pipelines.get(participantId)
+    if (!pipe) return
+
+    analyser.getFloatTimeDomainData(pcmData)
+    let sumSquares = 0
+    for (const amplitude of pcmData) {
+      sumSquares += amplitude * amplitude
+    }
+    const rms = Math.sqrt(sumSquares / pcmData.length)
+
+    // 지연된 소리(RMS)가 일정 크기 이상 감지되면 원본 소리를 끔
+    if (rms > 0.01) {
+      console.log(`[Audio] ${participantId} 지연 신호 감지 -> 원본 음소거`)
+      pipe.fallbackEl.muted = true
+    } else {
+      // 신호가 올 때까지 계속 확인
+      requestAnimationFrame(checkSignal)
+    }
+  }
+
+  checkSignal()
+}
+
+const setCustomerAudioMuted = (participantId, muted) => {
+  const p = pipelines.get(participantId)
+  if (!p) return
+  const target = muted ? 0 : 1
+  try {
+    p.gain.gain.setTargetAtTime(target, audioCtx.currentTime, 0.02)
+  } catch {
+    p.gain.gain.value = target
+  }
+}
+
+const blockCustomerAudioUntilNextStt = (participantId) => {
+  const p = pipelines.get(participantId)
+  if (!p) return
+  p.blocked = true
+  setCustomerAudioMuted(participantId, true)
+}
+
+const scheduleUnblockOnNextStt = (participantId) => {
+  const p = pipelines.get(participantId)
+  if (!p) return
+  if (!p.blocked) return
+
+  // 다음 STT가 왔을 때, "그 다음 구간"부터 다시 들리게 하는 보수적 방식
+  // (딜레이 만큼 기다렐다가 해제)
+  setTimeout(() => {
+    // 아직도 blocked 상태면 해제
+    const latest = pipelines.get(participantId)
+    if (!latest) return
+    latest.blocked = false
+    setCustomerAudioMuted(participantId, false)
+  }, CUSTOMER_AUDIO_DELAY_SEC * 1000 + MUTE_POSTPAD_MS)
+}
+
+// ---- LiveKit DataReceived payload 파싱 ----
+const safeParsePayload = (payload) => {
+  try {
+    const text = new TextDecoder().decode(payload)
+    return JSON.parse(text)
+  } catch {
+    return null
+  }
+}
+
+// ---- unsmile 폭력성 검사 ----
+const analyzeToxicity = async (text) => {
+  if (!text?.trim()) return { toxic: false, score: 0 }
+  try {
+    const res = await fetch(TOXIC_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = await res.json()
+    return {
+      toxic: !!data.toxic,
+      score: typeof data.score === 'number' ? data.score : (typeof data.prob === 'number' ? data.prob : 0)
+    }
+  } catch (e) {
+    console.warn('[CounselorCallView] 폭력성 검사 실패(우회):', e)
+    return { toxic: false, score: 0 }
+  }
+}
+
+// ---- 텍스트 마스킹 ----
+const maskText = (text) => {
+  if (!text) return ''
+  // 너무 공격적으로 지우기보단, 글자 일부만 블러 표시
+  return text.replace(/[\S]/g, '•')
+}
+
+// ---- Whisper STT (상담원 로컬) ----
+const floatTo16BitPCM = (float32) => {
+  const out = new Int16Array(float32.length)
+  for (let i = 0; i < float32.length; i++) {
+    let s = Math.max(-1, Math.min(1, float32[i]))
+    out[i] = s < 0 ? s * 0x8000 : s * 0x7fff
+  }
+  return out
+}
+
+const encodeWav16kMono = async (float32, inputSampleRate) => {
+  // 간단한 linear resample → 16k
+  const targetRate = 16000
+  const ratio = inputSampleRate / targetRate
+  const targetLength = Math.floor(float32.length / ratio)
+  const resampled = new Float32Array(targetLength)
+  for (let i = 0; i < targetLength; i++) {
+    const idx = i * ratio
+    const i0 = Math.floor(idx)
+    const i1 = Math.min(float32.length - 1, i0 + 1)
+    const t = idx - i0
+    resampled[i] = float32[i0] * (1 - t) + float32[i1] * t
+  }
+
+  const pcm16 = floatTo16BitPCM(resampled)
+  const headerSize = 44
+  const buffer = new ArrayBuffer(headerSize + pcm16.byteLength)
+  const view = new DataView(buffer)
+  const writeString = (offset, str) => {
+    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i))
+  }
+
+  writeString(0, 'RIFF')
+  view.setUint32(4, 36 + pcm16.byteLength, true)
+  writeString(8, 'WAVE')
+  writeString(12, 'fmt ')
+  view.setUint32(16, 16, true) // PCM
+  view.setUint16(20, 1, true) // PCM
+  view.setUint16(22, 1, true) // mono
+  view.setUint32(24, targetRate, true)
+  view.setUint32(28, targetRate * 2, true) // byte rate
+  view.setUint16(32, 2, true) // block align
+  view.setUint16(34, 16, true) // bits
+  writeString(36, 'data')
+  view.setUint32(40, pcm16.byteLength, true)
+  new Uint8Array(buffer, headerSize).set(new Uint8Array(pcm16.buffer))
+  return new Blob([buffer], { type: 'audio/wav' })
+}
+
+const sendToWhisper = async (wavBlob) => {
+  try {
+    const form = new FormData()
+    form.append('file', wavBlob, 'audio.wav')
+    const res = await fetch(WHISPER_API_URL, {
+      method: 'POST',
+      body: form
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = await res.json().catch(() => null)
+
+    // 서버가 {text:"..."} 또는 {transcript:"..."} 등을 반환한다고 가정
+    const text = data?.text ?? data?.transcript ?? data?.result ?? ''
+    return String(text || '').trim()
+  } catch (e) {
+    console.warn('[CounselorCallView] Whisper STT 실패:', e)
+    return ''
+  }
+}
+
+const startCounselorWhisperVad = async () => {
+  try {
+    if (vadCtx) return
+    vadCtx = new (window.AudioContext || window.webkitAudioContext)()
+    vadStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    vadSource = vadCtx.createMediaStreamSource(vadStream)
+    // ScriptProcessor는 deprecated지만 호환성 좋음
+    vadProcessor = vadCtx.createScriptProcessor(2048, 1, 1)
+
+    vadProcessor.onaudioprocess = async (e) => {
+      const input = e.inputBuffer.getChannelData(0)
+
+      // RMS 계산
+      let sum = 0
+      for (let i = 0; i < input.length; i++) sum += input[i] * input[i]
+      const rms = Math.sqrt(sum / input.length)
+      const now = performance.now()
+
+      const isVoice = rms > 0.02
+      if (isVoice) {
+        if (!vadSpeeching) {
+          vadSpeeching = true
+          vadStartAt = now
+          vadBuffers = []
+        }
+        vadLastVoiceAt = now
+        vadBuffers.push(new Float32Array(input))
+      } else if (vadSpeeching) {
+        // 말하던 중 무음이 VAD_SILENCE_MS 이상이면 한 구간 종료
+        if (now - vadLastVoiceAt >= VAD_SILENCE_MS) {
+          const dur = now - vadStartAt
+          vadSpeeching = false
+
+          if (dur >= VAD_MIN_UTTER_MS && vadBuffers.length) {
+            const total = vadBuffers.reduce((acc, a) => acc + a.length, 0)
+            const merged = new Float32Array(total)
+            let off = 0
+            for (const b of vadBuffers) {
+              merged.set(b, off)
+              off += b.length
+            }
+            vadBuffers = []
+
+            const wav = await encodeWav16kMono(merged, vadCtx.sampleRate)
+            const text = await sendToWhisper(wav)
+            if (text) {
+              addSttMessage({
+                speaker: 'agent',
+                text,
+                maskedText: '',
+                hasProfanity: false,
+                confidence: 0.9
+              })
+            }
+          } else {
+            vadBuffers = []
+          }
+        }
+      }
+    }
+
+    vadSource.connect(vadProcessor)
+    vadProcessor.connect(vadCtx.destination) // 처리 구동용(출력 음량은 거의 무시됨)
+    console.log('[CounselorCallView] 상담원 Whisper VAD 시작')
+  } catch (e) {
+    console.warn('[CounselorCallView] Whisper VAD 시작 실패:', e)
+  }
+}
+
+const stopCounselorWhisperVad = async () => {
+  try {
+    vadProcessor?.disconnect?.()
+    vadSource?.disconnect?.()
+    vadStream?.getTracks?.().forEach(t => t.stop())
+    await vadCtx?.close?.()
+  } catch {
+    // ignore
+  } finally {
+    vadCtx = null
+    vadStream = null
+    vadSource = null
+    vadProcessor = null
+    vadBuffers = []
+    vadSpeeching = false
+  }
+}
+
 onBeforeUnmount(() => {
   if (memoSaveTimeout) clearTimeout(memoSaveTimeout);
   if (!skipDraftSaveOnUnmount && memo.value?.trim().length) saveMemoDraft(memo.value);
@@ -576,7 +894,7 @@ onMounted(() => {
     // === 고객 오디오 딜레이/차단 파이프라인 구성 ===
     // 1) 이미 구독된 트랙이 있으면 즉시 파이프라인 생성
     ;(async () => {
-      initAudioContext()
+      await ensureAudioContext()
 
       for (const p of room.remoteParticipants.values()) {
         for (const pub of p.audioTrackPublications.values()) {
@@ -647,17 +965,21 @@ onBeforeUnmount(() => {
   dashboardStore.clearMatchedData()
   console.log('[CounselorCallView] 매칭 데이터 정리 완료')
 
-  // TODO: Whisper/VAD 정리 로직 필요 시 추가
-  // stopCounselorWhisperVad()
+  // Whisper/VAD 정리
+  stopCounselorWhisperVad()
 
-  // TODO: 오디오 파이프라인 정리 로직 필요 시 추가
-  // try {
-  //   pipelines.clear()
-  //   audioCtx?.close?.()
-  // } catch {
-  //   // ignore
-  // } finally {
-  //   audioCtx = null
-  // }
+  // 오디오 파이프라인 정리
+  try {
+    for (const pipe of pipelines.values()) {
+      pipe.fallbackEl?.pause()
+      pipe.fallbackEl?.remove()
+    }
+    pipelines.clear()
+    audioCtx?.close?.()
+  } catch {
+    // ignore
+  } finally {
+    audioCtx = null
+  }
 })
 </script>
