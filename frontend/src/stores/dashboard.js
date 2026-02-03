@@ -179,6 +179,31 @@ export const useDashboardStore = defineStore('dashboard', () => {
   }
 
   /**
+   * 대기열 통계 조회 (대기 고객 수)
+   */
+  const fetchQueueStats = async () => {
+    try {
+      const response = await axios.get('/api/v1/queue/stats')
+      if (response.data) {
+        // normalQueueSize + blacklistQueueSize = 전체 대기 인원
+        const total = (response.data.normalQueueSize || 0) + (response.data.blacklistQueueSize || 0)
+        waitingCustomers.value = total
+      }
+    } catch (error) {
+      console.error('[DashboardStore] 대기열 통계 조회 실패:', error)
+    }
+  }
+
+  /**
+   * 대기 고객 수 직접 업데이트 (WebSocket용)
+   */
+  const updateWaitingCustomers = (count) => {
+    if (typeof count === 'number' && count >= 0) {
+      waitingCustomers.value = count
+    }
+  }
+
+  /**
    * 에너지 데이터 부분 새로고침
    */
   const refreshEnergyData = async () => {
@@ -237,6 +262,8 @@ export const useDashboardStore = defineStore('dashboard', () => {
     updateTodo,
     deleteTodo,
     refreshEnergyData,
+    fetchQueueStats,
+    updateWaitingCustomers,
     setMatchedData,
     clearMatchedData
   }

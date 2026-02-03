@@ -121,6 +121,7 @@ let countChangeTimer = null
 let countAnimationTimer = null
 let clockInterval = null
 let heartbeatInterval = null
+let queueStatsInterval = null
 let isRequestPending = false
 
 // --- 포맷팅 ---
@@ -303,6 +304,13 @@ onMounted(() => {
   // Visibility API: 브라우저 throttling 대응
   document.addEventListener('visibilitychange', handleVisibilityChange)
 
+  // 대기열 통계 조회 (초기 로드)
+  dashboardStore.fetchQueueStats()
+  // 5초마다 대기열 통계 갱신
+  queueStatsInterval = setInterval(() => {
+    dashboardStore.fetchQueueStats()
+  }, 5000)
+
   // 상담 ON 상태면 하트비트 및 매칭 알림 재시작
   if (dashboardStore.consultationStatus.isActive) {
     startHeartbeat()
@@ -320,6 +328,7 @@ onUnmounted(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload)
   document.removeEventListener('visibilitychange', handleVisibilityChange)
   if (clockInterval) clearInterval(clockInterval)
+  if (queueStatsInterval) clearInterval(queueStatsInterval)
   stopHeartbeat()
   if (countChangeTimer) clearTimeout(countChangeTimer)
   if (countAnimationTimer) clearTimeout(countAnimationTimer)
