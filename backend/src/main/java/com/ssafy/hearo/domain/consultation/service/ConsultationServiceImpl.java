@@ -18,6 +18,8 @@ import com.ssafy.hearo.domain.user.entity.User;
 import com.ssafy.hearo.domain.user.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -181,5 +183,11 @@ public class ConsultationServiceImpl implements ConsultationService{
                 ratingService.updateRatingByConsultationId(consultationId, request.getRating());
             }
         }
+    }
+
+    @Override
+    public Page<ConsultationListResponse> getMyConsultations(Long userId, Pageable pageable) {
+        return consultationRepository.findAllByUserId(userId, pageable)
+                .map(ConsultationListResponse::from);
     }
 }
