@@ -1,0 +1,24 @@
+# infra/livekit-local.yaml - 로컬 개발용
+
+port: 7880
+bind_addresses:
+  - ""
+
+redis:
+  address: "redis:6379"
+  username: ""
+  db: 0
+
+rtc:
+  udp_port: 7882
+  tcp_port: 7881
+  port_range_start: 51000
+  port_range_end: 51100
+  # 로컬 환경: external IP 사용 안 함
+  use_external_ip: false
+  # 로컬 IP 명시적 설정
+  node_ip: "127.0.0.1"
+
+logging:
+  json: false
+  level: info

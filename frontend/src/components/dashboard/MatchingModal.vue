@@ -1,8 +1,8 @@
 <template>
   <Transition name="modal-fade">
     <div v-if="isOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <!-- 배경 오버레이 -->
-      <div class="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" @click="closeModal"></div>
+      <!-- 배경 오버레이 (클릭 방지) -->
+      <div class="absolute inset-0 bg-gray-900/40 backdrop-blur-sm"></div>
 
       <!-- 모달 컨텐츠 -->
       <div class="relative w-full max-w-2xl bg-white rounded-[32px] shadow-2xl border-[6px] border-blue-100 overflow-hidden p-12 text-center animate-modal-pop">

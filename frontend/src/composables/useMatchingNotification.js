@@ -95,7 +95,9 @@ export function useMatchingNotification(options = {}) {
     isMatched.value = false // 플래그 리셋
   }
 
-  // ⚠️ onUnmounted 제거: async context에서 호출되므로 부모 컴포넌트에서 cleanup 처리
+  // Note: onUnmounted 제거
+  // 이 composable은 setup() 밖에서 동적으로 생성되므로 lifecycle hooks 사용 불가
+  // useCallConnection에서 명시적으로 disconnect() 호출하여 정리
 
   return {
     isConnected,
