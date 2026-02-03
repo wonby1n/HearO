@@ -1,5 +1,7 @@
 <template>
   <div class="min-h-screen bg-gray-50">
+    <!--숨겨진 음성 재생 컨테이너-->
+    <div ref="audioContainer" style="display: none;"></div>
     <!-- 자동 종료 모달 (시스템 트리거) -->
     <AutoTerminationModal
       :show="showAutoTerminationModal"
@@ -53,69 +55,22 @@
 
         <!-- 우측: AI 가이드 및 메모 -->
         <div class="lg:col-span-3">
-          <div class="bg-white rounded-lg shadow-sm border border-gray-200 h-full p-6 flex flex-col">
-            <div class="flex items-center gap-2 mb-4">
-              <svg class="w-5 h-5 text-primary-600" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.34.208-.646.477-.859a4 4 0 10-4.954 0c.27.213.462.519.476.859h4.002z"/>
-              </svg>
-              <h3 class="text-lg font-semibold text-gray-900">AI 가이드</h3>
-            </div>
-
-            <!-- 검색 영역 -->
-            <div class="mb-6">
-              <div class="relative">
-                <input
-                  type="text"
-                  placeholder="메뉴얼 / FAQ 검색"
-                  class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                  v-model="searchQuery"
-                />
-                <svg class="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                </svg>
+          <div class="bg-white rounded-lg shadow-sm border border-gray-200 h-full flex flex-col overflow-hidden gap-4">
+            <!-- AI 가이드 섹션 (상단, 스크롤 가능) -->
+            <div class="flex-2 overflow-hidden flex flex-col border-b border-gray-200">
+              <div class="p-4 border-b border-gray-100">
+                <h3 class="text-lg font-semibold text-gray-900">AI 가이드</h3>
+              </div>
+              <div class="flex-1 overflow-y-auto p-4">
+                <AIGuidePanel class="h-full" />
               </div>
             </div>
 
-            <!-- 추천 영역 (스크롤 가능하게 처리 권장) -->
-            <div class="flex-1 overflow-y-auto space-y-6 pr-1">
-              <section>
-                <h4 class="text-sm font-semibold text-gray-900 mb-3">추천 솔루션</h4>
-                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <ul class="space-y-2 text-sm text-gray-900">
-                    <li class="flex items-start gap-2">
-                      <span class="text-blue-600 mt-0.5">1.</span>
-                      <span>전원 플러그 확인 및 재부팅</span>
-                    </li>
-                    <li class="flex items-start gap-2">
-                      <span class="text-blue-600 mt-0.5">2.</span>
-                      <span>온도 센서 점검 필요</span>
-                    </li>
-                    <li class="flex items-start gap-2">
-                      <span class="text-blue-600 mt-0.5">3.</span>
-                      <span>다시 문을 제대로 닫기</span>
-                    </li>
-                  </ul>
-                </div>
-              </section>
-
-              <section>
-                <h4 class="text-sm font-semibold text-gray-900 mb-3">추천 응대 스크립트</h4>
-                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-3">
-                  <p class="text-sm text-gray-900 leading-relaxed">
-                    "고객님, 우선 냉장고 전원을 완전히 끄고 5분 정도 기다린 후 다시 켜주시겠어요?"
-                  </p>
-                </div>
-                <div class="flex gap-2">
-                  <button class="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">
-                    응대제안 사용
-                  </button>
-                  <button class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors">
-                    로그 저장
-                  </button>
-                </div>
-              </section>
-
-              <CallMemoPanel v-model="memo" :saved-label="memoSaveLabel" />
+            <!-- 메모 섹션 (하단, 스크롤 가능) -->
+            <div class="flex-1 overflow-hidden flex flex-col">
+              <div class="p-4">
+                <CallMemoPanel v-model="memo" :saved-label="memoSaveLabel" />
+              </div>
             </div>
           </div>
         </div>
@@ -133,15 +88,15 @@ import CustomerInfoSection from '@/components/counselor/CustomerInfoSection.vue'
 import STTChatPanel from '@/components/counselor/STTChatPanel.vue'
 import CounselorCallControls from '@/components/counselor/CounselorCallControls.vue'
 import CallMemoPanel from '@/components/counselor/CallMemoPanel.vue'
+import AIGuidePanel from '@/components/counselor/AIGuidePanel.vue'
 import AutoTerminationModal from '@/components/call/AutoTerminationModal.vue'
 import ManualEndCallModal from '@/components/call/ManualEndCallModal.vue'
-import { mockSttMessages } from '@/mocks/counselor'
 import { saveConsultationMemo } from '@/services/consultationService'
 import { useNotificationStore } from '@/stores/notification'
 import { useCallStore } from '@/stores/call'
 import { useDashboardStore } from '@/stores/dashboard'
-import { useAudioStream } from '@/composables/useAudioStream'
 import axios from 'axios'
+import { useAudioRecorder } from '@/composables/useAudioRecorder'
 
 // 로컬 AI 서버 엔드포인트 (Vite env로 덮어쓸 수 있음) 
 const TOXIC_API_URL = import.meta.env.VITE_TOXIC_API_URL || 'http://127.0.0.1:8000/unsmile'
@@ -159,18 +114,49 @@ const router = useRouter()
 const notificationStore = useNotificationStore()
 const callStore = useCallStore()
 const dashboardStore = useDashboardStore()
-const { initAudioContext } = useAudioStream()
+const { startRecording, addTrack: addRecordingTrack, stopRecording, downloadRecording, cleanup: cleanupRecorder } = useAudioRecorder()
+
+// 음성 녹음 종료 및 파일 다운로드 (공통 헬퍼 — 수동·자동종료·고객종료 공유)
+const stopAndSaveRecording = async () => {
+  const recording = await stopRecording()
+  if (recording) {
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+    downloadRecording(recording.blob, `녹음_${date}_${Date.now()}`)
+  }
+}
 
 // --- 상태 정의 ---
 const isCallActive = ref(true)
 const isMuted = ref(false)
+let currentMicStream = null // getUserMedia stream 참조 — 종료 시 트랙 정리용
+
+// 오디오 파이프라인 상태
+let audioCtx = null
+const pipelines = new Map() // participantId -> { gain, delay, blocked, fallbackEl, analyser }
+const audioContainer = ref(null)
+
+// 상담원 Whisper VAD 상태
+let vadCtx = null
+let vadStream = null
+let vadSource = null
+let vadProcessor = null
+let vadBuffers = []
+let vadSpeeching = false
+let vadLastVoiceAt = 0
+let vadStartAt = 0
 
 // 자동 종료 모달
 const showAutoTerminationModal = ref(false)
 const showManualEndModal = ref(false)
 
-const sttMessages = ref(mockSttMessages)
-const searchQuery = ref('')
+// 폭언 3회 → 자동 종료 트리거 감지
+watch(() => callStore.autoTerminationTriggered, (triggered) => {
+  if (triggered) {
+    showAutoTerminationModal.value = true
+  }
+})
+
+const sttMessages = ref([])
 const aiSummary = ref('')
 
 // --- 메모 드래프트 관리 (복구된 핵심 로직) ---
@@ -278,6 +264,31 @@ const saveMemoToServer = async () => {
   }
 }
 
+// 마이크 정리: stored stream 트랙 stop + LiveKit 트랙 unpublish
+const stopLocalMicrophone = async () => {
+  if (currentMicStream) {
+    currentMicStream.getTracks().forEach(track => track.stop())
+    currentMicStream = null
+  }
+
+  if (callStore.livekitRoom) {
+    try {
+      const localParticipant = callStore.livekitRoom.localParticipant
+      const audioPublication = localParticipant.getTrackPublication(Track.Source.Microphone)
+      if (audioPublication?.track?.mediaStreamTrack) {
+        audioPublication.track.mediaStreamTrack.stop()
+      }
+      if (audioPublication) {
+        await localParticipant.unpublishTrack(audioPublication.track)
+      }
+    } catch (err) {
+      console.error('[CounselorCallView] 마이크 정리 실패:', err)
+    }
+  }
+
+  isMuted.value = true
+}
+
 // 통화 컨트롤 핸들러
 // 음소거 토글 핸들러
 const handleMuteChanged = async (muted) => {
@@ -310,8 +321,12 @@ const handleMuteChanged = async (muted) => {
       console.log('[CounselorCallView] 오디오 트랙이 없어서 마이크 활성화 시도')
 
       try {
-        // 마이크 권한 요청 및 활성화
+        // 기존 stream 정리 후 새로운 마이크 권한 요청
+        if (currentMicStream) {
+          currentMicStream.getTracks().forEach(t => t.stop())
+        }
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        currentMicStream = stream
         const audioTracks = stream.getAudioTracks()
 
         if (audioTracks.length > 0) {
@@ -342,44 +357,6 @@ const handleMuteChanged = async (muted) => {
   }
 }
 
-const handleEndCall = async () => {
-  try {
-    isCallActive.value = false
-
-    // 메모 저장
-    const saved = await saveMemoToServer()
-    if (saved) {
-      clearMemoDraft()
-      skipDraftSaveOnUnmount = true
-    }
-
-    // LiveKit 연결 종료
-    if (callStore.livekitRoom) {
-      console.log('[CounselorCallView] LiveKit 연결 종료')
-      await callStore.livekitRoom.disconnect()
-      callStore.setLivekitRoom(null)
-    }
-
-    // 상담사 상태를 AVAILABLE로 복구 (새 매칭 가능하도록)
-    try {
-      await axios.patch('/api/v1/users/me/status', { status: 'AVAILABLE' })
-      console.log('[CounselorCallView] 상담사 상태 AVAILABLE로 복구')
-    } catch (statusError) {
-      console.error('[CounselorCallView] 상태 복구 실패:', statusError)
-      // 상태 복구 실패해도 통화 종료는 계속 진행
-    }
-
-    // call store 완전히 리셋
-    callStore.resetCall()
-
-    router.push({ name: 'dashboard' })
-  } catch (error) {
-    console.error('통화 종료 실패:', error)
-    // TODO: 에러 토스트 표시
-  }
-
-}
-
 // Manual end modal request
 const handleManualEndRequest = async () => {
   console.log('[CounselorCallView] 통화 종료 버튼 클릭')
@@ -389,35 +366,16 @@ const handleManualEndRequest = async () => {
     isCallActive.value = false
     callStore.endCall()
 
+    // 음성 녹음 종료 및 파일 다운로드
+    await stopAndSaveRecording()
+
     if (callStore.livekitRoom) {
       console.log('[CounselorCallView] LiveKit 연결 즉시 종료 (통화 종료 버튼)')
 
       try {
-        // 1. 마이크 트랙 즉시 정리 (다음 상담 시 연결 실패 방지)
-        const localParticipant = callStore.livekitRoom.localParticipant
-        const audioPublication = localParticipant.getTrackPublication(Track.Source.Microphone)
-
-        if (audioPublication) {
-          console.log('[CounselorCallView] 마이크 트랙 unpublish 시작')
-          console.log('[CounselorCallView] audioPublication:', audioPublication)
-          console.log('[CounselorCallView] audioPublication.track:', audioPublication.track)
-
-          // MediaStreamTrack 먼저 중지
-          if (audioPublication.track?.mediaStreamTrack) {
-            console.log('[CounselorCallView] MediaStreamTrack stop 시작')
-            audioPublication.track.mediaStreamTrack.stop()
-            console.log('[CounselorCallView] 마이크 MediaStreamTrack 중지 완료')
-          } else {
-            console.warn('[CounselorCallView] MediaStreamTrack이 없습니다')
-          }
-
-          // 트랙 unpublish
-          console.log('[CounselorCallView] unpublishTrack 시작')
-          await localParticipant.unpublishTrack(audioPublication.track)
-          console.log('[CounselorCallView] unpublishTrack 완료')
-        } else {
-          console.warn('[CounselorCallView] audioPublication이 없습니다')
-        }
+        // 1. 마이크 정리 (stream 및 LiveKit 트랙)
+        await stopLocalMicrophone()
+        console.log('[CounselorCallView] 마이크 정리 완료')
 
         // 2. LiveKit 룸 연결 종료
         await callStore.livekitRoom.disconnect()
@@ -496,10 +454,20 @@ const handleAutoTerminationConfirm = async () => {
     // TODO: 통화 기록 저장
     // await saveCallRecord(callData)
 
+    // 음성 녹음 종료 및 파일 다운로드
+    await stopAndSaveRecording()
+
     // LiveKit 연결 종료
     if (callStore.livekitRoom) {
       console.log('[CounselorCallView] LiveKit 연결 종료 (자동 종료)')
-      await callStore.livekitRoom.disconnect()
+
+      try {
+        await stopLocalMicrophone()
+        await callStore.livekitRoom.disconnect()
+      } catch (disconnectError) {
+        console.error('[CounselorCallView] LiveKit 연결 종료 실패 (자동 종료):', disconnectError)
+      }
+
       callStore.setLivekitRoom(null)
     }
 
@@ -563,6 +531,310 @@ const addSttMessage = (message) => {
   }
 }
 
+// ---- 오디오 파이프라인 헬퍼 ----
+const ensureAudioContext = async () => {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+  }
+  if (audioCtx.state === 'suspended') {
+    try { await audioCtx.resume() } catch {}
+  }
+  return audioCtx
+}
+
+const attachDelayedCustomerAudio = async (track, participantId) => {
+  if (!track?.mediaStreamTrack) return
+
+  const ctx = await ensureAudioContext()
+  if (pipelines.has(participantId)) return
+
+  // 1. 즉시 재생용 Fallback 오디오 생성 (지연 없음)
+  // Web Audio가 활성화되기 전에도 소리가 나게 하여 끊김을 방지합니다.
+  const fallbackEl = track.attach()
+  audioContainer.value?.appendChild(fallbackEl)
+
+  // 2. Web Audio 파이프라인 구성
+  const stream = new MediaStream([track.mediaStreamTrack])
+  const source = ctx.createMediaStreamSource(stream)
+
+  const delayNode = ctx.createDelay(10)
+  delayNode.delayTime.value = CUSTOMER_AUDIO_DELAY_SEC
+
+  const gainNode = ctx.createGain()
+  gainNode.gain.value = 1
+
+  // 3. 신호 감지용 Analyser 추가 (TestRTC의 핵심)
+  const analyser = ctx.createAnalyser()
+  analyser.fftSize = 256
+  const pcmData = new Float32Array(analyser.fftSize)
+
+  // 연결: Source -> Delay -> Gain -> Destination & Analyser
+  source.connect(delayNode)
+  delayNode.connect(gainNode)
+  gainNode.connect(ctx.destination)
+  gainNode.connect(analyser)
+
+  pipelines.set(participantId, {
+    gain: gainNode,
+    delay: delayNode,
+    blocked: false,
+    fallbackEl,
+    analyser
+  })
+
+  // 4. 지연된 소리가 나오기 시작하는지 감시 루프
+  const checkSignal = () => {
+    const pipe = pipelines.get(participantId)
+    if (!pipe) return
+
+    analyser.getFloatTimeDomainData(pcmData)
+    let sumSquares = 0
+    for (const amplitude of pcmData) {
+      sumSquares += amplitude * amplitude
+    }
+    const rms = Math.sqrt(sumSquares / pcmData.length)
+
+    // 지연된 소리(RMS)가 일정 크기 이상 감지되면 원본 소리를 끔
+    if (rms > 0.01) {
+      console.log(`[Audio] ${participantId} 지연 신호 감지 -> 원본 음소거`)
+      pipe.fallbackEl.muted = true
+    } else {
+      // 신호가 올 때까지 계속 확인
+      requestAnimationFrame(checkSignal)
+    }
+  }
+
+  checkSignal()
+}
+
+const setCustomerAudioMuted = (participantId, muted) => {
+  const p = pipelines.get(participantId)
+  if (!p) return
+  const target = muted ? 0 : 1
+  try {
+    p.gain.gain.setTargetAtTime(target, audioCtx.currentTime, 0.02)
+  } catch {
+    p.gain.gain.value = target
+  }
+}
+
+const blockCustomerAudioUntilNextStt = (participantId) => {
+  const p = pipelines.get(participantId)
+  if (!p) return
+  p.blocked = true
+  setCustomerAudioMuted(participantId, true)
+}
+
+const scheduleUnblockOnNextStt = (participantId) => {
+  const p = pipelines.get(participantId)
+  if (!p) return
+  if (!p.blocked) return
+
+  // 다음 STT가 왔을 때, "그 다음 구간"부터 다시 들리게 하는 보수적 방식
+  // (딜레이 만큼 기다렐다가 해제)
+  setTimeout(() => {
+    // 아직도 blocked 상태면 해제
+    const latest = pipelines.get(participantId)
+    if (!latest) return
+    latest.blocked = false
+    setCustomerAudioMuted(participantId, false)
+  }, CUSTOMER_AUDIO_DELAY_SEC * 1000 + MUTE_POSTPAD_MS)
+}
+
+// ---- LiveKit DataReceived payload 파싱 ----
+const safeParsePayload = (payload) => {
+  try {
+    const text = new TextDecoder().decode(payload)
+    return JSON.parse(text)
+  } catch {
+    return null
+  }
+}
+
+// ---- unsmile 폭력성 검사 ----
+const analyzeToxicity = async (text) => {
+  if (!text?.trim()) return { toxic: false, score: 0 }
+  try {
+    const res = await fetch(TOXIC_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = await res.json()
+    return {
+      toxic: !!data.toxic,
+      score: typeof data.score === 'number' ? data.score : (typeof data.prob === 'number' ? data.prob : 0)
+    }
+  } catch (e) {
+    console.warn('[CounselorCallView] 폭력성 검사 실패(우회):', e)
+    return { toxic: false, score: 0 }
+  }
+}
+
+// ---- 텍스트 마스킹 ----
+const maskText = (text) => {
+  if (!text) return ''
+  // 너무 공격적으로 지우기보단, 글자 일부만 블러 표시
+  return text.replace(/[\S]/g, '•')
+}
+
+// ---- Whisper STT (상담원 로컬) ----
+const floatTo16BitPCM = (float32) => {
+  const out = new Int16Array(float32.length)
+  for (let i = 0; i < float32.length; i++) {
+    let s = Math.max(-1, Math.min(1, float32[i]))
+    out[i] = s < 0 ? s * 0x8000 : s * 0x7fff
+  }
+  return out
+}
+
+const encodeWav16kMono = async (float32, inputSampleRate) => {
+  // 간단한 linear resample → 16k
+  const targetRate = 16000
+  const ratio = inputSampleRate / targetRate
+  const targetLength = Math.floor(float32.length / ratio)
+  const resampled = new Float32Array(targetLength)
+  for (let i = 0; i < targetLength; i++) {
+    const idx = i * ratio
+    const i0 = Math.floor(idx)
+    const i1 = Math.min(float32.length - 1, i0 + 1)
+    const t = idx - i0
+    resampled[i] = float32[i0] * (1 - t) + float32[i1] * t
+  }
+
+  const pcm16 = floatTo16BitPCM(resampled)
+  const headerSize = 44
+  const buffer = new ArrayBuffer(headerSize + pcm16.byteLength)
+  const view = new DataView(buffer)
+  const writeString = (offset, str) => {
+    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i))
+  }
+
+  writeString(0, 'RIFF')
+  view.setUint32(4, 36 + pcm16.byteLength, true)
+  writeString(8, 'WAVE')
+  writeString(12, 'fmt ')
+  view.setUint32(16, 16, true) // PCM
+  view.setUint16(20, 1, true) // PCM
+  view.setUint16(22, 1, true) // mono
+  view.setUint32(24, targetRate, true)
+  view.setUint32(28, targetRate * 2, true) // byte rate
+  view.setUint16(32, 2, true) // block align
+  view.setUint16(34, 16, true) // bits
+  writeString(36, 'data')
+  view.setUint32(40, pcm16.byteLength, true)
+  new Uint8Array(buffer, headerSize).set(new Uint8Array(pcm16.buffer))
+  return new Blob([buffer], { type: 'audio/wav' })
+}
+
+const sendToWhisper = async (wavBlob) => {
+  try {
+    const form = new FormData()
+    form.append('file', wavBlob, 'audio.wav')
+    const res = await fetch(WHISPER_API_URL, {
+      method: 'POST',
+      body: form
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = await res.json().catch(() => null)
+
+    // 서버가 {text:"..."} 또는 {transcript:"..."} 등을 반환한다고 가정
+    const text = data?.text ?? data?.transcript ?? data?.result ?? ''
+    return String(text || '').trim()
+  } catch (e) {
+    console.warn('[CounselorCallView] Whisper STT 실패:', e)
+    return ''
+  }
+}
+
+const startCounselorWhisperVad = async () => {
+  try {
+    if (vadCtx) return
+    vadCtx = new (window.AudioContext || window.webkitAudioContext)()
+    vadStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    vadSource = vadCtx.createMediaStreamSource(vadStream)
+    // ScriptProcessor는 deprecated지만 호환성 좋음
+    vadProcessor = vadCtx.createScriptProcessor(2048, 1, 1)
+
+    vadProcessor.onaudioprocess = async (e) => {
+      const input = e.inputBuffer.getChannelData(0)
+
+      // RMS 계산
+      let sum = 0
+      for (let i = 0; i < input.length; i++) sum += input[i] * input[i]
+      const rms = Math.sqrt(sum / input.length)
+      const now = performance.now()
+
+      const isVoice = rms > 0.02
+      if (isVoice) {
+        if (!vadSpeeching) {
+          vadSpeeching = true
+          vadStartAt = now
+          vadBuffers = []
+        }
+        vadLastVoiceAt = now
+        vadBuffers.push(new Float32Array(input))
+      } else if (vadSpeeching) {
+        // 말하던 중 무음이 VAD_SILENCE_MS 이상이면 한 구간 종료
+        if (now - vadLastVoiceAt >= VAD_SILENCE_MS) {
+          const dur = now - vadStartAt
+          vadSpeeching = false
+
+          if (dur >= VAD_MIN_UTTER_MS && vadBuffers.length) {
+            const total = vadBuffers.reduce((acc, a) => acc + a.length, 0)
+            const merged = new Float32Array(total)
+            let off = 0
+            for (const b of vadBuffers) {
+              merged.set(b, off)
+              off += b.length
+            }
+            vadBuffers = []
+
+            const wav = await encodeWav16kMono(merged, vadCtx.sampleRate)
+            const text = await sendToWhisper(wav)
+            if (text) {
+              addSttMessage({
+                speaker: 'agent',
+                text,
+                maskedText: '',
+                hasProfanity: false,
+                confidence: 0.9
+              })
+            }
+          } else {
+            vadBuffers = []
+          }
+        }
+      }
+    }
+
+    vadSource.connect(vadProcessor)
+    vadProcessor.connect(vadCtx.destination) // 처리 구동용(출력 음량은 거의 무시됨)
+    console.log('[CounselorCallView] 상담원 Whisper VAD 시작')
+  } catch (e) {
+    console.warn('[CounselorCallView] Whisper VAD 시작 실패:', e)
+  }
+}
+
+const stopCounselorWhisperVad = async () => {
+  try {
+    vadProcessor?.disconnect?.()
+    vadSource?.disconnect?.()
+    vadStream?.getTracks?.().forEach(t => t.stop())
+    await vadCtx?.close?.()
+  } catch {
+    // ignore
+  } finally {
+    vadCtx = null
+    vadStream = null
+    vadSource = null
+    vadProcessor = null
+    vadBuffers = []
+    vadSpeeching = false
+  }
+}
+
 onBeforeUnmount(() => {
   if (memoSaveTimeout) clearTimeout(memoSaveTimeout);
   if (!skipDraftSaveOnUnmount && memo.value?.trim().length) saveMemoDraft(memo.value);
@@ -577,16 +849,14 @@ onMounted(() => {
 
     const room = callStore.livekitRoom
 
-    // === 고객이 방에 있는지 확인 (1:1 연결) ===
-    if (room.remoteParticipants.size === 0) {
-      console.warn('[CounselorCallView] 고객이 방에 없음 - 이미 나간 것으로 판단')
-      isCallActive.value = false
-      showManualEndModal.value = true
-      notificationStore.notifyWarning('고객이 이미 나갔습니다')
-      return
+    if (room.remoteParticipants.size > 0) {
+      console.log('[CounselorCallView] 고객 이미 방에 있음')
+    } else {
+      console.log('[CounselorCallView] 고객 아직 미입장 - ParticipantConnected 대기')
     }
 
-    console.log('[CounselorCallView] 고객 확인됨')
+    // 음성 녹음 시작 (고객 + 상담원 믹스)
+    startRecording()
 
     // === 마이크 활성화 (통화 화면 진입 시) ===
     ;(async () => {
@@ -600,6 +870,7 @@ onMounted(() => {
             autoGainControl: true
           }
         })
+        currentMicStream = stream
 
         const audioTrack = stream.getAudioTracks()[0]
         if (audioTrack) {
@@ -611,6 +882,9 @@ onMounted(() => {
           // 마이크가 활성화되었으므로 음소거 상태는 false
           isMuted.value = false
           console.log('[CounselorCallView] 마이크 활성화 완료 (음소거 해제 상태)')
+
+          // 상담원 마이크를 녹음 믹스에 추가
+          addRecordingTrack(audioTrack)
         }
       } catch (err) {
         console.error('[CounselorCallView] 마이크 활성화 실패:', err)
@@ -623,12 +897,13 @@ onMounted(() => {
     // === 고객 오디오 딜레이/차단 파이프라인 구성 ===
     // 1) 이미 구독된 트랙이 있으면 즉시 파이프라인 생성
     ;(async () => {
-      initAudioContext()
+      await ensureAudioContext()
 
       for (const p of room.remoteParticipants.values()) {
         for (const pub of p.audioTrackPublications.values()) {
           if (pub.track) {
             await attachDelayedCustomerAudio(pub.track, p.identity)
+            addRecordingTrack(pub.track.mediaStreamTrack)
           }
         }
       }
@@ -637,6 +912,7 @@ onMounted(() => {
       room.on(RoomEvent.TrackSubscribed, async (track, publication, participant) => {
         if (track.kind === Track.Kind.Audio) {
           await attachDelayedCustomerAudio(track, participant.identity)
+          addRecordingTrack(track.mediaStreamTrack)
         }
       })
 
@@ -671,13 +947,27 @@ onMounted(() => {
     })()
 
     // 고객이 통화를 종료했을 때 이벤트 리스너 추가
-    callStore.livekitRoom.on(RoomEvent.ParticipantDisconnected, (participant) => {
+    callStore.livekitRoom.on(RoomEvent.ParticipantDisconnected, async (participant) => {
       console.log('[CounselorCallView] 고객이 통화를 종료했습니다:', participant.identity)
 
-      // 통화 종료 모달 표시 (통화 요약 및 메모 저장)
       isCallActive.value = false
-      showManualEndModal.value = true
 
+      // 음성 녹음 종료 및 파일 다운로드
+      await stopAndSaveRecording()
+
+      // 마이크 정리 및 LiveKit 연결 종료
+      await stopLocalMicrophone()
+      if (callStore.livekitRoom) {
+        try {
+          await callStore.livekitRoom.disconnect()
+        } catch (err) {
+          console.error('[CounselorCallView] LiveKit 연결 종료 실패 (고객 종료):', err)
+        }
+        callStore.setLivekitRoom(null)
+      }
+
+      // 통화 종료 모달 표시 (메모 저장용)
+      showManualEndModal.value = true
       notificationStore.notifyInfo('고객이 통화를 종료했습니다')
     })
   } else {
@@ -690,21 +980,34 @@ onMounted(() => {
 onBeforeUnmount(() => {
   console.log('[CounselorCallView] 컴포넌트 unmount 시작')
 
+  // 마이크 stream 정리 (동기: 즉시 실행하여 브라우저 마이크 점유 해제)
+  if (currentMicStream) {
+    currentMicStream.getTracks().forEach(track => track.stop())
+    currentMicStream = null
+  }
+
   // 매칭 데이터 정리 (대시보드로 돌아갈 때)
   dashboardStore.clearMatchedData()
   console.log('[CounselorCallView] 매칭 데이터 정리 완료')
 
-  // TODO: Whisper/VAD 정리 로직 필요 시 추가
-  // stopCounselorWhisperVad()
+  // Whisper/VAD 정리
+  stopCounselorWhisperVad()
 
-  // TODO: 오디오 파이프라인 정리 로직 필요 시 추가
-  // try {
-  //   pipelines.clear()
-  //   audioCtx?.close?.()
-  // } catch {
-  //   // ignore
-  // } finally {
-  //   audioCtx = null
-  // }
+  // 음성 녹음 정리
+  cleanupRecorder()
+
+  // 오디오 파이프라인 정리
+  try {
+    for (const pipe of pipelines.values()) {
+      pipe.fallbackEl?.pause()
+      pipe.fallbackEl?.remove()
+    }
+    pipelines.clear()
+    audioCtx?.close?.()
+  } catch {
+    // ignore
+  } finally {
+    audioCtx = null
+  }
 })
 </script>

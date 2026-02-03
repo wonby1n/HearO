@@ -59,7 +59,7 @@ public class Consultation extends BaseTimeEntity {
 
     // ========== 분석 데이터 ==========
 
-    @Column(name = "profanity_count", nullable = false)
+    @Column(name = "profanity_count")
     private Integer profanityCount = 0;
 
     @Column(name = "avg_aggression_score", precision = 3, scale = 2)
@@ -69,7 +69,7 @@ public class Consultation extends BaseTimeEntity {
     private BigDecimal maxAggressionScore;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "termination_reason", nullable = false, length = 30)
+    @Column(name = "termination_reason", length = 30)
     private TerminationReason terminationReason = TerminationReason.NORMAL;
 
     @Column(name = "duration_seconds")
