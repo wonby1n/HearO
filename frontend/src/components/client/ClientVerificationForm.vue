@@ -155,9 +155,11 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useCustomerStore } from '@/stores/customer'
 import axios from 'axios'
 
 const router = useRouter()
+const customerStore = useCustomerStore()
 
 // 통신사 목록
 const carriers = [
@@ -257,8 +259,14 @@ const verifyCode = async () => {
       phone: formData.value.phone
     })
 
-    // accessToken 저장
+    // accessToken 및 customerId 저장
     const { accessToken, customerId } = response.data
+
+    // customerStore를 single source of truth로 업데이트
+    customerStore.setCustomerInfo({ id: customerId })
+    console.log('[ClientVerification] customerStore 업데이트:', customerId)
+
+    // 세션/로컬 스토리지는 새로고침 복원용으로만 사용
     sessionStorage.setItem('customerAccessToken', accessToken)
     sessionStorage.setItem('clientCustomerId', String(customerId))
     localStorage.setItem('customerAccessToken', accessToken)

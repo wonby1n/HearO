@@ -40,10 +40,6 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
-  isPaused: {
-    type: Boolean,
-    default: false
-  },
   disabled: {
     type: Boolean,
     default: false
@@ -51,17 +47,10 @@ const props = defineProps({
 })
 
 // 이벤트 정의
-const emit = defineEmits(['mute-changed', 'pause-changed', 'call-end-requested'])
+const emit = defineEmits(['mute-changed', 'call-end-requested'])
 
 // props를 ref로 변환 (반응성 유지)
 const localMuted = toRef(props, 'isMuted')
-const localPaused = toRef(props, 'isPaused')
-
-// 일시정지 토글
-const togglePause = () => {
-  if (props.disabled) return
-  emit('pause-changed', !localPaused.value)
-}
 
 // 음소거 토글
 const toggleMute = () => {

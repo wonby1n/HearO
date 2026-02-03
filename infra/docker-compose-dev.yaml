@@ -37,14 +37,15 @@ services:
     image: livekit/livekit-server:latest
     container_name: livekit-server
     restart: always
-    # 설정 파일 마운트해서 실행
-    command: --config /etc/livekit.yaml --node-ip ${LIVEKIT_IP}
+    # 설정 파일 마운트해서 실행 (로컬은 127.0.0.1 고정)
+    command: --config /etc/livekit.yaml --node-ip 127.0.0.1
     ports:
       - "8880:7880"             # Signaling (API 요청용, 8000번대 준수!)
       - "51000-51100:51000-51100/udp" # WebRTC Media (UDP 필수)
       - "51000-51100:51000-51100/tcp" # WebRTC Fallback
     volumes:
-      - ./livekit.yaml:/etc/livekit.yaml # 설정 파일 연결
+      # 로컬 개발용 설정 파일 사용
+      - ./livekit-local.yaml:/etc/livekit.yaml
     environment:
       # 설정 파일 안의 변수들을 치환해줌
       LIVEKIT_KEYS: "${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"

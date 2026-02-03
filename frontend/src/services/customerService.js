@@ -3,14 +3,17 @@
  * API 명세: 공통_api명세서.xlsx (업데이트 반영)
  */
 
-import axios from 'axios'
+import axios from "axios";
 
 /**
  * JWT 토큰 가져오기 (세션 또는 로컬 스토리지)
  */
 const getAuthToken = () => {
-  return sessionStorage.getItem('customerAccessToken') || localStorage.getItem('customerAccessToken')
-}
+  return (
+    sessionStorage.getItem("customerAccessToken") ||
+    localStorage.getItem("customerAccessToken")
+  );
+};
 
 /**
  * 대기열 등록 (고객 접수)
@@ -33,7 +36,7 @@ const getAuthToken = () => {
  */
 export const registerQueue = async (payload) => {
   try {
-    const token = getAuthToken()
+    const token = getAuthToken();
 
     const response = await axios.post(
       `/api/v1/registrations`,
@@ -42,57 +45,65 @@ export const registerQueue = async (payload) => {
         productId: payload.productId,
         errorCode: payload.errorCode,
         manufacturedAt: payload.manufacturedAt,
-        warrantyEndsAt: payload.warrantyEndsAt
+        warrantyEndsAt: payload.warrantyEndsAt,
       },
       {
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    )
+          "Content-Type": "application/json",
+        },
+      },
+    );
 
-    const { isSuccess, data, message } = response.data
+    const { isSuccess, data, message } = response.data;
 
     if (isSuccess) {
-      console.log('✅ 대기열 등록 성공:', message, data)
+      console.log("✅ 대기열 등록 성공:", message, data);
       // 응답 데이터: { registrationId, customerId, waitingRank, queueType, estimatedWaitMinutes, websocketTopic }
-      return data
+      return data;
     } else {
-      throw new Error(message || '대기열 등록에 실패했습니다.')
+      throw new Error(message || "대기열 등록에 실패했습니다.");
     }
   } catch (error) {
-    console.error('❌ 대기열 등록 에러:', error.response?.data || error.message)
-    throw error
+    console.error(
+      "❌ 대기열 등록 에러:",
+      error.response?.data || error.message,
+    );
+    throw error;
   }
-}
+};
 
 /**
- * 접수 정보 조회 (단건)
- * API: GET /api/v1/registrations/{registrationId}
+ * 고객 전체 정보 조회 (정보 + 이력)
  *
  * @param {number} registrationId - 접수 ID
  * @returns {Promise<Object>} 접수 상세 데이터
  */
 export const fetchCustomerInfo = async (registrationId) => {
   try {
-    const token = getAuthToken()
-    const response = await axios.get(`/api/v1/registrations/${registrationId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
+    const token = getAuthToken();
+    const response = await axios.get(
+      `/api/v1/registrations/${registrationId}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
 
-    const { isSuccess, data, message } = response.data
+    const { isSuccess, data, message } = response.data;
 
     if (isSuccess) {
-      return data // 상세 정보 데이터 객체 반환
+      return data; // 상세 정보 데이터 객체 반환
     } else {
-      throw new Error(message || '접수 정보 조회 실패')
+      throw new Error(message || "접수 정보 조회 실패");
     }
   } catch (error) {
-    console.error('❌ 접수 정보 조회 에러:', error.response?.data || error.message)
-    throw error
+    console.error(
+      "❌ 접수 정보 조회 에러:",
+      error.response?.data || error.message,
+    );
+    throw error;
   }
-}
+};
 
 /**
  * 고객 상담 이력 조회
@@ -121,12 +132,12 @@ export const fetchCustomerHistory = async (customerId) => {
     */
 
     // 현재는 빈 배열 반환
-    return []
+    return [];
   } catch (error) {
-    console.error('❌ 상담 이력 조회 에러:', error)
-    return []
+    console.error("❌ 상담 이력 조회 에러:", error);
+    return [];
   }
-}
+};
 
 /**
  * 고객 통합 데이터 조회 (기본 정보 + 상담 이력)
@@ -135,17 +146,17 @@ export const fetchCustomerHistory = async (customerId) => {
 export const fetchCustomerData = async (registrationId) => {
   try {
     // 1. 먼저 접수 정보를 가져옵니다.
-    const customerInfo = await fetchCustomerInfo(registrationId)
-    
+    const customerInfo = await fetchCustomerInfo(registrationId);
+
     // 2. 접수 정보에 포함된 customerId를 사용하여 이력을 조회합니다.
-    const history = await fetchCustomerHistory(customerInfo.customerId)
+    const history = await fetchCustomerHistory(customerInfo.customerId);
 
     return {
       ...customerInfo,
-      consultationHistory: history
-    }
+      consultationHistory: history,
+    };
   } catch (error) {
-    console.error('❌ 고객 데이터 통합 조회 실패:', error)
-    throw error
+    console.error("❌ 고객 데이터 통합 조회 실패:", error);
+    throw error;
   }
-}
+};
