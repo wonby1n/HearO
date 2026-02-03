@@ -466,13 +466,37 @@ const handleManualEndRequest = async () => {
 
     if (callStore.livekitRoom) {
       console.log('[CounselorCallView] LiveKit 연결 즉시 종료 (통화 종료 버튼)')
+
       try {
+        // 1. 마이크 트랙 즉시 정리 (다음 상담 시 연결 실패 방지)
+        const localParticipant = callStore.livekitRoom.localParticipant
+        const audioPublication = localParticipant.getTrackPublication(Track.Source.Microphone)
+
+        if (audioPublication) {
+          console.log('[CounselorCallView] 마이크 트랙 unpublish 시작')
+
+          // 트랙 unpublish
+          await localParticipant.unpublishTrack(audioPublication.track)
+
+          // MediaStreamTrack 완전히 중지
+          if (audioPublication.track?.mediaStreamTrack) {
+            audioPublication.track.mediaStreamTrack.stop()
+            console.log('[CounselorCallView] 마이크 MediaStreamTrack 중지 완료')
+          }
+        }
+
+        // 2. LiveKit 룸 연결 종료
         await callStore.livekitRoom.disconnect()
+        console.log('[CounselorCallView] LiveKit 연결 종료 완료')
       } catch (disconnectError) {
         console.error('[CounselorCallView] LiveKit 연결 종료 실패:', disconnectError)
       }
+
       callStore.setLivekitRoom(null)
     }
+
+    // 마이크 상태를 음소거로 설정 (UI 동기화)
+    isMuted.value = true
 
     // 모달 표시 (메모 작성 및 요약 확인용)
     showManualEndModal.value = true
