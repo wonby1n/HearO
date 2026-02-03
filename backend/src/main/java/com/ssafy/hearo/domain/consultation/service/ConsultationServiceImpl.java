@@ -2,11 +2,7 @@ package com.ssafy.hearo.domain.consultation.service;
 
 import com.ssafy.hearo.domain.ai.service.ConsultationSummaryService;
 import com.ssafy.hearo.domain.ai.service.GeneratedConsultationContent;
-import com.ssafy.hearo.domain.consultation.dto.ConsultationEndRequest;
-import com.ssafy.hearo.domain.consultation.dto.ConsultationEndResponse;
-import com.ssafy.hearo.domain.consultation.dto.ConsultationPatchRequest;
-import com.ssafy.hearo.domain.consultation.dto.ConsultationSummaryResponse;
-import com.ssafy.hearo.domain.consultation.dto.VoiceRecordingDto;
+import com.ssafy.hearo.domain.consultation.dto.*;
 import com.ssafy.hearo.domain.consultation.entity.Consultation;
 import com.ssafy.hearo.domain.consultation.entity.TerminationReason;
 import com.ssafy.hearo.domain.consultation.entity.VoiceRecording;
@@ -55,18 +51,10 @@ public class ConsultationServiceImpl implements ConsultationService{
      */
     @Override
     @Transactional
-    public ConsultationEndResponse endAndSave(Long userId, ConsultationEndRequest request) {
-        if (request == null) {
-            throw new IllegalArgumentException("request는 필수입니다.");
-        }
+    public ConsultationStartResponse startConsultation(Long userId, ConsultationStartRequest request) {
+        if (request == null) throw new IllegalArgumentException("request는 필수입니다.");
         if (request.getCustomerId() == null || request.getRegistrationId() == null) {
             throw new IllegalArgumentException("customerId, registrationId는 필수입니다.");
-        }
-        if (request.getTerminationReason() == null) {
-            throw new IllegalArgumentException("terminationReason은 필수입니다.");
-        }
-        if (request.getFullTranscript() == null || request.getFullTranscript().isBlank()) {
-            throw new IllegalArgumentException("fullTranscript는 필수입니다.");
         }
 
         User user = userRepository.findById(userId)
@@ -76,7 +64,6 @@ public class ConsultationServiceImpl implements ConsultationService{
         Registration registration = registrationRepository.findById(request.getRegistrationId())
                 .orElseThrow(() -> new IllegalArgumentException("접수(registration)가 존재하지 않습니다."));
 
-        // 1) 먼저 저장 (LLM 장애로 저장이 실패하지 않도록 기본값으로 생성)
         Consultation consultation = Consultation.builder()
                 .user(user)
                 .customer(customer)
@@ -85,6 +72,28 @@ public class ConsultationServiceImpl implements ConsultationService{
                 .subtitle("")
                 .build();
 
+        consultationRepository.save(consultation);
+        return ConsultationStartResponse.of(consultation.getId());
+    }
+
+    @Override
+    @Transactional
+    public ConsultationEndResponse finalizeConsultation(Integer consultationId, Long userId, ConsultationFinalizeRequest request) {
+        if (consultationId == null) throw new IllegalArgumentException("consultationId는 필수입니다.");
+        if (request == null) throw new IllegalArgumentException("request는 필수입니다.");
+        if (request.getTerminationReason() == null) throw new IllegalArgumentException("terminationReason은 필수입니다.");
+        if (request.getFullTranscript() == null || request.getFullTranscript().isBlank()) {
+            throw new IllegalArgumentException("fullTranscript는 필수입니다.");
+        }
+
+        Consultation consultation = consultationRepository.findById(consultationId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 상담이 존재하지 않습니다."));
+
+        // (권장) 다른 상담원이 남의 상담 finalize 못하게 방지
+        if (!consultation.getUser().getId().equals(userId)) {
+            throw new IllegalArgumentException("본인 상담만 종료 처리할 수 있습니다.");
+        }
+
         consultation.updateFullTranscript(request.getFullTranscript());
         consultation.updateUserMemo(request.getUserMemo());
         consultation.updateAnalysisData(
@@ -92,23 +101,25 @@ public class ConsultationServiceImpl implements ConsultationService{
                 request.getAvgAggressionScore(),
                 request.getMaxAggressionScore()
         );
+
         TerminationReason reason = request.getTerminationReason();
         consultation.endConsultation(reason, request.getDurationSeconds());
 
-        consultationRepository.save(consultation);
-        blacklistIfNeeded(user, customer, request.getTerminationReason());
-        // 2) LLM 생성 결과로 업데이트
+        // 블랙리스트 처리 (기존 로직 재사용)
+        blacklistIfNeeded(consultation.getUser(), consultation.getCustomer(), reason);
+
+        // AI 요약 생성
         try {
             GeneratedConsultationContent generated = summaryService.generateContent(request.getFullTranscript());
             consultation.updateTitleSubtitle(generated.title(), generated.subtitle());
             consultation.updateAiSummary(generated.aiSummary());
         } catch (Exception e) {
-            // 저장은 성공해야 하므로 요약 실패는 로그만 남기고 진행
-            log.warn("AI summary generation failed. consultationId={}", consultation.getId(), e);
+            log.warn("AI summary generation failed. consultationId={}", consultationId, e);
         }
 
         return ConsultationEndResponse.from(consultation);
     }
+
     /**
      * 블랙리스트 등록
      */

@@ -42,10 +42,10 @@ public class Consultation extends BaseTimeEntity {
 
     // ========== 기본 정보 ==========
 
-    @Column(nullable = false, length = 30)
+    @Column(length = 30)
     private String title;
 
-    @Column(nullable = false, length = 30)
+    @Column(length = 30)
     private String subtitle;
 
     @Column(name = "full_transcript", columnDefinition = "TEXT")
