@@ -73,14 +73,14 @@
 
       <!-- 통화 컨트롤 버튼 -->
       <div class="call-controls">
-        <!-- 스피커 버튼 -->
+        <!-- 스피커폰 버튼 (UI만) -->
         <button
           @click="toggleSpeaker"
           :class="['control-btn', { active: isSpeakerOn }]"
-          :title="isSpeakerOn ? '스피커 끄기' : '스피커 켜기'"
+          :title="isSpeakerOn ? '스피커폰 끄기' : '스피커폰 켜기'"
         >
           <div class="control-icon-wrapper">
-            <!-- 스피커 켜짐 (소리 큼) -->
+            <!-- 스피커폰 켜짐 -->
             <svg v-if="isSpeakerOn" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clip-rule="evenodd"/>
             </svg>
@@ -108,11 +108,11 @@
         <!-- 음소거 버튼 -->
         <button
           @click="toggleMute"
-          :class="['control-btn', { active: livekitMuted }]"
-          title="음소거"
+          :class="['control-btn', { active: isMuted }]"
+          :title="isMuted ? '음소거 해제' : '음소거'"
         >
           <div class="control-icon-wrapper">
-            <svg v-if="!livekitMuted" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <svg v-if="!isMuted" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clip-rule="evenodd"/>
             </svg>
             <svg v-else class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -158,12 +158,14 @@ import { RoomEvent } from 'livekit-client'
 // 고객 STT(Web Speech) → 상담원으로 전송
 // =========================
 let recognition = null
+let sttEnabled = true // STT 활성화 상태 (음소거 시 false)
 
 const getSpeechRecognition = () => {
   return window.SpeechRecognition || window.webkitSpeechRecognition || null
 }
 
 const stopCustomerSTT = () => {
+  sttEnabled = false
   try {
     if (recognition) {
       recognition.onresult = null
@@ -204,7 +206,16 @@ const startCustomerSTT = async () => {
     return
   }
 
-  stopCustomerSTT()
+  // 기존 인식 정리 (sttEnabled 유지)
+  if (recognition) {
+    recognition.onresult = null
+    recognition.onerror = null
+    recognition.onend = null
+    try { recognition.stop() } catch {}
+    recognition = null
+  }
+
+  sttEnabled = true
 
   recognition = new SR()
   recognition.lang = 'ko-KR'
@@ -216,8 +227,8 @@ const startCustomerSTT = async () => {
   }
 
   recognition.onend = () => {
-    // 통화 중이면 자동 재시작
-    if (callStore.isInCall) {
+    // 통화 중이고 STT가 활성화되어 있으면 자동 재시작
+    if (callStore.isInCall && sttEnabled) {
       try { recognition?.start?.() } catch {}
     }
   }
@@ -251,13 +262,11 @@ const {
   room,
   isConnected,
   isConnecting,
-  isMuted: livekitMuted,
   error: livekitError,
   connectionState,
   connect,
   disconnect,
   enableMicrophone,
-  toggleMute: livekitToggleMute,
   startAudioPlayback
 } = useLiveKit({
   onParticipantDisconnected: (participant) => {
@@ -304,7 +313,7 @@ const {
 const callDuration = ref(0)
 const queuePosition = ref(3) // 테스트용 대기 순번
 // isMuted는 useLiveKit의 livekitMuted 사용 (중복 제거)
-const isSpeakerOn = ref(false) // 기본값 false (회색)
+// isSpeakerOn은 useLiveKit의 isSpeakerEnabled 사용 (기본값: true - 켜짐)
 const showConfirmModal = ref(false)
 const showAutoTerminationModal = ref(false)
 
@@ -351,26 +360,54 @@ const formattedCallDuration = computed(() => {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 })
 
-// 스피커 토글
+// 스피커폰 상태 (UI만 - 실제 기능 없음)
+const isSpeakerOn = ref(false)
+
+// 스피커폰 토글 (UI만)
 const toggleSpeaker = () => {
   isSpeakerOn.value = !isSpeakerOn.value
-  console.log('[Client] 스피커 상태:', isSpeakerOn.value)
+  console.log('[Client] 스피커폰 상태 (UI):', isSpeakerOn.value)
 }
+
+// 음소거 상태 (로컬 관리)
+const isMuted = ref(false)
 
 // 음소거 토글
 const toggleMute = async () => {
-  // useLiveKit의 toggleMute가 상태를 업데이트함
-  await livekitToggleMute()
-
-  // STT 제어 (음소거 후 상태 확인)
-  if(livekitMuted.value === true){
-    stopCustomerSTT();
-  }
-  else{
-    startCustomerSTT();
+  const currentRoom = callStore.livekitRoom
+  if (!currentRoom) {
+    console.warn('[Client] 음소거 토글 실패: LiveKit room 없음')
+    return
   }
 
-  console.log('[Client] 음소거 상태:', livekitMuted.value)
+  const newMuteState = !isMuted.value
+
+  try {
+    // 발행된 오디오 트랙을 직접 mute/unmute
+    const audioPublications = currentRoom.localParticipant.audioTrackPublications
+    for (const [, publication] of audioPublications) {
+      if (publication.track) {
+        if (newMuteState) {
+          await publication.mute()
+        } else {
+          await publication.unmute()
+        }
+      }
+    }
+
+    isMuted.value = newMuteState
+
+    // STT 제어
+    if (newMuteState) {
+      stopCustomerSTT()
+    } else {
+      startCustomerSTT()
+    }
+
+    console.log('[Client] 음소거 상태:', newMuteState)
+  } catch (err) {
+    console.error('[Client] 음소거 토글 실패:', err)
+  }
 }
 
 
@@ -464,6 +501,19 @@ onMounted(async () => {
   // 마이크 활성화 (통화 화면 진입 시)
   if (callStore.livekitRoom) {
     console.log('[ClientCallView] 기존 LiveKit 연결 사용:', callStore.livekitRoom.name)
+
+    // 상담원으로부터 consultationId 수신 (먼저 리스너 등록)
+    callStore.livekitRoom.on(RoomEvent.DataReceived, (payload, participant) => {
+      try {
+        const data = JSON.parse(new TextDecoder().decode(payload))
+        if (data.type === 'consultationId' && data.consultationId) {
+          callStore.setConsultationId(data.consultationId)
+          console.log('[ClientCallView] consultationId 수신:', data.consultationId)
+        }
+      } catch (e) {
+        // JSON 파싱 실패 무시
+      }
+    })
 
     try {
       // callStore.livekitRoom을 직접 사용해서 마이크 활성화
