@@ -91,7 +91,6 @@ import CallMemoPanel from '@/components/counselor/CallMemoPanel.vue'
 import AIGuidePanel from '@/components/counselor/AIGuidePanel.vue'
 import AutoTerminationModal from '@/components/call/AutoTerminationModal.vue'
 import ManualEndCallModal from '@/components/call/ManualEndCallModal.vue'
-import { mockSttMessages } from '@/mocks/counselor'
 import { saveConsultationMemo } from '@/services/consultationService'
 import { useNotificationStore } from '@/stores/notification'
 import { useCallStore } from '@/stores/call'
@@ -117,6 +116,7 @@ const dashboardStore = useDashboardStore()
 // --- 상태 정의 ---
 const isCallActive = ref(true)
 const isMuted = ref(false)
+let currentMicStream = null // getUserMedia stream 참조 — 종료 시 트랙 정리용
 
 // 오디오 파이프라인 상태
 let audioCtx = null
@@ -137,7 +137,14 @@ let vadStartAt = 0
 const showAutoTerminationModal = ref(false)
 const showManualEndModal = ref(false)
 
-const sttMessages = ref(mockSttMessages)
+// 폭언 3회 → 자동 종료 트리거 감지
+watch(() => callStore.autoTerminationTriggered, (triggered) => {
+  if (triggered) {
+    showAutoTerminationModal.value = true
+  }
+})
+
+const sttMessages = ref([])
 const aiSummary = ref('')
 
 // --- 메모 드래프트 관리 (복구된 핵심 로직) ---
@@ -824,16 +831,11 @@ onMounted(() => {
 
     const room = callStore.livekitRoom
 
-    // === 고객이 방에 있는지 확인 (1:1 연결) ===
-    if (room.remoteParticipants.size === 0) {
-      console.warn('[CounselorCallView] 고객이 방에 없음 - 이미 나간 것으로 판단')
-      isCallActive.value = false
-      showManualEndModal.value = true
-      notificationStore.notifyWarning('고객이 이미 나갔습니다')
-      return
+    if (room.remoteParticipants.size > 0) {
+      console.log('[CounselorCallView] 고객 이미 방에 있음')
+    } else {
+      console.log('[CounselorCallView] 고객 아직 미입장 - ParticipantConnected 대기')
     }
-
-    console.log('[CounselorCallView] 고객 확인됨')
 
     // === 마이크 활성화 (통화 화면 진입 시) ===
     ;(async () => {
