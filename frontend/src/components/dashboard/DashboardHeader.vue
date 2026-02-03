@@ -228,6 +228,9 @@ const updateCounselorStatus = async (status) => {
 
 
 
+// 롤백 중 watch 재실행 방지 플래그
+let isRollingBack = false
+
 const toggleConsultationStatus = () => {
   const newStatus = !dashboardStore.consultationStatus.isActive
   dashboardStore.consultationStatus.isActive = newStatus
@@ -237,6 +240,12 @@ const toggleConsultationStatus = () => {
 watch(
   () => dashboardStore.consultationStatus.isActive,
   async (isActive, oldValue) => {
+    // 롤백 중이면 무시 (무한 루프 방지)
+    if (isRollingBack) {
+      isRollingBack = false
+      return
+    }
+
     // 초기 로드 시 실행 방지 (undefined → false 변경 시 무시)
     if (oldValue === undefined && !isActive) {
       return
@@ -249,6 +258,7 @@ watch(
 
     if (!statusUpdateSuccess) {
       console.error('[DashboardHeader] Status 변경 실패, 원래 상태로 롤백')
+      isRollingBack = true
       dashboardStore.consultationStatus.isActive = !isActive
       return
     }
