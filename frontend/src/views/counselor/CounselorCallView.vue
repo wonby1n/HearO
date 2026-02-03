@@ -131,6 +131,7 @@
 <script setup>
 import { ref, watch, computed, onBeforeUnmount, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { RoomEvent, Track } from 'livekit-client'
 import CallTimer from '@/components/counselor/CallTimer.vue'
 import CustomerInfoPanel from '@/components/counselor/CustomerInfoPanel.vue'
 import STTChatPanel from '@/components/counselor/STTChatPanel.vue'
@@ -144,6 +145,7 @@ import { saveConsultationMemo } from '@/services/consultationService'
 import { useNotificationStore } from '@/stores/notification'
 import { useCallStore } from '@/stores/call'
 import { useDashboardStore } from '@/stores/dashboard'
+import { useAudioStream } from '@/composables/useAudioStream'
 import axios from 'axios'
 
 // 로컬 AI 서버 엔드포인트 (Vite env로 덮어쓸 수 있음) 
@@ -162,6 +164,7 @@ const router = useRouter()
 const notificationStore = useNotificationStore()
 const callStore = useCallStore()
 const dashboardStore = useDashboardStore()
+const { initAudioContext } = useAudioStream()
 
 // --- 상태 정의 ---
 const isCallActive = ref(true)
@@ -266,6 +269,30 @@ watch(() => callStore.currentCall?.id, (newId) => {
   skipDraftSaveOnUnmount = false;
   loadMemoDraft();
 }, { immediate: true });
+
+// 메모 서버 저장
+const saveMemoToServer = async () => {
+  const memoValue = memo.value?.trim()
+  if (!memoValue) {
+    return true
+  }
+
+  const consultationId = callStore.currentCall?.consultationId ?? callStore.currentCall?.id
+  if (!consultationId) {
+    notificationStore.notifyWarning('상담 ID를 찾을 수 없어 메모를 저장하지 못했습니다')
+    return false
+  }
+
+  try {
+    await saveConsultationMemo(consultationId, memoValue)
+    notificationStore.notifySuccess('메모가 저장되었습니다')
+    return true
+  } catch (error) {
+    console.error('메모 저장 실패:', error)
+    notificationStore.notifyError('메모 저장에 실패했습니다')
+    return false
+  }
+}
 
 // --- 데이터 로딩 로직 ---
 const formatDate = (dateString) => {
@@ -393,11 +420,8 @@ const handleMuteChanged = async (muted) => {
 const handleEndCall = async () => {
   try {
     isCallActive.value = false
-    const consultationId = callStore.currentCall.consultationId ?? callStore.currentCall.id;
-    if (consultationId && memo.value?.trim()) {
-      await saveConsultationMemo(consultationId, memo.value.trim());
-    }
-    callStore.endCall()
+
+    // 메모 저장
     const saved = await saveMemoToServer()
     if (saved) {
       clearMemoDraft()
@@ -433,43 +457,64 @@ const handleEndCall = async () => {
 
 // Manual end modal request
 const handleManualEndRequest = async () => {
-  // 통화 종료 버튼을 누르는 즉시 LiveKit 연결 종료 (고객에게 즉시 알림)
-  isCallActive.value = false
-  callStore.endCall()
+  console.log('[CounselorCallView] 통화 종료 버튼 클릭')
 
-  if (callStore.livekitRoom) {
-    console.log('[CounselorCallView] LiveKit 연결 즉시 종료 (통화 종료 버튼)')
-    await callStore.livekitRoom.disconnect()
-    callStore.setLivekitRoom(null)
+  try {
+    // 통화 종료 버튼을 누르는 즉시 LiveKit 연결 종료 (고객에게 즉시 알림)
+    isCallActive.value = false
+    callStore.endCall()
+
+    if (callStore.livekitRoom) {
+      console.log('[CounselorCallView] LiveKit 연결 즉시 종료 (통화 종료 버튼)')
+      try {
+        await callStore.livekitRoom.disconnect()
+      } catch (disconnectError) {
+        console.error('[CounselorCallView] LiveKit 연결 종료 실패:', disconnectError)
+      }
+      callStore.setLivekitRoom(null)
+    }
+
+    // 모달 표시 (메모 작성 및 요약 확인용)
+    showManualEndModal.value = true
+    console.log('[CounselorCallView] 수동 종료 모달 표시')
+  } catch (error) {
+    console.error('[CounselorCallView] 통화 종료 버튼 처리 실패:', error)
+    notificationStore.notifyError('통화 종료 중 오류가 발생했습니다')
   }
-
-  // 모달 표시 (메모 작성 및 요약 확인용)
-  showManualEndModal.value = true
 }
 
 // Manual end modal confirm
 const handleManualEndConfirm = async () => {
-  showManualEndModal.value = false
+  console.log('[CounselorCallView] 수동 종료 모달 확인 버튼 클릭')
 
-  // 메모 저장
-  const saved = await saveMemoToServer()
-  if (saved) {
-    clearMemoDraft()
-    skipDraftSaveOnUnmount = true
-  }
-
-  // 상담사 상태를 AVAILABLE로 복구
   try {
-    await axios.patch('/api/v1/users/me/status', { status: 'AVAILABLE' })
-    console.log('[CounselorCallView] 상담사 상태 AVAILABLE로 복구')
-  } catch (statusError) {
-    console.error('[CounselorCallView] 상태 복구 실패:', statusError)
-  }
+    showManualEndModal.value = false
 
-  // call store 리셋 및 대시보드 이동
-  callStore.resetCall()
-  router.push({ name: 'dashboard' })
-  console.log('통화 종료 완료')
+    // 메모 저장
+    const saved = await saveMemoToServer()
+    if (saved) {
+      clearMemoDraft()
+      skipDraftSaveOnUnmount = true
+    }
+
+    // 상담사 상태를 AVAILABLE로 복구
+    try {
+      await axios.patch('/api/v1/users/me/status', { status: 'AVAILABLE' })
+      console.log('[CounselorCallView] 상담사 상태 AVAILABLE로 복구')
+    } catch (statusError) {
+      console.error('[CounselorCallView] 상태 복구 실패:', statusError)
+    }
+
+    // call store 리셋 및 대시보드 이동
+    callStore.resetCall()
+    console.log('[CounselorCallView] 통화 종료 완료, 대시보드로 이동')
+    router.push({ name: 'dashboard' })
+  } catch (error) {
+    console.error('[CounselorCallView] 수동 종료 확인 처리 실패:', error)
+    notificationStore.notifyError('통화 종료 처리 중 오류가 발생했습니다')
+    // 에러가 발생해도 대시보드로 이동
+    router.push({ name: 'dashboard' })
+  }
 }
 
 
@@ -591,17 +636,39 @@ onMounted(() => {
     // === 마이크 활성화 (통화 화면 진입 시) ===
     ;(async () => {
       try {
-        await room.localParticipant.setMicrophoneEnabled(true)
-        console.log('[CounselorCallView] 마이크 활성화 완료')
+        // setMicrophoneEnabled 대신 직접 getUserMedia + publishTrack 사용
+        // (DataCloneError 회피)
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        })
+
+        const audioTrack = stream.getAudioTracks()[0]
+        if (audioTrack) {
+          await room.localParticipant.publishTrack(audioTrack, {
+            name: 'microphone',
+            source: Track.Source.Microphone
+          })
+
+          // 마이크가 활성화되었으므로 음소거 상태는 false
+          isMuted.value = false
+          console.log('[CounselorCallView] 마이크 활성화 완료 (음소거 해제 상태)')
+        }
       } catch (err) {
         console.error('[CounselorCallView] 마이크 활성화 실패:', err)
+        notificationStore.notifyError('마이크 권한을 허용해주세요')
+        // 실패 시 음소거 상태로 설정
+        isMuted.value = true
       }
     })()
 
     // === 고객 오디오 딜레이/차단 파이프라인 구성 ===
     // 1) 이미 구독된 트랙이 있으면 즉시 파이프라인 생성
     ;(async () => {
-      await ensureAudioContext()
+      initAudioContext()
 
       for (const p of room.remoteParticipants.values()) {
         for (const pub of p.audioTrackPublications.values()) {
@@ -666,17 +733,19 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  // Whisper/VAD 정리
-  stopCounselorWhisperVad()
+  console.log('[CounselorCallView] 컴포넌트 unmount 시작')
 
-  // 오디오 파이프라인 정리
-  try {
-    pipelines.clear()
-    audioCtx?.close?.()
-  } catch {
-    // ignore
-  } finally {
-    audioCtx = null
-  }
+  // TODO: Whisper/VAD 정리 로직 필요 시 추가
+  // stopCounselorWhisperVad()
+
+  // TODO: 오디오 파이프라인 정리 로직 필요 시 추가
+  // try {
+  //   pipelines.clear()
+  //   audioCtx?.close?.()
+  // } catch {
+  //   // ignore
+  // } finally {
+  //   audioCtx = null
+  // }
 })
 </script>
