@@ -136,6 +136,16 @@ const router = createRouter({
             role: "counselor",
           },
         },
+        {
+          path: "call-history",
+          name: "call-history",
+          component: () => import("@/views/counselor/CallHistoryView.vue"),
+          meta: {
+            title: "상담 이력",
+            role: "counselor",
+            requiresAuth: true,
+          },
+        },
       ],
     },
     // 기존 라우트 (하위 호환성)
