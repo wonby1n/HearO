@@ -192,7 +192,7 @@ public class ConsultationServiceImpl implements ConsultationService{
     }
 
     @Override
-    public Page<ConsultationListResponse> getConsultationsByCustomerId(Integer customerId, Pageable pageable) {
+    public Page<ConsultationListResponse> getCustomerConsultations(Integer customerId, Pageable pageable) {
         return consultationRepository.findAllByCustomerId(customerId, pageable)
                 .map(ConsultationListResponse::from);
     }

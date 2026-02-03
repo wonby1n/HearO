@@ -124,11 +124,11 @@ public class ConsultationController {
 
     // ========== 특정 고객의 상담 기록 조회 ==========
     @GetMapping("/customer/{customerId}")
-    public ResponseEntity<BaseResponse<Page<ConsultationListResponse>>> getConsultationsByCustomer(
+    public ResponseEntity<BaseResponse<Page<ConsultationListResponse>>> getCustomerConsultations(
             @PathVariable Integer customerId,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        Page<ConsultationListResponse> result = consultationService.getConsultationsByCustomerId(customerId, pageable);
+        Page<ConsultationListResponse> result = consultationService.getCustomerConsultations(customerId, pageable);
         return ResponseEntity.ok(BaseResponse.success(result));
     }
 }

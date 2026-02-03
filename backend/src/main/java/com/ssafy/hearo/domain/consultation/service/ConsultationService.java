@@ -20,5 +20,5 @@ public interface ConsultationService {
 
     Page<ConsultationListResponse> getMyConsultations(Long userId, Pageable pageable);
 
-    Page<ConsultationListResponse> getConsultationsByCustomerId(Integer customerId, Pageable pageable);
+    Page<ConsultationListResponse> getCustomerConsultations(Integer customerId, Pageable pageable);
 }
