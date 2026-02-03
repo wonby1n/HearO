@@ -23,4 +23,7 @@ public interface ConsultationRepository extends JpaRepository<Consultation, Inte
 
     // 내 상담 기록 페이징 조회
     Page<Consultation> findAllByUserId(Long userId, Pageable pageable);
+
+    // 특정 고객의 상담 기록 페이징 조회
+    Page<Consultation> findAllByCustomerId(Integer customerId, Pageable pageable);
 }

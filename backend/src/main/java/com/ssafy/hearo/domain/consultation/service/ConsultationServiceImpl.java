@@ -190,4 +190,10 @@ public class ConsultationServiceImpl implements ConsultationService{
         return consultationRepository.findAllByUserId(userId, pageable)
                 .map(ConsultationListResponse::from);
     }
+
+    @Override
+    public Page<ConsultationListResponse> getCustomerConsultations(Integer customerId, Pageable pageable) {
+        return consultationRepository.findAllByCustomerId(customerId, pageable)
+                .map(ConsultationListResponse::from);
+    }
 }
