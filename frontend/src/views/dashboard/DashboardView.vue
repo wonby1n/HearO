@@ -75,7 +75,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, onActivated, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useAgentStore } from '@/stores/agent'
@@ -159,11 +159,20 @@ const handleTimeModalComplete = () => {
 let energyLogInterval = null
 
 onMounted(async () => {
+  console.log('[DashboardView] onMounted - 데이터 로딩')
   await dashboardStore.fetchDashboardData()
+  console.log('[DashboardView] 고객 만족도:', dashboardStore.customerSatisfaction)
 
   // 30초마다 에너지 레벨 콘솔 출력 (디버깅용)
   energyLogInterval = setInterval(() => {
   }, 30000)
+})
+
+// keep-alive 캐시 컴포넌트가 다시 활성화될 때 데이터 갱신
+onActivated(async () => {
+  console.log('[DashboardView] onActivated - 데이터 갱신')
+  await dashboardStore.fetchDashboardData()
+  console.log('[DashboardView] 고객 만족도:', dashboardStore.customerSatisfaction)
 })
 
 onUnmounted(() => {

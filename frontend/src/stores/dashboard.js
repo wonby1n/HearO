@@ -44,8 +44,10 @@ export const useDashboardStore = defineStore('dashboard', () => {
   const fetchDashboardData = async () => {
     try {
       const response = await axios.get('/api/v1/dashboard')
+      console.log('[DashboardStore] API 응답:', response.data)
       if (response.data.isSuccess) {
         const data = response.data.data
+        console.log('[DashboardStore] customerSatisfaction from API:', data.customerSatisfaction)
         userName.value = data.userName || ''
         energyIndex.value = data.currentEnergy || 0
         customerSatisfaction.value = data.customerSatisfaction || 0
