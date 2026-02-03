@@ -40,11 +40,7 @@
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-140px)]">
         <!-- 좌측: 고객 정보 패널 -->
         <div class="lg:col-span-3">
-          <CustomerInfoPanel
-            :customerInfo="customerInfo || initialPlaceholder"
-            :isLoading="isLoadingCustomerInfo"
-            :error="customerInfoError"
-          />
+          <CustomerInfoSection />
         </div>
 
         <!-- 중앙: STT 자막 영역 -->
@@ -133,14 +129,13 @@ import { ref, watch, computed, onBeforeUnmount, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { RoomEvent, Track } from 'livekit-client'
 import CallTimer from '@/components/counselor/CallTimer.vue'
-import CustomerInfoPanel from '@/components/counselor/CustomerInfoPanel.vue'
+import CustomerInfoSection from '@/components/counselor/CustomerInfoSection.vue'
 import STTChatPanel from '@/components/counselor/STTChatPanel.vue'
 import CounselorCallControls from '@/components/counselor/CounselorCallControls.vue'
 import CallMemoPanel from '@/components/counselor/CallMemoPanel.vue'
 import AutoTerminationModal from '@/components/call/AutoTerminationModal.vue'
 import ManualEndCallModal from '@/components/call/ManualEndCallModal.vue'
-import { mockCustomerInfo, mockSttMessages } from '@/mocks/counselor'
-import { fetchCustomerData } from '@/services/customerService'
+import { mockSttMessages } from '@/mocks/counselor'
 import { saveConsultationMemo } from '@/services/consultationService'
 import { useNotificationStore } from '@/stores/notification'
 import { useCallStore } from '@/stores/call'
@@ -174,17 +169,6 @@ const isMuted = ref(false)
 const showAutoTerminationModal = ref(false)
 const showManualEndModal = ref(false)
 
-const initialPlaceholder = {
-  customerName: '로딩 중...',
-  phone: '-',
-  productName: '-',
-  warrantyStatus: { status: '-', isExpired: false, endDate: '-' },
-  symptoms: []
-}
-
-const customerInfo = ref(null)
-const isLoadingCustomerInfo = ref(false)
-const customerInfoError = ref(null)
 const sttMessages = ref(mockSttMessages)
 const searchQuery = ref('')
 const aiSummary = ref('')
@@ -293,65 +277,6 @@ const saveMemoToServer = async () => {
     return false
   }
 }
-
-// --- 데이터 로딩 로직 ---
-const formatDate = (dateString) => {
-  if (!dateString) return '-';
-  try {
-    const date = new Date(dateString);
-    return isNaN(date) ? '-' : `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
-  } catch { return '-'; }
-}
-
-const getWarrantyStatus = (warrantyEndsAt) => {
-  if (!warrantyEndsAt) return { status: '정보 없음', isExpired: null, endDate: null };
-  const endDate = new Date(warrantyEndsAt);
-  const today = new Date();
-  const isExpired = endDate <= today;
-  return { status: isExpired ? '만료' : '이내', isExpired, endDate: formatDate(warrantyEndsAt) };
-}
-
-const loadCustomerData = async (regId) => {
-  if (!regId || String(regId) === 'undefined') return;
-  try {
-    isLoadingCustomerInfo.value = true;
-    customerInfoError.value = null;
-
-    // 1. 매칭 데이터에서 registrationId 가져오기
-    const registrationId = dashboardStore.matchedData?.registrationId;
-
-    if (!registrationId) {
-      console.warn('[CounselorCallView] registrationId를 찾을 수 없습니다. 목 데이터 사용');
-      customerInfo.value = mockCustomerInfo;
-      return;
-    }
-
-    console.log('[CounselorCallView] Registration ID:', registrationId);
-
-    const response = await fetchCustomerData(regId);
-    customerInfo.value = {
-      id: response.id,
-      customerId: response.customerId,
-      customerName: response.customerName || '고객 정보 없음',
-      phone: response.customerPhone || response.phone || '정보 없음',
-      productName: response.productName || '정보 없음',
-      productCategory: response.productCategory || '정보 없음',
-      modelCode: response.modelCode || '정보 없음',
-      purchaseDate: formatDate(response.manufacturedAt || response.purchaseDate),
-      warrantyStatus: getWarrantyStatus(response.warrantyEndsAt),
-      productImage: response.productImageUrl || '/images/default-product.png',
-      errorCode: response.errorCode || '정보 없음',
-      symptoms: response.symptom ? [response.symptom] : (response.symptoms || ['정보 없음']),
-      consultationHistory: response.consultationHistory || []
-    };
-  } catch (error) {
-    console.error('고객 로드 실패:', error);
-    customerInfoError.value = '데이터를 불러올 수 없습니다.';
-    customerInfo.value = mockCustomerInfo;
-  } finally {
-    isLoadingCustomerInfo.value = false;
-  }
-};
 
 // 통화 컨트롤 핸들러
 // 음소거 토글 핸들러
@@ -636,10 +561,7 @@ onBeforeUnmount(() => {
 
 defineExpose({ addSttMessage })
 
-// 컴포넌트 마운트 시 고객 정보 로드
 onMounted(() => {
-  loadCustomerData()
-
   // call store에 저장된 LiveKit room 확인
   if (callStore.livekitRoom) {
     console.log('[CounselorCallView] 기존 LiveKit 연결 사용:', callStore.livekitRoom.name)
@@ -758,6 +680,10 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   console.log('[CounselorCallView] 컴포넌트 unmount 시작')
+
+  // 매칭 데이터 정리 (대시보드로 돌아갈 때)
+  dashboardStore.clearMatchedData()
+  console.log('[CounselorCallView] 매칭 데이터 정리 완료')
 
   // TODO: Whisper/VAD 정리 로직 필요 시 추가
   // stopCounselorWhisperVad()

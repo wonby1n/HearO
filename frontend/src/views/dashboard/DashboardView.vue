@@ -140,12 +140,12 @@ const handleModalClose = async () => {
     await dashboardHeaderRef.value?.connectToCall()
     console.log('[DashboardView] LiveKit 연결 완료 - 통화 화면으로 이동')
 
-    dashboardStore.clearMatchedData()
+    // matchedData는 통화 중에 필요하므로 여기서 지우지 않음
+    // 통화 종료 후 대시보드로 돌아올 때 정리됨
     router.push('/counselor/call')
   } catch (error) {
     console.error('[DashboardView] LiveKit 연결 실패:', error)
     // 에러 발생 시에도 통화 화면으로 이동 (CounselorCallView에서 재시도)
-    dashboardStore.clearMatchedData()
     router.push('/counselor/call')
   }
 }

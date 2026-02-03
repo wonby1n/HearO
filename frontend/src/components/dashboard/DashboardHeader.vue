@@ -96,10 +96,14 @@ const {
   onMatched: (data) => {
     console.log('[DashboardHeader] 매칭 알림 수신:', data)
 
-    // 1초 대기 후 모달 표시 (고객 연결/이탈 처리 시간 확보)
+    // 즉시 데이터 저장 (CounselorCallView에서 사용하기 위해)
+    dashboardStore.setMatchedData(data)
+    console.log('[DashboardHeader] 데이터 저장 완료, 확인:', dashboardStore.matchedData)
+
+    // 1초 대기 후 모달 표시만 지연 (고객 연결/이탈 처리 시간 확보)
+    // 데이터는 이미 저장되어 있음
     setTimeout(() => {
       console.log('[DashboardHeader] 매칭 모달 표시 (1초 지연)')
-      dashboardStore.setMatchedData(data)
     }, 1000)
   }
 })
