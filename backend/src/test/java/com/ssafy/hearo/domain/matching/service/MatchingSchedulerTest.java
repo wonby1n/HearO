@@ -21,11 +21,6 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -34,25 +29,21 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.*;
 
 @SpringBootTest
-@Testcontainers
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @Import(MatchingSchedulerTest.TestConfig.class)
 class MatchingSchedulerTest {
 
-    @Container
-    static GenericContainer<?> redis = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
-            .withExposedPorts(6379);
-
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(DockerImageName.parse("postgres:15-alpine"));
-
+    // 기존 실행 중인 컨테이너 사용 (Testcontainers 대신)
     @DynamicPropertySource
     static void containerProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.data.redis.host", redis::getHost);
-        registry.add("spring.data.redis.port", redis::getFirstMappedPort);
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.datasource.username", postgres::getUsername);
-        registry.add("spring.datasource.password", postgres::getPassword);
+        // 기존 Redis 컨테이너 (localhost:8379)
+        registry.add("spring.data.redis.host", () -> "localhost");
+        registry.add("spring.data.redis.port", () -> "8379");
+        registry.add("spring.data.redis.password", () -> "**");
+        // 기존 PostgreSQL 컨테이너 (localhost:8432)
+        registry.add("spring.datasource.url", () -> "**");
+        registry.add("spring.datasource.username", () -> "hearo_user");
+        registry.add("spring.datasource.password", () -> "**");
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
         // 스케줄링 비활성화 (수동으로 호출할 것이므로)
         registry.add("spring.task.scheduling.pool.size", () -> "0");
@@ -98,9 +89,15 @@ class MatchingSchedulerTest {
     void cleanup() {
         clearRedis();
         transactionTemplate.execute(status -> {
-            entityManager.createQuery("DELETE FROM Blacklist").executeUpdate();
-            entityManager.createQuery("DELETE FROM Customer").executeUpdate();
-            entityManager.createQuery("DELETE FROM User").executeUpdate();
+            // FK 제약조건 순서대로 삭제
+            entityManager.createNativeQuery("DELETE FROM consultation_ratings").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM voice_recordings").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM consultations").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM registrations").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM blacklists").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM customers").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM users").executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM products").executeUpdate();
             return null;
         });
     }

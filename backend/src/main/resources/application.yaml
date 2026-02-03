@@ -28,3 +28,18 @@ jwt:
   secret: ${JWT_SECRET:default-test-secret-key-must-be-at-least-32-characters}
   access-token-expiry-ms: ${JWT_ACCESS_TOKEN_EXPIRY_MS:1800000}
   refresh-token-expiry-ms: ${JWT_REFRESH_TOKEN_EXPIRY_MS:604800000}
+
+# LiveKit 기본 설정 (테스트용, 프로필별로 오버라이드)
+livekit:
+  url: ${LIVEKIT_URL:ws://localhost:7880}
+  api-key: ${LIVEKIT_API_KEY:test-api-key}
+  api-secret: ${LIVEKIT_API_SECRET:test-api-secret}
+
+# GMS 기본 설정 (테스트용, 프로필별로 오버라이드)
+gms:
+  url: ${GMS_URL:http://localhost:8080}
+  api-key: ${GMS_KEY:test-gms-key}
+
+# ChromaDB 기본 설정 (테스트용, 프로필별로 오버라이드)
+chromadb:
+  url: ${CHROMA_DB_URL:http://localhost:8000}
