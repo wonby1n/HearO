@@ -18,6 +18,31 @@
       @confirm="handleManualEndConfirm"
     />
 
+    <!-- 통화 종료 확인 모달 -->
+    <Teleport to="body">
+      <div v-if="showEndConfirmModal" class="fixed inset-0 z-50 flex items-center justify-center">
+        <div class="absolute inset-0 bg-black/50" @click="handleEndConfirmCancel"></div>
+        <div class="relative bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4">
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">상담 종료</h3>
+          <p class="text-gray-600 mb-6">정말 상담을 종료하시겠습니까?</p>
+          <div class="flex gap-3">
+            <button
+              @click="handleEndConfirmCancel"
+              class="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+            >
+              취소
+            </button>
+            <button
+              @click="handleEndConfirmOk"
+              class="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors"
+            >
+              종료
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- 상단 헤더 -->
     <header class="bg-white shadow-sm border-b border-gray-200">
       <div class="max-w-[1920px] mx-auto px-6 py-4">
@@ -148,6 +173,7 @@ let vadStartAt = 0
 // 자동 종료 모달
 const showAutoTerminationModal = ref(false)
 const showManualEndModal = ref(false)
+const showEndConfirmModal = ref(false) // 종료 확인 모달
 
 // 폭언 3회 → 자동 종료 트리거 감지
 watch(() => callStore.autoTerminationTriggered, (triggered) => {
@@ -357,9 +383,21 @@ const handleMuteChanged = async (muted) => {
   }
 }
 
-// Manual end modal request
-const handleManualEndRequest = async () => {
-  console.log('[CounselorCallView] 통화 종료 버튼 클릭')
+// Manual end modal request - 확인 모달 표시
+const handleManualEndRequest = () => {
+  console.log('[CounselorCallView] 통화 종료 버튼 클릭 - 확인 모달 표시')
+  showEndConfirmModal.value = true
+}
+
+// 종료 확인 모달 - 취소
+const handleEndConfirmCancel = () => {
+  showEndConfirmModal.value = false
+}
+
+// 종료 확인 모달 - 확인 (실제 종료 처리)
+const handleEndConfirmOk = async () => {
+  showEndConfirmModal.value = false
+  console.log('[CounselorCallView] 통화 종료 확인')
 
   try {
     // 통화 종료 버튼을 누르는 즉시 LiveKit 연결 종료 (고객에게 즉시 알림)
@@ -842,12 +880,60 @@ onBeforeUnmount(() => {
 
 defineExpose({ addSttMessage })
 
-onMounted(() => {
+onMounted(async () => {
   // call store에 저장된 LiveKit room 확인
   if (callStore.livekitRoom) {
     console.log('[CounselorCallView] 기존 LiveKit 연결 사용:', callStore.livekitRoom.name)
 
     const room = callStore.livekitRoom
+
+    // === 상담 시작 API 호출 및 consultationId 고객에게 전송 ===
+    try {
+      const matchedData = dashboardStore.matchedData
+      if (matchedData?.customerId && matchedData?.registrationId) {
+        console.log('[CounselorCallView] 상담 시작 API 호출...', { customerId: matchedData.customerId, registrationId: matchedData.registrationId })
+
+        const response = await axios.post('/api/v1/consultations', {
+          customerId: matchedData.customerId,
+          registrationId: matchedData.registrationId
+        })
+
+        const consultationId = response.data?.data?.consultationId
+        if (consultationId) {
+          // callStore에 저장
+          callStore.setConsultationId(consultationId)
+          console.log('[CounselorCallView] consultationId 획득:', consultationId)
+
+          // 고객이 통화 화면 진입 및 리스너 등록할 시간 확보 후 전송
+          // 500ms 후 첫 전송, 이후 2초마다 3번 재전송 (총 4번)
+          const sendConsultationId = async () => {
+            try {
+              const payload = {
+                type: 'consultationId',
+                consultationId: consultationId,
+                ts: Date.now()
+              }
+              const bytes = new TextEncoder().encode(JSON.stringify(payload))
+              await room.localParticipant.publishData(bytes, { reliable: true })
+              console.log('[CounselorCallView] consultationId 고객에게 전송 완료')
+            } catch (sendErr) {
+              console.error('[CounselorCallView] consultationId 전송 실패:', sendErr)
+            }
+          }
+
+          // 500ms 후 첫 전송
+          setTimeout(sendConsultationId, 500)
+          // 2초, 4초, 6초 후 재전송 (고객이 늦게 입장할 경우 대비)
+          setTimeout(sendConsultationId, 2000)
+          setTimeout(sendConsultationId, 4000)
+          setTimeout(sendConsultationId, 6000)
+        }
+      } else {
+        console.warn('[CounselorCallView] matchedData에 customerId 또는 registrationId 없음:', matchedData)
+      }
+    } catch (err) {
+      console.error('[CounselorCallView] 상담 시작 API 호출 실패:', err)
+    }
 
     if (room.remoteParticipants.size > 0) {
       console.log('[CounselorCallView] 고객 이미 방에 있음')
