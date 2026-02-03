@@ -6,6 +6,10 @@ import com.ssafy.hearo.domain.consultation.service.ConsultationService;
 import com.ssafy.hearo.global.common.response.BaseResponse; // ★ import 추가
 import com.ssafy.hearo.global.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -106,5 +110,15 @@ public class ConsultationController {
         // 데이터가 없는 성공 응답
         return ResponseEntity.ok(BaseResponse.success());
     }
-}
 
+    // ========== 내 상담 기록 조회 ==========
+    @GetMapping("/me")
+    public ResponseEntity<BaseResponse<Page<ConsultationListResponse>>> getMyConsultations(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        if (userDetails == null) throw new IllegalArgumentException("인증 정보가 없습니다.");
+        Page<ConsultationListResponse> result = consultationService.getMyConsultations(userDetails.getId(), pageable);
+        return ResponseEntity.ok(BaseResponse.success(result));
+    }
+}

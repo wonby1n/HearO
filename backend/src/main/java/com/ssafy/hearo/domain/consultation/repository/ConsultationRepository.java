@@ -1,6 +1,8 @@
 package com.ssafy.hearo.domain.consultation.repository;
 
 import com.ssafy.hearo.domain.consultation.entity.Consultation;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -18,4 +20,7 @@ public interface ConsultationRepository extends JpaRepository<Consultation, Inte
     // 내 총 상담 시간(초) 합계
     @Query("SELECT SUM(c.durationSeconds) FROM Consultation c WHERE c.user.id = :userId")
     Long sumDurationByUserId(@Param("userId") Long userId);
+
+    // 내 상담 기록 페이징 조회
+    Page<Consultation> findAllByUserId(Long userId, Pageable pageable);
 }
