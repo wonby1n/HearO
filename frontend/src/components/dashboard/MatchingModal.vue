@@ -41,12 +41,12 @@
           <!-- 플로팅 데이터 레이블들 -->
           <!-- 왼쪽: 스트레스 지수 -->
           <div class="absolute left-[-20px] top-1/2 -translate-y-1/2 bg-white px-5 py-3 rounded-2xl shadow-lg border border-gray-100 animate-float-slow">
-            <p class="text-[#1F3A8C] font-bold text-sm">현재 스트레스 지수</p>
+            <p class="text-[#1F3A8C] font-bold text-sm">고객과의 궁합</p>
           </div>
 
           <!-- 오른쪽 상단: 만족도 평가 -->
           <div class="absolute right-0 top-0 bg-white px-5 py-3 rounded-2xl shadow-lg border border-gray-100 animate-float-medium">
-            <p class="text-[#1F3A8C] font-bold text-sm">만족도 평가 <span class="text-blue-500 uppercase">Good</span></p>
+            <p class="text-[#1F3A8C] font-bold text-sm">블랙리스트 제외<span class="text-blue-500 uppercase">Good</span></p>
           </div>
 
           <!-- 오른쪽 하단: 상담 내역 -->

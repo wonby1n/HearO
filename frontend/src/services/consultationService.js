@@ -86,6 +86,30 @@ export const calculateAverageRating = (rating) => {
 }
 
 /**
+ * Get latest 3 consultation history by customerId
+ * API: GET /api/v1/consultations/latest
+ *
+ * @param {number} customerId - Customer ID
+ * @returns {Promise<Array>} Latest 3 consultations
+ */
+export const getLatestConsultations = async (customerId) => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/consultations/latest`, {
+      params: { customerId }
+    })
+
+    if (response.data && response.data.isSuccess) {
+      return response.data.data || []
+    } else {
+      throw new Error(response.data?.message || '과거 상담 이력 조회 실패')
+    }
+  } catch (error) {
+    console.error('❌ 과거 상담 이력 조회 에러:', error.response?.data || error.message)
+    throw error
+  }
+}
+
+/**
  * Get my consultation history (paginated)
  * API: GET /api/v1/consultations/me
  *

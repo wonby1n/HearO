@@ -2,12 +2,12 @@
   <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
     <!-- 테이블 헤더 -->
     <div class="grid grid-cols-12 gap-4 px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-primary-50 to-primary-100/50 text-sm font-semibold text-primary-800">
-      <div class="col-span-3">상담 제목</div>
+      <div class="col-span-2">제품 카테고리</div>
       <div class="col-span-2">고객명</div>
       <div class="col-span-2">전화번호</div>
-      <div class="col-span-2">접수 내역</div>
+      <div class="col-span-3">접수내역 (AI 요약)</div>
       <div class="col-span-2">통화일자</div>
-      <div class="col-span-1 text-right">총통화</div>
+      <div class="col-span-1 text-right">총통화시간</div>
     </div>
 
     <!-- 테이블 바디 -->
@@ -26,25 +26,21 @@
           class="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-primary-50/50 cursor-pointer transition-all duration-200"
           @click="toggleExpand(consultation.consultationId)"
         >
-          <div class="col-span-3 flex items-center gap-3">
-            <div class="w-10 h-10 bg-gradient-to-br from-primary-100 to-primary-200 rounded-full flex-shrink-0 flex items-center justify-center">
-              <svg class="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-              </svg>
-            </div>
-            <div class="min-w-0">
-              <div class="text-sm font-medium text-gray-900 truncate">{{ consultation.title }}</div>
-              <div class="text-xs text-gray-500 truncate">{{ consultation.subtitle }}</div>
-            </div>
+          <div class="col-span-2 flex items-center">
+            <span class="px-3 py-1.5 bg-primary-100 text-primary-700 rounded-lg text-sm font-medium">
+              {{ consultation.productCategory || '미분류' }}
+            </span>
           </div>
-          <div class="col-span-2 flex items-center text-sm text-gray-900">
+          <div class="col-span-2 flex items-center text-sm font-medium text-gray-900">
             {{ consultation.customerName }}
           </div>
           <div class="col-span-2 flex items-center text-sm text-gray-600">
             {{ formatPhoneNumber(consultation.customerPhone) }}
           </div>
-          <div class="col-span-2 flex items-center text-sm text-gray-600 truncate">
-            {{ consultation.subtitle }}
+          <div class="col-span-3 flex items-center text-sm text-gray-700">
+            <div class="truncate" :title="consultation.aiSummary">
+              {{ truncateText(consultation.aiSummary, 60) }}
+            </div>
           </div>
           <div class="col-span-2 flex items-center text-sm text-gray-600">
             {{ formatDate(consultation.createdAt) }}
@@ -59,6 +55,21 @@
           v-if="expandedId === consultation.consultationId"
           class="px-6 py-4 bg-gradient-to-br from-primary-50/30 to-blue-50/30 border-t border-primary-100"
         >
+          <div class="grid grid-cols-1 gap-4 mb-4">
+            <!-- AI 요약 전체 보기 -->
+            <div>
+              <h4 class="text-sm font-semibold text-primary-800 mb-3 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                접수내역 (AI 요약)
+              </h4>
+              <div class="bg-white rounded-lg border border-primary-200 p-4 text-sm shadow-sm">
+                <p class="text-gray-700 whitespace-pre-wrap leading-relaxed">{{ consultation.aiSummary || '요약 정보가 없습니다.' }}</p>
+              </div>
+            </div>
+          </div>
+
           <div class="grid grid-cols-2 gap-4">
             <!-- 상담 결과 -->
             <div>
@@ -69,6 +80,12 @@
                 상담 결과
               </h4>
               <div class="bg-white rounded-lg border border-primary-200 p-4 space-y-3 text-sm shadow-sm">
+                <div class="flex justify-between items-center">
+                  <span class="text-gray-600">제품 카테고리:</span>
+                  <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                    {{ consultation.productCategory || '미분류' }}
+                  </span>
+                </div>
                 <div class="flex justify-between items-center">
                   <span class="text-gray-600">종료 사유:</span>
                   <span class="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-xs font-semibold">
@@ -149,6 +166,12 @@ const expandedId = ref(null)
 
 const toggleExpand = (id) => {
   expandedId.value = expandedId.value === id ? null : id
+}
+
+const truncateText = (text, maxLength) => {
+  if (!text) return '-'
+  if (text.length <= maxLength) return text
+  return text.substring(0, maxLength) + '...'
 }
 
 const formatPhoneNumber = (phone) => {
