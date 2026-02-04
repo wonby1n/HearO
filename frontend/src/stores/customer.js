@@ -2,8 +2,8 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
 export const useCustomerStore = defineStore('customer', () => {
-  // localStorage에서 customerId 복원
-  const savedCustomerId = sessionStorage.getItem('clientCustomerId') || localStorage.getItem('clientCustomerId')
+  // sessionStorage에서 customerId 복원
+  const savedCustomerId = sessionStorage.getItem('clientCustomerId')
 
   // 현재 고객 정보
   const currentCustomer = ref({
@@ -57,10 +57,9 @@ export const useCustomerStore = defineStore('customer', () => {
       ...currentCustomer.value,
       ...customerData
     }
-    // customerId가 변경되면 localStorage에 저장
+    // customerId가 변경되면 sessionStorage에 저장
     if (customerData.id) {
       sessionStorage.setItem('clientCustomerId', String(customerData.id))
-      localStorage.setItem('clientCustomerId', String(customerData.id))
     }
   }
 
@@ -128,7 +127,7 @@ export const useCustomerStore = defineStore('customer', () => {
       ...data
     }
     try {
-      localStorage.setItem('clientVerification', JSON.stringify(data))
+      sessionStorage.setItem('clientVerification', JSON.stringify(data))
     } catch (error) {
       console.error('본인 인증 정보 저장 실패:', error)
     }
@@ -141,7 +140,7 @@ export const useCustomerStore = defineStore('customer', () => {
       ...data
     }
     try {
-      localStorage.setItem('clientConsent', JSON.stringify(data))
+      sessionStorage.setItem('clientConsent', JSON.stringify(data))
     } catch (error) {
       console.error('약관 동의 정보 저장 실패:', error)
     }

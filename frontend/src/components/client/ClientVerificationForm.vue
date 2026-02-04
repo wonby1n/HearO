@@ -210,11 +210,9 @@ const sendVerification = async () => {
     })
 
     if (response.data.accessToken) {
-      // JWT 토큰을 localStorage에 저장
+      // JWT 토큰을 sessionStorage에 저장 (세션 종료 시 자동 정리)
       sessionStorage.setItem('customerAccessToken', response.data.accessToken)
       sessionStorage.setItem('customerId', response.data.customerId)
-      localStorage.setItem('customerAccessToken', response.data.accessToken)
-      localStorage.setItem('customerId', response.data.customerId)
     }
 
     // 인증번호 입력 화면 표시
@@ -266,11 +264,9 @@ const verifyCode = async () => {
     customerStore.setCustomerInfo({ id: customerId })
     console.log('[ClientVerification] customerStore 업데이트:', customerId)
 
-    // 세션/로컬 스토리지는 새로고침 복원용으로만 사용
+    // sessionStorage에 저장 (세션 종료 시 자동 정리)
     sessionStorage.setItem('customerAccessToken', accessToken)
     sessionStorage.setItem('clientCustomerId', String(customerId))
-    localStorage.setItem('customerAccessToken', accessToken)
-    localStorage.setItem('clientCustomerId', String(customerId))
 
     // 인증 성공 상태 표시
     verificationError.value = ''
@@ -296,8 +292,8 @@ const handleBack = () => {
 const handleSubmit = () => {
   if (!isFormComplete.value) return
 
-  // 인증 정보를 localStorage에 저장
-  localStorage.setItem('clientVerification', JSON.stringify(formData.value))
+  // 인증 정보를 sessionStorage에 저장
+  sessionStorage.setItem('clientVerification', JSON.stringify(formData.value))
 
 
   // 다음 단계로 이동 (3/3 단계 - 약관 동의)
