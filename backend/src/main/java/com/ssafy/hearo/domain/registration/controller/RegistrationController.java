@@ -3,6 +3,7 @@ package com.ssafy.hearo.domain.registration.controller;
 import com.ssafy.hearo.domain.queue.dto.QueueStatusResponse;
 import com.ssafy.hearo.domain.registration.dto.RegistrationRequest;
 import com.ssafy.hearo.domain.registration.dto.RegistrationResponse;
+import com.ssafy.hearo.domain.queue.service.QueueLeaseService;
 import com.ssafy.hearo.domain.queue.service.QueueService;
 import com.ssafy.hearo.domain.registration.dto.RegistrationDetailResponse;
 import com.ssafy.hearo.domain.registration.service.RegistrationService;
@@ -23,10 +24,12 @@ public class RegistrationController {
 
     private final RegistrationService registrationService;
     private final QueueService queueService;
+    private final QueueLeaseService queueLeaseService;
     private final MockUserIdExtractor userIdExtractor;
 
     /**
      * 상담 접수 등록 및 대기열 진입
+     * queueTicket 발급하여 heartbeat 기반 유령 회원 제거 지원
      */
     @PostMapping
     public ResponseEntity<BaseResponse<RegistrationResponse>> createRegistration(
@@ -50,8 +53,12 @@ public class RegistrationController {
 
         QueueStatusResponse queueStatus = queueService.enqueue(customerIdStr);
 
-        // [수정] BaseResponse.success()로 감싸기
-        return ResponseEntity.ok(BaseResponse.success(RegistrationResponse.of(registrationId, queueStatus)));
+        // lease 생성 (heartbeat용 queueTicket 발급)
+        String queueTicket = queueLeaseService.createLease(customerIdStr);
+        log.info("Lease 발급: customerId={}, ticket={}", customerIdStr, queueTicket);
+
+        return ResponseEntity.ok(BaseResponse.success(
+                RegistrationResponse.of(registrationId, queueStatus, queueTicket)));
     }
 
     /**

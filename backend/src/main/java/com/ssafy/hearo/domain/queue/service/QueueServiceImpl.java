@@ -23,6 +23,7 @@ public class QueueServiceImpl implements QueueService {
     private final RedisTemplate<String, String> redisTemplate;
     private final QueueEventPublisher queueEventPublisher;
     private final BlacklistRepository blacklistRepository;
+    private final QueueLeaseService queueLeaseService;
 
     @Override
     public QueueStatusResponse enqueue(String customerId) {
@@ -311,14 +312,24 @@ public class QueueServiceImpl implements QueueService {
             // 큐에서 제거
             zSetOps.remove(queueKey, customerId);
 
-            // 대기열 항목이 너무 오래되었는지 확인 (유령 고객 필터링)
+            // 1. lease 검증 - heartbeat가 끊긴 고객인지 확인
+            if (!queueLeaseService.isLeaseAlive(customerId)) {
+                log.warn("{}에서 유령 고객 {} 제거 (lease 만료)",
+                        isNormalQueue ? "Normal Queue" : "Blacklist Queue",
+                        customerId);
+                // lease가 없으면 유령 고객 - 큐에서 제거하고 스킵
+                continue;
+            }
+
+            // 2. 대기열 항목이 너무 오래되었는지 확인 (백업 필터링)
             long now = System.currentTimeMillis();
             long entryAge = now - score.longValue();
             if (entryAge > QUEUE_ENTRY_TIMEOUT_MS) {
                 log.warn("{}에서 유령 고객 {} 제거 (대기 시간: {}초)",
                         isNormalQueue ? "Normal Queue" : "Blacklist Queue",
                         customerId, entryAge / 1000);
-                // 임시 스택에 추가하지 않고 그냥 버림 (연결이 끊긴 것으로 간주)
+                // 오래된 항목 - lease도 삭제
+                queueLeaseService.deleteLeaseByCustomerId(customerId);
                 continue;
             }
 
