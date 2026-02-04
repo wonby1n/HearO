@@ -1,14 +1,14 @@
 <template>
   <aside class="sidebar-wrapper h-screen flex flex-col border-r border-white/10 transition-all duration-300">
     <!-- 로고 영역: 파란색 테마와 조화로운 로고 -->
-    <div class="logo-section p-8 mb-4 flex items-center gap-4 group cursor-pointer">
+    <router-link to="/" class="logo-section p-8 mb-4 flex items-center gap-4 group cursor-pointer">
       <div class="logo-box w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-lg shadow-black/10 group-hover:scale-110 transition-transform duration-300">
         <svg class="w-6 h-6 text-primary-main" fill="currentColor" viewBox="0 0 24 24">
           <path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3zm0 18.5c-3.76-1.08-6.5-5.06-6.5-9.41V6.3l6.5-2.6 6.5 2.6v4.79c0 4.35-2.74 8.33-6.5 9.41z"/>
         </svg>
       </div>
       <h1 class="logo-text text-2xl font-black text-white tracking-tighter">Hear<span class="text-white/80">O</span></h1>
-    </div>
+    </router-link>
 
     <!-- 네비게이션 메뉴: 파란색 배경과 대비되는 화이트/블루 조합 -->
     <nav class="flex-1 px-4 space-y-1.5">
@@ -110,18 +110,33 @@ const handleLogout = async () => {
   --primary-main: #1F3A8C; /* 심신 안정에 도움을 주는 메인 블루 */
   --primary-dark: #1a3278;
   
-  background-color: var(--primary-main);
+  background: linear-gradient(180deg, #1F3A8C 0%, #162a65 100%);
   width: 280px;
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
 }
 
 .text-primary-main {
   color: var(--primary-main);
 }
 
+/* 로고 섹션 개선 */
+.logo-section {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.logo-box {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
 /* 활성 메뉴 아이템 스타일 */
+.nav-item {
+  position: relative;
+}
+
 .nav-item.active-nav {
-  background-color: rgba(255, 255, 255, 0.15); /* 화이트 오버레이로 활성화 표시 */
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
   color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .nav-item.active-nav .icon-wrapper {
@@ -134,7 +149,25 @@ const handleLogout = async () => {
 
 /* 호버 시 미세 강조 */
 .nav-item:hover:not(.active-nav) {
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: rgba(255, 255, 255, 0.08);
+  transform: translateX(2px);
+}
+
+/* 메뉴 그룹 라벨 */
+.menu-group-label {
+  letter-spacing: 0.15em;
+  margin-top: 8px;
+}
+
+/* 로그아웃 버튼 개선 */
+.logout-btn {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.logout-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
 }
 
 .custom-scrollbar::-webkit-scrollbar {
