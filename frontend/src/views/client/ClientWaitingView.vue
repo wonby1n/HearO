@@ -117,12 +117,14 @@ import axios from 'axios'
 import { useCallConnection } from '@/composables/useCallConnection'
 import { useCallStore } from '@/stores/call'
 import { useCustomerStore } from '@/stores/customer'
+import { useNotificationStore } from '@/stores/notification'
 import { RoomEvent } from 'livekit-client'
 import ARSvoiceFile from '@/assets/ARSvoice.mp3'
 
 const router = useRouter()
 const callStore = useCallStore()
 const customerStore = useCustomerStore()
+const notificationStore = useNotificationStore()
 
 // 통화 화면으로 정상 이동 중인지 플래그
 const isNavigatingToCall = ref(false)
@@ -162,6 +164,9 @@ watch(connectionState, (newState) => {
     // 매칭 완료 후 대기열 조회 중지 (더 이상 대기열에 없음)
     stopQueuePolling()
     disconnectQueueSocket()
+  } else if (newState === 'error') {
+    console.error('[ClientWaiting] LiveKit 연결 실패 감지')
+    notificationStore.notifyError('연결에 실패했습니다. 다시 시도해주세요.')
   }
 })
 
@@ -329,8 +334,12 @@ const fetchQueuePosition = async () => {
       totalWaitingCount.value = total
     }
   } catch (error) {
-    // 404는 대기열에 없는 경우 (매칭 완료 또는 아직 등록 안 됨) - 무시
     if (error.response?.status === 404) {
+      // 대기열에서 사라진 경우: 매칭됨을 의미하지만 STOMP 메시지가 수신되지 않은 경우 가능
+      if (connectionState.value !== 'connected' && connectionState.value !== 'matched' && connectionState.value !== 'connecting') {
+        console.warn('[ClientWaiting] 대기열 404 + 미수신 감지 - 매칭됨을 사용자에게 표시')
+        notificationStore.notifyWarning('상담사가 배정되었습니다. 잠시 후 연결됩니다...')
+      }
       return
     }
     console.error('[Client] 대기열 조회 실패:', error)
@@ -421,6 +430,12 @@ const playARSAudio = () => {
     .catch((error) => {
       console.error('[Client] ARS 음성 재생 실패:', error)
       isARSPlaying.value = false
+      // Chrome mobile 등 autoplay 차단 시 첫 번째 사용자 클릭 후 재시도
+      document.addEventListener('click', () => {
+        if (!isARSPlaying.value && arsAudio.value) {
+          arsAudio.value.play().then(() => { isARSPlaying.value = true })
+        }
+      }, { once: true })
     })
 
   // 무한 반복 재생으로 설정되어 ended 이벤트는 발생하지 않음
