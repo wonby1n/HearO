@@ -355,44 +355,11 @@ const disconnectQueueSocket = () => {
     queueSocket.value = null
   }
 }
-// 대기열 순번 및 전체 인원 조회
-const fetchQueuePosition = async () => {
-  // 이미 매칭 완료된 경우 조회 스킵
-  if (connectionState.value === 'connected') {
-    return
-  }
 
-  // 고객 인증 토큰 가져오기
+const getQueueStatusHeaders = () => {
   const accessToken = sessionStorage.getItem('customerAccessToken')
   console.log('[DEBUG] fetchQueuePosition - accessToken:', accessToken ? '있음' : '없음')
-  const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
-
-  try {
-    // 내 대기 순번 조회
-    const statusResponse = await axios.get('/api/v1/queue/status', { headers })
-    if (statusResponse.data) {
-      const rank = statusResponse.data.waitingRank || 0
-      queuePosition.value = rank
-      customerStore.updateQueueInfo({ position: rank, isWaiting: true })
-    }
-
-    // 전체 대기 인원 조회 (인증 불필요)
-    const statsResponse = await axios.get('/api/v1/queue/stats')
-    if (statsResponse.data) {
-      const total = (statsResponse.data.normalQueueSize || 0) + (statsResponse.data.blacklistQueueSize || 0)
-      totalWaitingCount.value = total
-    }
-  } catch (error) {
-    if (error.response?.status === 404) {
-      // 대기열에서 사라진 경우: 매칭됨을 의미하지만 STOMP 메시지가 수신되지 않은 경우 가능
-      if (connectionState.value !== 'connected' && connectionState.value !== 'matched' && connectionState.value !== 'connecting') {
-        console.warn('[ClientWaiting] 대기열 404 + 미수신 감지 - 매칭됨을 사용자에게 표시')
-        notificationStore.notifyWarning('상담사가 배정되었습니다. 잠시 후 연결됩니다...')
-      }
-      return
-    }
-    console.error('[Client] 대기열 조회 실패:', error)
-  }
+  return accessToken ? { Authorization: `Bearer ${accessToken}` } : null
 }
 
 // 대기열 순번 업데이트 (외부에서 호출 가능)
@@ -402,6 +369,58 @@ const updateQueuePosition = (newPosition, isWaiting = true) => {
     customerStore.updateQueueInfo({ position: newPosition, isWaiting })
   }
 }
+
+const updateQueueStats = (stats) => {
+  if (!stats) return
+  const normalSize = Number(stats.normalQueueSize ?? 0)
+  const blacklistSize = Number(stats.blacklistQueueSize ?? 0)
+  totalWaitingCount.value = normalSize + blacklistSize
+}
+
+const handleQueueStatusNotFound = () => {
+  if (connectionState.value === 'connected' || connectionState.value === 'matched' || connectionState.value === 'connecting') {
+    return
+  }
+
+  console.warn('[ClientWaiting] 대기열 404 + 미수신 감지 - 매칭됨을 사용자에게 표시')
+  notificationStore.notifyWarning('상담사가 배정되었습니다. 잠시 후 연결됩니다...')
+}
+
+// 대기열 순번 및 전체 인원 조회
+const fetchQueuePosition = async () => {
+  // 이미 매칭 완료된 경우 조회 스킵
+  if (connectionState.value === 'connected') {
+    return
+  }
+
+  const headers = getQueueStatusHeaders()
+  const statusPromise = headers ? axios.get('/api/v1/queue/status', { headers }) : Promise.resolve(null)
+  const statsPromise = axios.get('/api/v1/queue/stats')
+
+  const [statusResult, statsResult] = await Promise.allSettled([statusPromise, statsPromise])
+
+  if (statusResult.status === 'fulfilled') {
+    const data = statusResult.value?.data
+    if (data) {
+      const rank = Number(data.waitingRank ?? 0)
+      updateQueuePosition(Number.isFinite(rank) ? rank : 0, true)
+    }
+  } else if (statusResult.status === 'rejected') {
+    if (statusResult.reason?.response?.status === 404) {
+      // 대기열에서 사라진 경우: 매칭됨을 의미하지만 STOMP 메시지가 수신되지 않은 경우 가능
+      handleQueueStatusNotFound()
+    } else {
+      console.error('[Client] 대기열 순번 조회 실패:', statusResult.reason)
+    }
+  }
+
+  if (statsResult.status === 'fulfilled') {
+    updateQueueStats(statsResult.value?.data)
+  } else if (statsResult.status === 'rejected') {
+    console.error('[Client] 대기열 통계 조회 실패:', statsResult.reason)
+  }
+}
+
 
 // 스피커 토글
 const toggleSpeaker = () => {

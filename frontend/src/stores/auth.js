@@ -35,7 +35,11 @@ export const useAuthStore = defineStore('auth', () => {
       (config) => {
         const token = accessToken.value
 
-        if (token) {
+        const hasAuthHeader = Boolean(
+          config.headers?.Authorization || config.headers?.authorization
+        )
+
+        if (token && !hasAuthHeader) {
           config.headers.Authorization = `Bearer ${token}`
         }
         return config
