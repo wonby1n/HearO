@@ -260,13 +260,19 @@ const handleSubmit = async () => {
       console.log('✅ registrationId 저장:', response.data.data.registrationId)
     }
 
+    // queueTicket 저장 (대기열 하트비트용)
+    if (response.data?.data?.queueTicket) {
+      sessionStorage.setItem('clientQueueTicket', response.data.data.queueTicket)
+      console.log('✅ queueTicket 저장:', response.data.data.queueTicket)
+    }
+
     // 약관 동의 정보 저장
     customerStore.saveConsent(agreements.value)
 
     // 성공 알림
     notificationStore.notifySuccess('상담 접수가 완료되었습니다')
 
-    // sessionStorage 임시 데이터 정리
+    // sessionStorage 정리 (임시 데이터 삭제)
     sessionStorage.removeItem('clientConsultationData')
 
     // 대기 페이지로 이동
