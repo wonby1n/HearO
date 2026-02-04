@@ -207,6 +207,10 @@ const props = defineProps({
   counselorName: {
     type: String,
     default: '상담원'
+  },
+  profanityCount: {
+    type: Number,
+    default: 0
   }
 })
 

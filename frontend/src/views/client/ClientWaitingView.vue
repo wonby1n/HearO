@@ -164,6 +164,8 @@ watch(connectionState, (newState) => {
     // 매칭 완료 후 대기열 조회 중지 (더 이상 대기열에 없음)
     stopQueuePolling()
     disconnectQueueSocket()
+    stopHeartbeat()
+    cleanupQueueTicket()
   } else if (newState === 'error') {
     console.error('[ClientWaiting] LiveKit 연결 실패 감지')
     notificationStore.notifyError('연결에 실패했습니다. 다시 시도해주세요.')
@@ -184,6 +186,53 @@ let queuePollingInterval = null
 let queueSocketReconnectTimeout = null
 let shouldReconnect = true
 const QUEUE_SOCKET_RECONNECT_DELAY = 3000
+
+// --- 하트비트 ---
+const queueTicket = ref(sessionStorage.getItem('clientQueueTicket'))
+let heartbeatInterval = null
+let isHeartbeatPending = false
+
+const sendHeartbeat = async () => {
+  if (!queueTicket.value || isHeartbeatPending) return
+  isHeartbeatPending = true
+  try {
+    await axios.post('/api/v1/queue/heartbeat', { queueTicket: queueTicket.value })
+    console.log('[Heartbeat] 전송 성공')
+  } catch (error) {
+    console.error('[Heartbeat] 전송 실패:', error.response?.data || error.message)
+  } finally {
+    isHeartbeatPending = false
+  }
+}
+
+const startHeartbeat = () => {
+  console.log('[Heartbeat] 시작 - queueTicket:', queueTicket.value)
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval)
+    heartbeatInterval = null
+  }
+  sendHeartbeat()
+  heartbeatInterval = setInterval(() => sendHeartbeat(), 10000)
+}
+
+const stopHeartbeat = () => {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval)
+    heartbeatInterval = null
+  }
+}
+
+const cleanupQueueTicket = () => {
+  queueTicket.value = null
+  sessionStorage.removeItem('clientQueueTicket')
+}
+
+const handleVisibilityChange = () => {
+  if (document.visibilityState === 'visible' && queueTicket.value) {
+    console.log('[Heartbeat] 탭 활성화 - 즉시 하트비트 전송')
+    sendHeartbeat()
+  }
+}
 
 const getQueueSocketUrl = () => {
   const configuredBase = import.meta.env.VITE_WS_BASE_URL
@@ -306,44 +355,11 @@ const disconnectQueueSocket = () => {
     queueSocket.value = null
   }
 }
-// 대기열 순번 및 전체 인원 조회
-const fetchQueuePosition = async () => {
-  // 이미 매칭 완료된 경우 조회 스킵
-  if (connectionState.value === 'connected') {
-    return
-  }
 
-  // 고객 인증 토큰 가져오기
+const getQueueStatusHeaders = () => {
   const accessToken = sessionStorage.getItem('customerAccessToken')
   console.log('[DEBUG] fetchQueuePosition - accessToken:', accessToken ? '있음' : '없음')
-  const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
-
-  try {
-    // 내 대기 순번 조회
-    const statusResponse = await axios.get('/api/v1/queue/status', { headers })
-    if (statusResponse.data) {
-      const rank = statusResponse.data.waitingRank || 0
-      queuePosition.value = rank
-      customerStore.updateQueueInfo({ position: rank, isWaiting: true })
-    }
-
-    // 전체 대기 인원 조회 (인증 불필요)
-    const statsResponse = await axios.get('/api/v1/queue/stats')
-    if (statsResponse.data) {
-      const total = (statsResponse.data.normalQueueSize || 0) + (statsResponse.data.blacklistQueueSize || 0)
-      totalWaitingCount.value = total
-    }
-  } catch (error) {
-    if (error.response?.status === 404) {
-      // 대기열에서 사라진 경우: 매칭됨을 의미하지만 STOMP 메시지가 수신되지 않은 경우 가능
-      if (connectionState.value !== 'connected' && connectionState.value !== 'matched' && connectionState.value !== 'connecting') {
-        console.warn('[ClientWaiting] 대기열 404 + 미수신 감지 - 매칭됨을 사용자에게 표시')
-        notificationStore.notifyWarning('상담사가 배정되었습니다. 잠시 후 연결됩니다...')
-      }
-      return
-    }
-    console.error('[Client] 대기열 조회 실패:', error)
-  }
+  return accessToken ? { Authorization: `Bearer ${accessToken}` } : null
 }
 
 // 대기열 순번 업데이트 (외부에서 호출 가능)
@@ -353,6 +369,58 @@ const updateQueuePosition = (newPosition, isWaiting = true) => {
     customerStore.updateQueueInfo({ position: newPosition, isWaiting })
   }
 }
+
+const updateQueueStats = (stats) => {
+  if (!stats) return
+  const normalSize = Number(stats.normalQueueSize ?? 0)
+  const blacklistSize = Number(stats.blacklistQueueSize ?? 0)
+  totalWaitingCount.value = normalSize + blacklistSize
+}
+
+const handleQueueStatusNotFound = () => {
+  if (connectionState.value === 'connected' || connectionState.value === 'matched' || connectionState.value === 'connecting') {
+    return
+  }
+
+  console.warn('[ClientWaiting] 대기열 404 + 미수신 감지 - 매칭됨을 사용자에게 표시')
+  notificationStore.notifyWarning('상담사가 배정되었습니다. 잠시 후 연결됩니다...')
+}
+
+// 대기열 순번 및 전체 인원 조회
+const fetchQueuePosition = async () => {
+  // 이미 매칭 완료된 경우 조회 스킵
+  if (connectionState.value === 'connected') {
+    return
+  }
+
+  const headers = getQueueStatusHeaders()
+  const statusPromise = headers ? axios.get('/api/v1/queue/status', { headers }) : Promise.resolve(null)
+  const statsPromise = axios.get('/api/v1/queue/stats')
+
+  const [statusResult, statsResult] = await Promise.allSettled([statusPromise, statsPromise])
+
+  if (statusResult.status === 'fulfilled') {
+    const data = statusResult.value?.data
+    if (data) {
+      const rank = Number(data.waitingRank ?? 0)
+      updateQueuePosition(Number.isFinite(rank) ? rank : 0, true)
+    }
+  } else if (statusResult.status === 'rejected') {
+    if (statusResult.reason?.response?.status === 404) {
+      // 대기열에서 사라진 경우: 매칭됨을 의미하지만 STOMP 메시지가 수신되지 않은 경우 가능
+      handleQueueStatusNotFound()
+    } else {
+      console.error('[Client] 대기열 순번 조회 실패:', statusResult.reason)
+    }
+  }
+
+  if (statsResult.status === 'fulfilled') {
+    updateQueueStats(statsResult.value?.data)
+  } else if (statsResult.status === 'rejected') {
+    console.error('[Client] 대기열 통계 조회 실패:', statsResult.reason)
+  }
+}
+
 
 // 스피커 토글
 const toggleSpeaker = () => {
@@ -403,6 +471,9 @@ const confirmEndCall = async () => {
     // 이미 대기열에서 제거된 경우 등 - 무시
     console.warn('[ClientWaiting] 대기열 취소 실패 (무시):', error.response?.status)
   }
+
+  stopHeartbeat()
+  cleanupQueueTicket()
 
   callStore.endCall()
   router.push('/client')
@@ -499,6 +570,13 @@ onMounted(async () => {
 
   // 주기적으로 대기 순번 업데이트 (5초마다) - 순번 표시용
   startQueuePolling()
+
+  // 하트비트 시작 (queueTicket이 있으면)
+  console.log('[Heartbeat] sessionStorage 확인 - clientQueueTicket:', queueTicket.value)
+  if (queueTicket.value) {
+    startHeartbeat()
+  }
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
 // 컴포넌트 언마운트 시 정리
@@ -507,6 +585,8 @@ onUnmounted(async () => {
 
   stopQueuePolling()
   disconnectQueueSocket()
+  stopHeartbeat()
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 
   // ARS 오디오 정리
   if (arsAudio.value) {
@@ -518,6 +598,7 @@ onUnmounted(async () => {
   // 비정상 이탈 시 (정상 매칭 이동이 아닌 경우) 대기열에서 제거
   if (!isNavigatingToCall.value) {
     console.log('[ClientWaiting] 비정상 이탈 감지 - 대기열 취소 요청')
+    cleanupQueueTicket()
     try {
       const accessToken = sessionStorage.getItem('customerAccessToken')
       if (accessToken) {
