@@ -3,20 +3,33 @@
     <!--숨겨진 음성 재생 컨테이너-->
     <div ref="audioContainer" style="display: none;"></div>
     <!-- 자동 종료 모달 (시스템 트리거) -->
-    <AutoTerminationModal
-      :show="showAutoTerminationModal"
-      :ai-summary="aiSummary"
-      v-model:memo="memo"
-      @confirm="handleAutoTerminationConfirm"
-    />
+    <AutoTerminationModal :show="showAutoTerminationModal" :ai-summary="aiSummary" v-model:memo="memo"
+      @confirm="handleAutoTerminationConfirm" />
 
     <!-- 수동 종료 확인 모달 -->
-    <ManualEndCallModal
-      :show="showManualEndModal"
-      :ai-summary="aiSummary"
-      v-model:memo="memo"
-      @confirm="handleManualEndConfirm"
-    />
+    <ManualEndCallModal :show="showManualEndModal" :ai-summary="aiSummary" v-model:memo="memo"
+      @confirm="handleManualEndConfirm" />
+
+    <!-- 통화 종료 확인 모달 -->
+    <Teleport to="body">
+      <div v-if="showEndConfirmModal" class="fixed inset-0 z-50 flex items-center justify-center">
+        <div class="absolute inset-0 bg-black/50" @click="handleEndConfirmCancel"></div>
+        <div class="relative bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4">
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">상담 종료</h3>
+          <p class="text-gray-600 mb-6">정말 상담을 종료하시겠습니까?</p>
+          <div class="flex gap-3">
+            <button @click="handleEndConfirmCancel"
+              class="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors">
+              취소
+            </button>
+            <button @click="handleEndConfirmOk"
+              class="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors">
+              종료
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- 상단 헤더 -->
     <header class="bg-white shadow-sm border-b border-gray-200">
@@ -28,11 +41,8 @@
 
           <CallTimer :isActive="isCallActive" />
 
-          <CounselorCallControls
-            :isMuted="isMuted"
-            @mute-changed="handleMuteChanged"
-            @call-end-requested="handleManualEndRequest"
-          />
+          <CounselorCallControls :isMuted="isMuted" @mute-changed="handleMuteChanged"
+            @call-end-requested="handleManualEndRequest" />
         </div>
       </div>
     </header>
@@ -47,10 +57,7 @@
 
         <!-- 중앙: STT 자막 영역 -->
         <div class="lg:col-span-6">
-          <STTChatPanel
-            :messages="sttMessages"
-            @toggle-profanity="handleToggleProfanity"
-          />
+          <STTChatPanel :messages="sttMessages" @toggle-profanity="handleToggleProfanity" />
         </div>
 
         <!-- 우측: AI 가이드 및 메모 -->
@@ -148,10 +155,22 @@ let vadStartAt = 0
 // 자동 종료 모달
 const showAutoTerminationModal = ref(false)
 const showManualEndModal = ref(false)
+const showEndConfirmModal = ref(false) // 종료 확인 모달
 
 // 폭언 3회 → 자동 종료 트리거 감지
-watch(() => callStore.autoTerminationTriggered, (triggered) => {
+watch(() => callStore.autoTerminationTriggered, async (triggered) => {
   if (triggered) {
+    // LiveKit 즉시 종료 → 고객 측 ParticipantDisconnected 트리거
+    if (callStore.livekitRoom) {
+      try {
+        await stopLocalMicrophone()
+        await callStore.livekitRoom.disconnect()
+      } catch (e) {
+        console.error('[CounselorCallView] 자동종료 LiveKit 종료 실패:', e)
+      }
+      callStore.setLivekitRoom(null)
+    }
+
     showAutoTerminationModal.value = true
   }
 })
@@ -379,9 +398,21 @@ const handleMuteChanged = async (muted) => {
   }
 }
 
-// Manual end modal request
-const handleManualEndRequest = async () => {
-  console.log('[CounselorCallView] 통화 종료 버튼 클릭')
+// Manual end modal request - 확인 모달 표시
+const handleManualEndRequest = () => {
+  console.log('[CounselorCallView] 통화 종료 버튼 클릭 - 확인 모달 표시')
+  showEndConfirmModal.value = true
+}
+
+// 종료 확인 모달 - 취소
+const handleEndConfirmCancel = () => {
+  showEndConfirmModal.value = false
+}
+
+// 종료 확인 모달 - 확인 (실제 종료 처리)
+const handleEndConfirmOk = async () => {
+  showEndConfirmModal.value = false
+  console.log('[CounselorCallView] 통화 종료 확인')
 
   try {
     // 통화 종료 버튼을 누르는 즉시 LiveKit 연결 종료 (고객에게 즉시 알림)
@@ -479,20 +510,6 @@ const handleAutoTerminationConfirm = async () => {
     // 음성 녹음 종료 및 파일 다운로드
     await stopAndSaveRecording()
 
-    // LiveKit 연결 종료
-    if (callStore.livekitRoom) {
-      console.log('[CounselorCallView] LiveKit 연결 종료 (자동 종료)')
-
-      try {
-        await stopLocalMicrophone()
-        await callStore.livekitRoom.disconnect()
-      } catch (disconnectError) {
-        console.error('[CounselorCallView] LiveKit 연결 종료 실패 (자동 종료):', disconnectError)
-      }
-
-      callStore.setLivekitRoom(null)
-    }
-
     // 상담사 상태를 AVAILABLE로 복구 (새 매칭 가능하도록)
     try {
       await axios.patch('/api/v1/users/me/status', { status: 'AVAILABLE' })
@@ -559,7 +576,7 @@ const ensureAudioContext = async () => {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)()
   }
   if (audioCtx.state === 'suspended') {
-    try { await audioCtx.resume() } catch {}
+    try { await audioCtx.resume() } catch { }
   }
   return audioCtx
 }
@@ -864,157 +881,157 @@ onBeforeUnmount(() => {
 
 defineExpose({ addSttMessage })
 
-onMounted(() => {
+onMounted(async () => {
   // call store에 저장된 LiveKit room 확인
   if (callStore.livekitRoom) {
     console.log('[CounselorCallView] 기존 LiveKit 연결 사용:', callStore.livekitRoom.name)
 
     const room = callStore.livekitRoom
 
-    // === 고객이 방에 있는지 확인 (1:1 연결) ===
-    if (room.remoteParticipants.size === 0) {
-      console.warn('[CounselorCallView] 고객이 방에 없음 - 이미 나간 것으로 판단')
-      isCallActive.value = false
-      showManualEndModal.value = true
-      notificationStore.notifyWarning('고객이 이미 나갔습니다')
-      return
-    }
+    // === 상담 시작 API 호출 및 consultationId 고객에게 전송 ===
+    try {
+      const matchedData = dashboardStore.matchedData
+      if (matchedData?.customerId && matchedData?.registrationId) {
+        console.log('[CounselorCallView] 상담 시작 API 호출...', { customerId: matchedData.customerId, registrationId: matchedData.registrationId })
 
-    console.log('[CounselorCallView] 고객 확인됨')
+        const response = await axios.post('/api/v1/consultations', {
+          customerId: matchedData.customerId,
+          registrationId: matchedData.registrationId
+        })
 
-    // === 상담 시작 API 호출 ===
-    ;(async () => {
-      try {
-        const matchedData = dashboardStore.matchedData
-        if (matchedData && matchedData.customerId && matchedData.registrationId) {
-          console.log('[CounselorCallView] 상담 시작 API 호출:', {
-            customerId: matchedData.customerId,
-            registrationId: matchedData.registrationId
-          })
+        const consultationId = response.data?.data?.consultationId
+        if (consultationId) {
+          // callStore에 저장
+          callStore.setConsultationId(consultationId)
+          console.log('[CounselorCallView] consultationId 획득:', consultationId)
 
-          const response = await startConsultation({
-            customerId: matchedData.customerId,
-            registrationId: matchedData.registrationId
-          })
-
-          console.log('[CounselorCallView] 상담 시작 성공, consultationId:', response.consultationId)
-
-          // consultationId를 callStore에 저장
-          if (callStore.currentCall) {
-            callStore.currentCall.consultationId = response.consultationId
-            console.log('[CounselorCallView] consultationId 저장 완료:', callStore.currentCall)
-          }
-
-          // consultationId를 고객에게 전달 (LiveKit DataChannel)
-          if (room && response.consultationId) {
+          // 고객이 통화 화면 진입 및 리스너 등록할 시간 확보 후 전송
+          // 500ms 후 첫 전송, 이후 2초마다 3번 재전송 (총 4번)
+          const sendConsultationId = async () => {
             try {
               const payload = {
                 type: 'consultationId',
-                consultationId: response.consultationId
+                consultationId: consultationId,
+                ts: Date.now()
               }
               const bytes = new TextEncoder().encode(JSON.stringify(payload))
               await room.localParticipant.publishData(bytes, { reliable: true })
-              console.log('[CounselorCallView] consultationId를 고객에게 전달:', response.consultationId)
-            } catch (error) {
-              console.error('[CounselorCallView] consultationId 전달 실패:', error)
+              console.log('[CounselorCallView] consultationId 고객에게 전송 완료')
+            } catch (sendErr) {
+              console.error('[CounselorCallView] consultationId 전송 실패:', sendErr)
             }
           }
-        } else {
-          console.warn('[CounselorCallView] 매칭 데이터 없음, 상담 시작 API 호출 불가')
+
+          // 500ms 후 첫 전송
+          setTimeout(sendConsultationId, 500)
+          // 2초, 4초, 6초 후 재전송 (고객이 늦게 입장할 경우 대비)
+          setTimeout(sendConsultationId, 2000)
+          setTimeout(sendConsultationId, 4000)
+          setTimeout(sendConsultationId, 6000)
         }
-      } catch (error) {
-        console.error('[CounselorCallView] 상담 시작 API 호출 실패:', error)
-        notificationStore.notifyError('상담 시작 중 오류가 발생했습니다')
+      } else {
+        console.warn('[CounselorCallView] matchedData에 customerId 또는 registrationId 없음:', matchedData)
       }
-    })()
+    } catch (err) {
+      console.error('[CounselorCallView] 상담 시작 API 호출 실패:', err)
+    }
 
-    // === 마이크 활성화 (통화 화면 진입 시) ===
-    ;(async () => {
-      try {
-        // setMicrophoneEnabled 대신 직접 getUserMedia + publishTrack 사용
-        // (DataCloneError 회피)
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          }
-        })
-        currentMicStream = stream
+    if (room.remoteParticipants.size > 0) {
+      console.log('[CounselorCallView] 고객 이미 방에 있음')
+    } else {
+      console.log('[CounselorCallView] 고객 아직 미입장 - ParticipantConnected 대기')
+    }
 
-        const audioTrack = stream.getAudioTracks()[0]
-        if (audioTrack) {
-          await room.localParticipant.publishTrack(audioTrack, {
-            name: 'microphone',
-            source: Track.Source.Microphone
+    // 음성 녹음 시작 (고객 + 상담원 믹스)
+    startRecording()
+
+      // === 마이크 활성화 (통화 화면 진입 시) ===
+      ; (async () => {
+        try {
+          // setMicrophoneEnabled 대신 직접 getUserMedia + publishTrack 사용
+          // (DataCloneError 회피)
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true
+            }
           })
+          currentMicStream = stream
 
-          // 마이크가 활성화되었으므로 음소거 상태는 false
-          isMuted.value = false
-          console.log('[CounselorCallView] 마이크 활성화 완료 (음소거 해제 상태)')
+          const audioTrack = stream.getAudioTracks()[0]
+          if (audioTrack) {
+            await room.localParticipant.publishTrack(audioTrack, {
+              name: 'microphone',
+              source: Track.Source.Microphone
+            })
 
-          // 상담원 마이크를 녹음 믹스에 추가
-          addRecordingTrack(audioTrack)
+            // 마이크가 활성화되었으므로 음소거 상태는 false
+            isMuted.value = false
+            console.log('[CounselorCallView] 마이크 활성화 완료 (음소거 해제 상태)')
+
+            // 상담원 마이크를 녹음 믹스에 추가
+            addRecordingTrack(audioTrack)
+          }
+        } catch (err) {
+          console.error('[CounselorCallView] 마이크 활성화 실패:', err)
+          notificationStore.notifyError('마이크 권한을 허용해주세요')
+          // 실패 시 음소거 상태로 설정
+          isMuted.value = true
         }
-      } catch (err) {
-        console.error('[CounselorCallView] 마이크 활성화 실패:', err)
-        notificationStore.notifyError('마이크 권한을 허용해주세요')
-        // 실패 시 음소거 상태로 설정
-        isMuted.value = true
-      }
-    })()
+      })()
 
-    // === 고객 오디오 딜레이/차단 파이프라인 구성 ===
-    // 1) 이미 구독된 트랙이 있으면 즉시 파이프라인 생성
-    ;(async () => {
-      await ensureAudioContext()
+      // === 고객 오디오 딜레이/차단 파이프라인 구성 ===
+      // 1) 이미 구독된 트랙이 있으면 즉시 파이프라인 생성
+      ; (async () => {
+        await ensureAudioContext()
 
-      for (const p of room.remoteParticipants.values()) {
-        for (const pub of p.audioTrackPublications.values()) {
-          if (pub.track) {
-            await attachDelayedCustomerAudio(pub.track, p.identity)
-            addRecordingTrack(pub.track.mediaStreamTrack)
+        for (const p of room.remoteParticipants.values()) {
+          for (const pub of p.audioTrackPublications.values()) {
+            if (pub.track) {
+              await attachDelayedCustomerAudio(pub.track, p.identity)
+              addRecordingTrack(pub.track.mediaStreamTrack)
+            }
           }
         }
-      }
 
-      // 2) 이후 새로 구독되는 트랙에 대해서도 적용
-      room.on(RoomEvent.TrackSubscribed, async (track, publication, participant) => {
-        if (track.kind === Track.Kind.Audio) {
-          await attachDelayedCustomerAudio(track, participant.identity)
-          addRecordingTrack(track.mediaStreamTrack)
-        }
-      })
-
-      // 3) 고객 STT 수신 → 폭력성 검사
-      room.on(RoomEvent.DataReceived, async (payload, participant) => {
-        const parsed = safeParsePayload(payload)
-        if (!parsed || parsed.type !== 'stt') return
-
-        // 다음 STT가 왔으면, 이전 차단이 있었다면 해제 타이머를 걸어둠
-        if (participant?.identity) scheduleUnblockOnNextStt(participant.identity)
-
-        const text = String(parsed.text || '').trim()
-        if (!text) return
-
-        const { toxic, score } = await analyzeToxicity(text)
-        if (toxic && participant?.identity) {
-          blockCustomerAudioUntilNextStt(participant.identity)
-        }
-
-        addSttMessage({
-          speaker: 'customer',
-          text,
-          maskedText: toxic ? maskText(text) : '',
-          hasProfanity: toxic,
-          confidence: 1 - score,
-          participantId: participant?.identity || null
+        // 2) 이후 새로 구독되는 트랙에 대해서도 적용
+        room.on(RoomEvent.TrackSubscribed, async (track, publication, participant) => {
+          if (track.kind === Track.Kind.Audio) {
+            await attachDelayedCustomerAudio(track, participant.identity)
+            addRecordingTrack(track.mediaStreamTrack)
+          }
         })
-      })
 
-      // 4) 상담원 STT(Whisper) 시작
-      await startCounselorWhisperVad()
-    })()
+        // 3) 고객 STT 수신 → 폭력성 검사
+        room.on(RoomEvent.DataReceived, async (payload, participant) => {
+          const parsed = safeParsePayload(payload)
+          if (!parsed || parsed.type !== 'stt') return
+
+          // 다음 STT가 왔으면, 이전 차단이 있었다면 해제 타이머를 걸어둠
+          if (participant?.identity) scheduleUnblockOnNextStt(participant.identity)
+
+          const text = String(parsed.text || '').trim()
+          if (!text) return
+
+          const { toxic, score } = await analyzeToxicity(text)
+          if (toxic && participant?.identity) {
+            blockCustomerAudioUntilNextStt(participant.identity)
+          }
+
+          addSttMessage({
+            speaker: 'customer',
+            text,
+            maskedText: toxic ? maskText(text) : '',
+            hasProfanity: toxic,
+            confidence: 1 - score,
+            participantId: participant?.identity || null
+          })
+        })
+
+        // 4) 상담원 STT(Whisper) 시작
+        await startCounselorWhisperVad()
+      })()
 
     // 고객이 통화를 종료했을 때 이벤트 리스너 추가
     callStore.livekitRoom.on(RoomEvent.ParticipantDisconnected, async (participant) => {

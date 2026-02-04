@@ -516,7 +516,7 @@ const handleSubmit = async () => {
   border: none;
   border-radius: 12px;
   background: white;
-  font-size: 15px;
+  font-size: 16px; /* 16px 미만이면 모바일에서 자동 확대됨 */
   color: #1d1d1f;
   box-sizing: border-box;
   transition: box-shadow 0.2s;
