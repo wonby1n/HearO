@@ -140,11 +140,11 @@
             :key="index"
             class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm"
           >
-            <div class="font-medium text-gray-900">{{ history.date }}</div>
-            <div class="text-gray-600 mt-1">
-              <span class="font-medium">{{ history.agent }}</span>
-              <span class="ml-2">{{ history.summary }}</span>
+            <div class="flex items-center justify-between mb-1">
+              <div class="font-medium text-gray-900">{{ history.date }}</div>
+              <span v-if="history.duration" class="text-xs text-gray-500">{{ history.duration }}</span>
             </div>
+            <div class="text-gray-700 font-medium">{{ history.summary }}</div>
           </div>
         </div>
 

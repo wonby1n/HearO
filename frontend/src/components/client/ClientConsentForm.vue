@@ -254,6 +254,12 @@ const handleSubmit = async () => {
 
     console.log('✅ 등록 성공 응답:', response.data)
 
+    // registrationId 저장 (통화 종료 후 consultationId 조회에 필요)
+    if (response.data?.data?.registrationId) {
+      sessionStorage.setItem('clientRegistrationId', response.data.data.registrationId)
+      console.log('✅ registrationId 저장:', response.data.data.registrationId)
+    }
+
     // 약관 동의 정보 저장
     customerStore.saveConsent(agreements.value)
 

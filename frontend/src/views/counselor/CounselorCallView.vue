@@ -91,7 +91,7 @@ import CallMemoPanel from '@/components/counselor/CallMemoPanel.vue'
 import AIGuidePanel from '@/components/counselor/AIGuidePanel.vue'
 import AutoTerminationModal from '@/components/call/AutoTerminationModal.vue'
 import ManualEndCallModal from '@/components/call/ManualEndCallModal.vue'
-import { saveConsultationMemo } from '@/services/consultationService'
+import { startConsultation } from '@/services/consultationService'
 import { useNotificationStore } from '@/stores/notification'
 import { useCallStore } from '@/stores/call'
 import { useDashboardStore } from '@/stores/dashboard'
@@ -240,25 +240,47 @@ watch(() => callStore.currentCall?.id, (newId) => {
   loadMemoDraft();
 }, { immediate: true });
 
-// 메모 서버 저장
+// 메모 서버 저장 (통화 종료 시 /end API로 전송)
 const saveMemoToServer = async () => {
   const memoValue = memo.value?.trim()
-  if (!memoValue) {
+  const consultationId = callStore.currentCall?.consultationId ?? callStore.currentCall?.id
+
+  if (!consultationId) {
+    console.warn('[CounselorCallView] consultationId가 없어 메모를 저장하지 않습니다')
     return true
   }
 
-  const consultationId = callStore.currentCall?.consultationId ?? callStore.currentCall?.id
-  if (!consultationId) {
-    notificationStore.notifyWarning('상담 ID를 찾을 수 없어 메모를 저장하지 못했습니다')
-    return false
+  if (!memoValue) {
+    console.log('[CounselorCallView] 메모가 비어있어 저장하지 않습니다')
+    return true
   }
 
   try {
-    await saveConsultationMemo(consultationId, memoValue)
+    // STT 메시지를 fullTranscript로 변환
+    const fullTranscript = sttMessages.value
+      .map(msg => `[${msg.speaker === 'agent' ? '상담원' : '고객'}] ${msg.text}`)
+      .join('\n') || '상담 내용 없음'
+
+    // 통화 종료 시 메모를 포함하여 finalizeConsultation API 호출
+    await axios.patch(`/api/v1/consultations/${consultationId}/end`, {
+      userMemo: memoValue,
+      fullTranscript: fullTranscript,
+      profanityCount: callStore.profanityCount || 0,
+      avgAggressionScore: 0.0,
+      maxAggressionScore: 0.0,
+      terminationReason: 'NORMAL',
+      durationSeconds: 0 // TODO: 실제 통화 시간 계산
+    }, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('accessToken')}`
+      }
+    })
+
+    console.log('✅ [CounselorCallView] 메모 저장 성공')
     notificationStore.notifySuccess('메모가 저장되었습니다')
     return true
   } catch (error) {
-    console.error('메모 저장 실패:', error)
+    console.error('❌ [CounselorCallView] 메모 저장 실패:', error)
     notificationStore.notifyError('메모 저장에 실패했습니다')
     return false
   }
@@ -849,14 +871,62 @@ onMounted(() => {
 
     const room = callStore.livekitRoom
 
-    if (room.remoteParticipants.size > 0) {
-      console.log('[CounselorCallView] 고객 이미 방에 있음')
-    } else {
-      console.log('[CounselorCallView] 고객 아직 미입장 - ParticipantConnected 대기')
+    // === 고객이 방에 있는지 확인 (1:1 연결) ===
+    if (room.remoteParticipants.size === 0) {
+      console.warn('[CounselorCallView] 고객이 방에 없음 - 이미 나간 것으로 판단')
+      isCallActive.value = false
+      showManualEndModal.value = true
+      notificationStore.notifyWarning('고객이 이미 나갔습니다')
+      return
     }
 
-    // 음성 녹음 시작 (고객 + 상담원 믹스)
-    startRecording()
+    console.log('[CounselorCallView] 고객 확인됨')
+
+    // === 상담 시작 API 호출 ===
+    ;(async () => {
+      try {
+        const matchedData = dashboardStore.matchedData
+        if (matchedData && matchedData.customerId && matchedData.registrationId) {
+          console.log('[CounselorCallView] 상담 시작 API 호출:', {
+            customerId: matchedData.customerId,
+            registrationId: matchedData.registrationId
+          })
+
+          const response = await startConsultation({
+            customerId: matchedData.customerId,
+            registrationId: matchedData.registrationId
+          })
+
+          console.log('[CounselorCallView] 상담 시작 성공, consultationId:', response.consultationId)
+
+          // consultationId를 callStore에 저장
+          if (callStore.currentCall) {
+            callStore.currentCall.consultationId = response.consultationId
+            console.log('[CounselorCallView] consultationId 저장 완료:', callStore.currentCall)
+          }
+
+          // consultationId를 고객에게 전달 (LiveKit DataChannel)
+          if (room && response.consultationId) {
+            try {
+              const payload = {
+                type: 'consultationId',
+                consultationId: response.consultationId
+              }
+              const bytes = new TextEncoder().encode(JSON.stringify(payload))
+              await room.localParticipant.publishData(bytes, { reliable: true })
+              console.log('[CounselorCallView] consultationId를 고객에게 전달:', response.consultationId)
+            } catch (error) {
+              console.error('[CounselorCallView] consultationId 전달 실패:', error)
+            }
+          }
+        } else {
+          console.warn('[CounselorCallView] 매칭 데이터 없음, 상담 시작 API 호출 불가')
+        }
+      } catch (error) {
+        console.error('[CounselorCallView] 상담 시작 API 호출 실패:', error)
+        notificationStore.notifyError('상담 시작 중 오류가 발생했습니다')
+      }
+    })()
 
     // === 마이크 활성화 (통화 화면 진입 시) ===
     ;(async () => {
