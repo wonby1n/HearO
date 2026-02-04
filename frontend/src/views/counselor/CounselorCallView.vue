@@ -466,10 +466,11 @@ const handleManualEndConfirm = async () => {
       skipDraftSaveOnUnmount = true
     }
 
-    // 상담사 상태를 AVAILABLE로 복구
+    // 상담사 상태를 REST로 (대시보드에서 수동 ON 대기)
     try {
-      await axios.patch('/api/v1/users/me/status', { status: 'AVAILABLE' })
-      console.log('[CounselorCallView] 상담사 상태 AVAILABLE로 복구')
+      await axios.patch('/api/v1/users/me/status', { status: 'REST' })
+      dashboardStore.consultationStatus.isActive = false
+      console.log('[CounselorCallView] 상담사 상태 REST, 상담 OFF')
     } catch (statusError) {
       console.error('[CounselorCallView] 상태 복구 실패:', statusError)
     }
@@ -510,10 +511,11 @@ const handleAutoTerminationConfirm = async () => {
     // 음성 녹음 종료 및 파일 다운로드
     await stopAndSaveRecording()
 
-    // 상담사 상태를 AVAILABLE로 복구 (새 매칭 가능하도록)
+    // 상담사 상태를 REST로 (대시보드에서 수동 ON 대기)
     try {
-      await axios.patch('/api/v1/users/me/status', { status: 'AVAILABLE' })
-      console.log('[CounselorCallView] 상담사 상태 AVAILABLE로 복구 (자동 종료)')
+      await axios.patch('/api/v1/users/me/status', { status: 'REST' })
+      dashboardStore.consultationStatus.isActive = false
+      console.log('[CounselorCallView] 상담사 상태 REST, 상담 OFF (자동 종료)')
     } catch (statusError) {
       console.error('[CounselorCallView] 상태 복구 실패:', statusError)
       // 상태 복구 실패해도 통화 종료는 계속 진행
