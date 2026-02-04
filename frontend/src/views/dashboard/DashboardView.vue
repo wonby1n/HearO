@@ -15,11 +15,11 @@
         <!-- 2번째 섹션: 주간 실적 차트 + 통계 카드 -->
         <div class="lg:col-span-1">
           <div class="flex flex-col gap-6 h-[600px]">
-            <div class="flex-1">
+            <div class="flex-1 min-h-0">
               <WeeklyPerformanceChart />
             </div>
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 gap-4 flex-shrink-0">
               <StatsCard
                 icon="clock"
                 title="총 상담 시간"
@@ -43,19 +43,6 @@
           </div>
         </div>
       </div>
-      
-      <!-- [추가] 모달 테스트 버튼: 클릭 시 모달이 열립니다. -->
-      <!-- <div class="mt-8 flex justify-center">
-        <button 
-          @click="isModalOpen = true"
-          class="px-8 py-4 bg-[#1F3A8C] text-white rounded-2xl font-bold hover:bg-[#162a65] transition-all shadow-xl active:scale-95 flex items-center gap-3"
-        >
-          <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3z"/>
-          </svg>
-          AI 매칭 시작하기
-        </button>
-      </div> -->
     </div>
 
     <!-- 🔹 MatchingModal 연결 -->
@@ -162,6 +149,14 @@ onMounted(async () => {
   console.log('[DashboardView] onMounted - 데이터 로딩')
   await dashboardStore.fetchDashboardData()
   console.log('[DashboardView] 고객 만족도:', dashboardStore.customerSatisfaction)
+
+  // 폭언 자동 종료 후 TimeModal 트리거 체크
+  const shouldTriggerTimeModal = sessionStorage.getItem('triggerTimeModal')
+  if (shouldTriggerTimeModal === 'true') {
+    console.log('[DashboardView] 폭언 자동 종료 감지 - TimeModal 열기')
+    sessionStorage.removeItem('triggerTimeModal')
+    isTimeModalOpen.value = true
+  }
 
   // 30초마다 에너지 레벨 콘솔 출력 (디버깅용)
   energyLogInterval = setInterval(() => {
