@@ -12,15 +12,23 @@ import java.time.LocalDateTime;
 @Builder
 public class ConsultationListResponse {
     private Integer consultationId;
+    private Integer customerId;
     private String customerName;
+    private String customerPhone;
+    private String productCategory;
     private String title;
     private String subtitle;
+    private String aiSummary;
+    private String fullTranscript;
+    private String userMemo;
+    private String symptom;
+    private String errorCode;
     private TerminationReason terminationReason;
     private Integer durationSeconds;
     private Integer profanityCount;
     private BigDecimal avgAggressionScore;
     private LocalDateTime createdAt;
-    
+
     // 추가된 필드
     private ConsultationRatingDto.Response rating;
     private VoiceRecordingDto.Response voiceRecording;
@@ -28,9 +36,17 @@ public class ConsultationListResponse {
     public static ConsultationListResponse from(Consultation consultation) {
         return ConsultationListResponse.builder()
                 .consultationId(consultation.getId())
+                .customerId(consultation.getCustomer().getId())
                 .customerName(consultation.getCustomer().getName())
+                .customerPhone(consultation.getCustomer().getPhone())
+                .productCategory(consultation.getRegistration().getProduct().getCategory())
                 .title(consultation.getTitle())
                 .subtitle(consultation.getSubtitle())
+                .aiSummary(consultation.getAiSummary())
+                .fullTranscript(consultation.getFullTranscript())
+                .userMemo(consultation.getUserMemo())
+                .symptom(consultation.getRegistration().getSymptom())
+                .errorCode(consultation.getRegistration().getErrorCode())
                 .terminationReason(consultation.getTerminationReason())
                 .durationSeconds(consultation.getDurationSeconds())
                 .profanityCount(consultation.getProfanityCount())

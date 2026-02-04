@@ -7,10 +7,12 @@ import axios from "axios";
 
 /**
  * JWT 토큰 가져오기 (세션 또는 로컬 스토리지)
+ * 상담원과 고객 모두 사용 가능하도록 두 토큰 모두 확인
  */
 const getAuthToken = () => {
   return (
-    sessionStorage.getItem("customerAccessToken") ||
+    localStorage.getItem("accessToken") || // 상담원 토큰
+    sessionStorage.getItem("customerAccessToken") || // 고객 토큰
     localStorage.getItem("customerAccessToken")
   );
 };
@@ -92,6 +94,7 @@ export const fetchCustomerInfo = async (registrationId) => {
     const { isSuccess, data, message } = response.data;
 
     if (isSuccess) {
+      console.log('✅ [customerService] 접수 정보 조회 성공:', data);
       return data; // 상세 정보 데이터 객체 반환
     } else {
       throw new Error(message || "접수 정보 조회 실패");

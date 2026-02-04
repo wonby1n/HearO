@@ -48,7 +48,11 @@ const handleNo = () => {
 
 // 문제 있음 - 재연결 페이지로 이동
 const handleYes = () => {
-  router.push({ name: 'client-reconnect' })
+  router.push({ 
+    name: 'client-reconnect',
+    // 💡 여기에 query를 추가해서 ID를 계속 들고 가야 합니다!
+    query: { consultationId: route.query.consultationId }
+  })
 }
 </script>
 

@@ -22,7 +22,7 @@
             <input
               v-model="searchQuery"
               type="text"
-              placeholder="고객명, 상담 제목으로 검색..."
+              placeholder="고객명, 상담 내용으로 검색..."
               class="w-full px-4 py-2.5 pl-11 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
               @input="handleSearch"
             />
@@ -31,43 +31,31 @@
             </svg>
           </div>
 
-          <!-- 필터 버튼 -->
-          <button
-            class="px-5 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition-all flex items-center gap-2 font-medium text-gray-700"
-            @click="toggleFilter"
+          <!-- 카테고리 필터 -->
+          <select
+            v-model="categoryFilter"
+            class="px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all font-medium text-gray-700"
+            @change="handleFilterChange"
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
-            </svg>
-            <span>필터</span>
-            <span v-if="activeFilters.length > 0" class="bg-primary-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold">
-              {{ activeFilters.length }}
-            </span>
-          </button>
+            <option value="">전체 카테고리</option>
+            <option value="냉장고">냉장고</option>
+            <option value="세탁기">세탁기</option>
+            <option value="에어컨">에어컨</option>
+            <option value="TV">TV</option>
+            <option value="기타">기타</option>
+          </select>
 
           <!-- 정렬 버튼 -->
-          <button class="px-5 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 transition-all flex items-center gap-2 font-medium text-gray-700">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"/>
-            </svg>
-            <span>최신순</span>
-          </button>
-        </div>
-
-        <!-- 활성 필터 태그 -->
-        <div v-if="activeFilters.length > 0" class="flex flex-wrap gap-2 mt-4">
-          <div
-            v-for="filter in activeFilters"
-            :key="filter"
-            class="inline-flex items-center gap-2 px-3 py-1.5 bg-primary-100 text-primary-700 rounded-lg text-sm font-medium"
+          <select
+            v-model="sortOrder"
+            class="px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all font-medium text-gray-700"
+            @change="handleSortChange"
           >
-            <span>{{ filter }}</span>
-            <button @click="removeFilter(filter)" class="hover:text-primary-900 transition-colors">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-              </svg>
-            </button>
-          </div>
+            <option value="latest">최신순</option>
+            <option value="oldest">오래된 순</option>
+            <option value="name">이름순</option>
+            <option value="duration">통화시간 순</option>
+          </select>
         </div>
       </div>
 
@@ -92,9 +80,28 @@
           </div>
         </div>
 
+        <!-- 선택된 고객 표시 -->
+        <div v-if="selectedCustomerId" class="mb-4 bg-primary-50 border border-primary-200 rounded-lg p-4 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <svg class="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+            </svg>
+            <span class="text-primary-800 font-medium">특정 고객의 상담 이력을 보고 있습니다.</span>
+          </div>
+          <button
+            @click="handleCustomerClick(selectedCustomerId)"
+            class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all font-medium"
+          >
+            전체 보기
+          </button>
+        </div>
+
         <!-- 테이블 -->
-        <div v-else>
-          <CallHistoryTable :consultations="filteredConsultations" />
+        <div>
+          <CallHistoryTable
+            :consultations="filteredConsultations"
+            @customer-click="handleCustomerClick"
+          />
 
           <!-- 페이지네이션 -->
           <div v-if="pagination && pagination.totalPages > 1" class="mt-8 flex justify-center items-center gap-3">
@@ -138,17 +145,19 @@
 import { ref, computed, onMounted } from 'vue'
 import DashboardLayout from '@/components/layout/DashboardLayout.vue'
 import CallHistoryTable from '@/components/counselor/CallHistoryTable.vue'
-import { getMyConsultations } from '@/services/consultationService'
+import { getMyConsultations, getConsultationsByCustomer } from '@/services/consultationService'
 
 const searchQuery = ref('')
-const activeFilters = ref([])
+const categoryFilter = ref('')
+const sortOrder = ref('latest')
+const selectedCustomerId = ref(null)
 const isLoading = ref(false)
 const error = ref(null)
 const consultations = ref([])
 const pagination = ref(null)
 
 const filteredConsultations = computed(() => {
-  let result = consultations.value
+  let result = [...consultations.value]
 
   // 검색 필터링
   if (searchQuery.value.trim()) {
@@ -160,20 +169,79 @@ const filteredConsultations = computed(() => {
     )
   }
 
+  // 카테고리 필터링
+  if (categoryFilter.value) {
+    result = result.filter(c => c.productCategory === categoryFilter.value)
+  }
+
+  // 정렬
+  switch (sortOrder.value) {
+    case 'latest':
+      result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      break
+    case 'oldest':
+      result.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+      break
+    case 'name':
+      result.sort((a, b) => a.customerName.localeCompare(b.customerName, 'ko'))
+      break
+    case 'duration':
+      result.sort((a, b) => (b.durationSeconds || 0) - (a.durationSeconds || 0))
+      break
+  }
+
   return result
 })
 
-const toggleFilter = () => {
-  // TODO: 필터 모달 열기
-  console.log('필터 열기')
+const handleFilterChange = () => {
+  // 필터 변경 시 자동으로 computed가 재계산됨
 }
 
-const removeFilter = (filter) => {
-  activeFilters.value = activeFilters.value.filter(f => f !== filter)
+const handleSortChange = () => {
+  // 정렬 변경 시 자동으로 computed가 재계산됨
 }
 
 const handleSearch = () => {
   // 검색은 computed에서 자동으로 처리됨
+}
+
+// 고객 이름 클릭 시 해당 고객의 이력만 보기
+const handleCustomerClick = async (customerId) => {
+  if (selectedCustomerId.value === customerId) {
+    // 이미 선택된 고객을 다시 클릭하면 전체 보기로 복귀
+    selectedCustomerId.value = null
+    await loadConsultations()
+  } else {
+    selectedCustomerId.value = customerId
+    await loadCustomerConsultations(customerId)
+  }
+}
+
+const loadCustomerConsultations = async (customerId, page = 0) => {
+  isLoading.value = true
+  error.value = null
+
+  try {
+    console.log('[CallHistoryView] 고객 상담 이력 조회, customerId:', customerId)
+    const data = await getConsultationsByCustomer(customerId, page, 10)
+
+    consultations.value = data.content
+    pagination.value = {
+      totalPages: data.totalPages,
+      totalElements: data.totalElements,
+      number: data.number,
+      size: data.size,
+      first: data.first,
+      last: data.last
+    }
+
+    console.log('[CallHistoryView] 고객 상담 이력:', consultations.value)
+  } catch (err) {
+    console.error('[CallHistoryView] 고객 상담 이력 조회 실패:', err)
+    error.value = '고객 상담 이력을 불러오는데 실패했습니다.'
+  } finally {
+    isLoading.value = false
+  }
 }
 
 const loadConsultations = async (page = 0) => {
