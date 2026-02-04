@@ -117,6 +117,7 @@ import AIGuidePanel from '@/components/counselor/AIGuidePanel.vue'
 import AutoTerminationModal from '@/components/call/AutoTerminationModal.vue'
 import ManualEndCallModal from '@/components/call/ManualEndCallModal.vue'
 import { startConsultation } from '@/services/consultationService'
+import { startConsultation } from '@/services/consultationService'
 import { useNotificationStore } from '@/stores/notification'
 import { useCallStore } from '@/stores/call'
 import { useDashboardStore } from '@/stores/dashboard'
@@ -267,8 +268,13 @@ watch(() => callStore.currentCall?.id, (newId) => {
 }, { immediate: true });
 
 // 메모 서버 저장 (통화 종료 시 /end API로 전송)
+// 메모 서버 저장 (통화 종료 시 /end API로 전송)
 const saveMemoToServer = async () => {
   const memoValue = memo.value?.trim()
+  const consultationId = callStore.currentCall?.consultationId ?? callStore.currentCall?.id
+
+  if (!consultationId) {
+    console.warn('[CounselorCallView] consultationId가 없어 메모를 저장하지 않습니다')
   const consultationId = callStore.currentCall?.consultationId ?? callStore.currentCall?.id
 
   if (!consultationId) {
@@ -276,6 +282,9 @@ const saveMemoToServer = async () => {
     return true
   }
 
+  if (!memoValue) {
+    console.log('[CounselorCallView] 메모가 비어있어 저장하지 않습니다')
+    return true
   if (!memoValue) {
     console.log('[CounselorCallView] 메모가 비어있어 저장하지 않습니다')
     return true
@@ -303,9 +312,31 @@ const saveMemoToServer = async () => {
     })
 
     console.log('✅ [CounselorCallView] 메모 저장 성공')
+    // STT 메시지를 fullTranscript로 변환
+    const fullTranscript = sttMessages.value
+      .map(msg => `[${msg.speaker === 'agent' ? '상담원' : '고객'}] ${msg.text}`)
+      .join('\n') || '상담 내용 없음'
+
+    // 통화 종료 시 메모를 포함하여 finalizeConsultation API 호출
+    await axios.patch(`/api/v1/consultations/${consultationId}/end`, {
+      userMemo: memoValue,
+      fullTranscript: fullTranscript,
+      profanityCount: callStore.profanityCount || 0,
+      avgAggressionScore: 0.0,
+      maxAggressionScore: 0.0,
+      terminationReason: 'NORMAL',
+      durationSeconds: 0 // TODO: 실제 통화 시간 계산
+    }, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('accessToken')}`
+      }
+    })
+
+    console.log('✅ [CounselorCallView] 메모 저장 성공')
     notificationStore.notifySuccess('메모가 저장되었습니다')
     return true
   } catch (error) {
+    console.error('❌ [CounselorCallView] 메모 저장 실패:', error)
     console.error('❌ [CounselorCallView] 메모 저장 실패:', error)
     notificationStore.notifyError('메모 저장에 실패했습니다')
     return false
