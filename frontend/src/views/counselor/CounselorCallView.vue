@@ -51,17 +51,23 @@
     <main class="max-w-[1920px] mx-auto p-6">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-140px)]">
         <!-- 좌측: 고객 정보 패널 -->
-        <div class="lg:col-span-3">
+        <div class="lg:col-span-3 h-full overflow-hidden">
           <CustomerInfoSection />
         </div>
 
         <!-- 중앙: STT 자막 영역 -->
-        <div class="lg:col-span-6">
-          <STTChatPanel :messages="sttMessages" @toggle-profanity="handleToggleProfanity" />
+        <div class="lg:col-span-6 h-full overflow-hidden">
+          <STTChatPanel 
+            :messages="sttMessages" 
+            :is-call-active="isCallActive"
+            :counselor-name="counselorName"
+            @toggle-profanity="handleToggleProfanity" 
+            @counselor-message="handleCounselorMessage"
+          />
         </div>
 
         <!-- 우측: AI 가이드 및 메모 -->
-        <div class="lg:col-span-3">
+        <div class="lg:col-span-3 h-full overflow-hidden">
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 h-full flex flex-col overflow-hidden gap-4">
             <!-- AI 가이드 섹션 (상단, 스크롤 가능) -->
             <div class="flex-2 overflow-hidden flex flex-col border-b border-gray-200">
@@ -102,6 +108,7 @@ import { startConsultation } from '@/services/consultationService'
 import { useNotificationStore } from '@/stores/notification'
 import { useCallStore } from '@/stores/call'
 import { useDashboardStore } from '@/stores/dashboard'
+import { useAuthStore } from '@/stores/auth'
 import axios from 'axios'
 import { useAudioRecorder } from '@/composables/useAudioRecorder'
 
@@ -121,7 +128,11 @@ const router = useRouter()
 const notificationStore = useNotificationStore()
 const callStore = useCallStore()
 const dashboardStore = useDashboardStore()
+const authStore = useAuthStore()
 const { startRecording, addTrack: addRecordingTrack, stopRecording, downloadRecording, cleanup: cleanupRecorder } = useAudioRecorder()
+
+// 상담원 이름 가져오기
+const counselorName = computed(() => authStore.getUser?.name || '상담원')
 
 // 음성 녹음 종료 및 파일 다운로드 (공통 헬퍼 — 수동·자동종료·고객종료 공유)
 const stopAndSaveRecording = async () => {
@@ -537,6 +548,17 @@ const handleAutoTerminationConfirm = async () => {
 // 욕설 표시/숨기기 토글
 const handleToggleProfanity = (index) => {
   sttMessages.value[index].showOriginal = !sttMessages.value[index].showOriginal
+}
+
+// 상담사 메시지 입력 핸들러
+const handleCounselorMessage = (message) => {
+  addSttMessage({
+    speaker: 'agent',
+    text: message,
+    maskedText: '',
+    hasProfanity: false,
+    confidence: 1.0
+  })
 }
 
 /**
