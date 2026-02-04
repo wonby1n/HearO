@@ -41,12 +41,12 @@
     <main class="max-w-[1920px] mx-auto p-6">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-140px)]">
         <!-- 좌측: 고객 정보 패널 -->
-        <div class="lg:col-span-3">
+        <div class="lg:col-span-3 h-full overflow-hidden">
           <CustomerInfoSection />
         </div>
 
         <!-- 중앙: STT 자막 영역 -->
-        <div class="lg:col-span-6">
+        <div class="lg:col-span-6 h-full overflow-hidden">
           <STTChatPanel
             :messages="sttMessages"
             :is-call-active="isCallActive"
@@ -57,7 +57,7 @@
         </div>
 
         <!-- 우측: AI 가이드 및 메모 -->
-        <div class="lg:col-span-3">
+        <div class="lg:col-span-3 h-full overflow-hidden">
           <div class="bg-white rounded-lg shadow-sm border border-gray-200 h-full flex flex-col overflow-hidden gap-4">
             <!-- AI 가이드 섹션 (상단, 스크롤 가능) -->
             <div class="flex-2 overflow-hidden flex flex-col border-b border-gray-200">
