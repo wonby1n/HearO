@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
     <!--숨겨진 음성 재생 컨테이너-->
     <div ref="audioContainer" style="display: none;"></div>
     <!-- 자동 종료 모달 (시스템 트리거) -->
@@ -13,17 +13,17 @@
     <!-- 통화 종료 확인 모달 -->
     <Teleport to="body">
       <div v-if="showEndConfirmModal" class="fixed inset-0 z-50 flex items-center justify-center">
-        <div class="absolute inset-0 bg-black/50" @click="handleEndConfirmCancel"></div>
-        <div class="relative bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4">
-          <h3 class="text-lg font-semibold text-gray-900 mb-2">상담 종료</h3>
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="handleEndConfirmCancel"></div>
+        <div class="relative bg-white rounded-2xl shadow-2xl p-7 w-full max-w-sm mx-4">
+          <h3 class="text-xl font-bold text-gray-900 mb-3">상담 종료</h3>
           <p class="text-gray-600 mb-6">정말 상담을 종료하시겠습니까?</p>
           <div class="flex gap-3">
             <button @click="handleEndConfirmCancel"
-              class="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors">
+              class="flex-1 px-4 py-3 border-2 border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-50 transition-all">
               취소
             </button>
             <button @click="handleEndConfirmOk"
-              class="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors">
+              class="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all shadow-lg shadow-red-600/30">
               종료
             </button>
           </div>
@@ -32,11 +32,20 @@
     </Teleport>
 
     <!-- 상단 헤더 -->
-    <header class="bg-white shadow-sm border-b border-gray-200">
-      <div class="max-w-[1920px] mx-auto px-6 py-4">
+    <header class="bg-white shadow-md border-b-2 border-primary-100">
+      <div class="max-w-[1920px] mx-auto px-8 py-5">
         <div class="flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <h1 class="text-2xl font-bold text-primary-600">HearO</h1>
+          <div class="flex items-center gap-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center shadow-lg">
+                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3zm0 18.5c-3.76-1.08-6.5-5.06-6.5-9.41V6.3l6.5-2.6 6.5 2.6v4.79c0 4.35-2.74 8.33-6.5 9.41z"/>
+                </svg>
+              </div>
+              <h1 class="text-2xl font-black text-gray-900 tracking-tight">Hear<span class="text-primary-600">O</span></h1>
+            </div>
+            <div class="h-8 w-px bg-gray-300"></div>
+            <span class="text-sm font-semibold text-gray-600">상담 진행 중</span>
           </div>
 
           <CallTimer :isActive="isCallActive" />
@@ -69,20 +78,20 @@
 
         <!-- 우측: AI 가이드 및 메모 -->
         <div class="lg:col-span-3 h-full overflow-hidden">
-          <div class="bg-white rounded-lg shadow-sm border border-gray-200 h-full flex flex-col overflow-hidden gap-4">
+          <div class="bg-white rounded-2xl shadow-lg border border-gray-200 h-full flex flex-col overflow-hidden">
             <!-- AI 가이드 섹션 (상단, 스크롤 가능) -->
             <div class="flex-2 overflow-hidden flex flex-col border-b border-gray-200">
-              <div class="p-4 border-b border-gray-100">
-                <h3 class="text-lg font-semibold text-gray-900">AI 가이드</h3>
+              <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-primary-50 to-blue-50">
+                <h3 class="text-lg font-bold text-gray-900">AI 가이드</h3>
               </div>
-              <div class="flex-1 overflow-y-auto p-4">
+              <div class="flex-1 overflow-y-auto p-5">
                 <AIGuidePanel class="h-full" />
               </div>
             </div>
 
             <!-- 메모 섹션 (하단, 스크롤 가능) -->
             <div class="flex-1 overflow-hidden flex flex-col">
-              <div class="p-4">
+              <div class="p-5">
                 <CallMemoPanel v-model="memo" :saved-label="memoSaveLabel" />
               </div>
             </div>

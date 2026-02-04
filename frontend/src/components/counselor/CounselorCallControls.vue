@@ -3,8 +3,10 @@
 
     <!-- 음소거 버튼 -->
     <button @click="toggleMute" :class="[
-      'flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 active:scale-95',
-      localMuted ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : 'bg-gray-800 hover:bg-gray-900 text-white'
+      'flex items-center gap-2 px-5 py-3 rounded-xl font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 active:scale-95 shadow-md',
+      localMuted 
+        ? 'bg-yellow-500 hover:bg-yellow-600 text-white shadow-yellow-500/30 ring-yellow-500' 
+        : 'bg-gray-800 hover:bg-gray-900 text-white shadow-gray-800/30 ring-gray-800'
     ]" :title="localMuted ? '음소거 해제' : '음소거'">
       <svg v-if="!localMuted" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
         <path fill-rule="evenodd"
@@ -15,11 +17,12 @@
         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z"
           clip-rule="evenodd" />
       </svg>
+      <span class="text-sm">{{ localMuted ? '음소거 중' : '마이크 ON' }}</span>
     </button>
 
     <!-- 통화 종료 버튼 -->
     <button @click="handleEndCall"
-      class="flex items-center justify-center w-10 h-10 rounded-full bg-red-600 hover:bg-red-700 text-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 active:scale-95"
+      class="flex items-center gap-2 px-5 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 active:scale-95 shadow-lg shadow-red-600/30"
       title="통화 종료">
       <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
         <path
@@ -27,6 +30,7 @@
         <path
           d="M16.707 3.293a1 1 0 010 1.414L15.414 6l1.293 1.293a1 1 0 01-1.414 1.414L14 7.414l-1.293 1.293a1 1 0 11-1.414-1.414L12.586 6l-1.293-1.293a1 1 0 011.414-1.414L14 4.586l1.293-1.293a1 1 0 011.414 0z" />
       </svg>
+      <span class="text-sm">통화 종료</span>
     </button>
   </div>
 </template>
