@@ -99,6 +99,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useNotificationStore } from '@/stores/notification'
+import { submitConsultationRating } from '@/services/consultationService'
 
 const router = useRouter()
 const route = useRoute()
@@ -145,21 +146,7 @@ const handleSubmit = async () => {
   isLoading.value = true
 
   try {
-    const response = await fetch(`/api/v1/consultations/${consultationId}/rating`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(reviewData)
-    })
-
-    console.log('📡 [ClientReview] 응답 상태:', response.status)
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('❌ [ClientReview] API 에러:', errorText)
-      throw new Error(`리뷰 제출 실패: ${response.status}`)
-    }
-
-    const result = await response.json()
+    const result = await submitConsultationRating(consultationId, reviewData)
     console.log('✅ [ClientReview] 제출 성공:', result)
 
     notificationStore.notifySuccess('리뷰가 제출되었습니다')
