@@ -158,6 +158,7 @@ export function useCallConnection(role = "customer", options = {}) {
     matching = useMatchingNotification({
       customerId,
       onMatched: handleMatched,
+      onRankUpdate: options.onRankUpdate,
     });
 
     matching.connect();

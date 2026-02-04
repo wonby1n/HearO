@@ -159,7 +159,9 @@ const handleTimeModalComplete = () => {
 let energyLogInterval = null
 
 onMounted(async () => {
+  console.log('[DashboardView] onMounted - 데이터 로딩')
   await dashboardStore.fetchDashboardData()
+  console.log('[DashboardView] 고객 만족도:', dashboardStore.customerSatisfaction)
 
   // 30초마다 에너지 레벨 콘솔 출력 (디버깅용)
   energyLogInterval = setInterval(() => {
