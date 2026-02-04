@@ -446,12 +446,17 @@ onMounted(async () => {
 
 
     const customerId = sessionStorage.getItem('clientCustomerId') || localStorage.getItem('clientCustomerId') || customerStore.currentCustomer.id
+    const registrationId = sessionStorage.getItem('clientRegistrationId')
+
     startCustomerSTT()
     callStore.startCall({
       id: `client-call-${Date.now()}`,
       customerId: customerId ? parseInt(customerId) : null,
+      registrationId: registrationId ? parseInt(registrationId) : null,
       roomToken: 'test-token'
     })
+
+    console.log('[ClientCallView] callStore.currentCall:', callStore.currentCall)
 
 
   // 통화 시간 타이머
@@ -490,6 +495,24 @@ onMounted(async () => {
       alert('마이크 권한을 허용해주세요')
     }
 
+    // consultationId 수신 (상담원으로부터 DataChannel을 통해 받음)
+    callStore.livekitRoom.on(RoomEvent.DataReceived, (payload, participant) => {
+      try {
+        const text = new TextDecoder().decode(payload)
+        const data = JSON.parse(text)
+
+        if (data.type === 'consultationId' && data.consultationId) {
+          console.log('[ClientCallView] consultationId 수신:', data.consultationId)
+          if (callStore.currentCall) {
+            callStore.currentCall.consultationId = data.consultationId
+            console.log('[ClientCallView] consultationId 저장 완료:', callStore.currentCall)
+          }
+        }
+      } catch (error) {
+        // STT 데이터 등 다른 데이터는 무시
+      }
+    })
+
     callStore.livekitRoom.on(RoomEvent.ParticipantDisconnected, (participant) => {
       console.log('[ClientCallView] 상담원이 통화를 종료했습니다:', participant.identity)
 
@@ -515,7 +538,7 @@ onMounted(async () => {
         query: {
           duration: callDuration.value,
           reason: 'counselor_ended',
-          consultationId: callStore.currentCall?.consultationId
+          consultationId
         }
       })
     })

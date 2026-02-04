@@ -49,28 +49,30 @@ export const startConsultation = async (payload) => {
 }
 
 /**
- * Save consultation memo
- * API: PUT /api/v1/consultations/{consultationId}/memo
+ * Submit consultation rating (고객 평점 제출)
+ * API: POST /api/v1/consultations/{consultationId}/rating
  *
  * @param {string|number} consultationId
- * @param {string} memo
+ * @param {Object} ratingData - { processRating, solutionRating, kindnessRating, feedback }
  * @returns {Promise<Object>}
  */
-export const saveConsultationMemo = async (consultationId, memo) => {
-  const token = getAuthToken()
-  const response = await axios.put(
-    `${API_BASE_URL}/consultations/${consultationId}/memo`,
-    { memo },
-    token
-      ? {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      : undefined
-  )
+export const submitConsultationRating = async (consultationId, ratingData) => {
+  try {
+    const response = await axios.post(
+      `${API_BASE_URL}/consultations/${consultationId}/rating`,
+      ratingData
+    )
 
-  return response.data
+    if (response.data && response.data.isSuccess) {
+      console.log('✅ [consultationService] 평점 제출 성공:', response.data.data)
+      return response.data.data
+    } else {
+      throw new Error(response.data?.message || '평점 제출 실패')
+    }
+  } catch (error) {
+    console.error('❌ 평점 제출 에러:', error.response?.data || error.message)
+    throw error
+  }
 }
 
 /**
