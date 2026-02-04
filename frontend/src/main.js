@@ -20,3 +20,11 @@ authStore.setupAxiosInterceptors()
 app.use(router)
 
 app.mount('#app')
+
+// 모바일 디버그: URL에 ?debug=true 파라미터가 있으면 eruda 로드
+if (new URLSearchParams(window.location.search).has('debug')) {
+  const script = document.createElement('script')
+  script.src = 'https://cdn.jsdelivr.net/npm/eruda@latest/dist/eruda.min.js'
+  script.onload = () => window.eruda?.init()
+  document.head.appendChild(script)
+}

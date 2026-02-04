@@ -209,7 +209,7 @@ const handleSubmit = async () => {
 
   try {
     // 1단계에서 저장한 상담 데이터 가져오기
-    const consultationDataStr = localStorage.getItem('clientConsultationData')
+    const consultationDataStr = sessionStorage.getItem('clientConsultationData')
     if (!consultationDataStr) {
       notificationStore.notifyWarning('상담 정보가 없습니다. 처음부터 다시 시작해주세요.')
       router.push({ name: 'client-landing' })
@@ -219,7 +219,7 @@ const handleSubmit = async () => {
     const consultationData = JSON.parse(consultationDataStr)
 
     // 2단계에서 받은 accessToken 가져오기
-    const accessToken = sessionStorage.getItem('customerAccessToken') || localStorage.getItem('customerAccessToken')
+    const accessToken = sessionStorage.getItem('customerAccessToken')
     if (!accessToken) {
       notificationStore.notifyWarning('인증 정보가 없습니다. 본인 인증을 다시 진행해주세요.')
       router.push({ name: 'client-consultation-verification' })
@@ -227,7 +227,7 @@ const handleSubmit = async () => {
     }
 
     // productId 가져오기
-    const productId = localStorage.getItem('clientProductId')
+    const productId = sessionStorage.getItem('clientProductId')
     if (!productId) {
       notificationStore.notifyWarning('제품 정보가 없습니다. 처음부터 다시 진행해주세요.')
       router.push({ name: 'client-landing' })
@@ -266,8 +266,8 @@ const handleSubmit = async () => {
     // 성공 알림
     notificationStore.notifySuccess('상담 접수가 완료되었습니다')
 
-    // localStorage 정리 (인증 정보 외 임시 데이터 삭제)
-    localStorage.removeItem('clientConsultationData')
+    // sessionStorage 임시 데이터 정리
+    sessionStorage.removeItem('clientConsultationData')
 
     // 대기 페이지로 이동
     router.push({ name: 'client-waiting' })

@@ -42,11 +42,16 @@ export function useCallConnection(role = "customer", options = {}) {
   const performConnection = async (matchData) => {
     const { roomName, identity } = matchData;
 
-    // 1. LiveKit 토큰 요청
+    // 1. LiveKit 토큰 요청 (고객은 interceptor에 counselor token만 있으므로 명시적 헤더 추가)
+    const headers = {}
+    if (role === 'customer') {
+      const customerToken = sessionStorage.getItem('customerAccessToken')
+      if (customerToken) headers.Authorization = `Bearer ${customerToken}`
+    }
     const response = await axios.post("/api/v1/calls/token", {
       identity,
       roomName,
-    });
+    }, { headers });
 
     const { token, url } = response.data;
 
