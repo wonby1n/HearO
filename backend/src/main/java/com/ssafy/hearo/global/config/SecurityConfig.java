@@ -70,6 +70,9 @@ public class SecurityConfig {
                     .requestMatchers("/api/v1/calls/**").permitAll()
                     // Product endpoints (for customers - public access)
                     .requestMatchers("/api/v1/products/**").permitAll()
+                    // Consultation rating endpoints (for customers - public access)
+                    .requestMatchers("/api/v1/consultations/*/rating").permitAll()
+                    .requestMatchers("/api/v1/consultations/latest").permitAll()
                     // Actuator endpoints
                     .requestMatchers("/actuator/**").permitAll()
                     // Swagger UI
