@@ -44,6 +44,9 @@
                   :class="message.speaker === 'agent' ? 'text-white' : 'text-primary-600'">
                   {{ message.showOriginal ? '숨기기' : '확인' }}
                 </button>
+                <button @click="$emit('cancel-profanity', index)" class="text-xs underline hover:no-underline text-red-500">
+                  취소
+                </button>
               </div>
             </template>
 
@@ -75,12 +78,12 @@
     </div>
 
     <!-- 비속어 카운터 (중앙 하단) -->
-    <div v-if="notificationStore.profanityCount >= 1" class="profanity-counter">
+    <div v-if="props.profanityCount >= 1" class="profanity-counter">
       <span :class="['text-red-600 font-bold text-lg', { 'counter-pulse': isCounterAnimating }]">
-        비속어 총 {{ notificationStore.profanityCount }}회 감지
+        비속어 총 {{ props.profanityCount }}회 감지
       </span>
       <br>
-      <span v-if="notificationStore.profanityCount >= 2" class="text-red-600 font-bold text-sm">
+      <span v-if="props.profanityCount >= 2" class="text-red-600 font-bold text-sm">
         3회가 감지되면 종료됩니다
       </span>
       <span v-else class="text-orange-600 font-semibold text-sm">
@@ -132,19 +135,6 @@ const notifications = computed(() => {
 // 카운터 애니메이션 상태
 const isCounterAnimating = ref(false)
 
-// 카운트 변경 시 애니메이션 트리거
-watch(
-  () => notificationStore.profanityCount,
-  (newCount, oldCount) => {
-    if (newCount > oldCount) {
-      isCounterAnimating.value = true
-      setTimeout(() => {
-        isCounterAnimating.value = false
-      }, 600)
-    }
-  }
-)
-
 const props = defineProps({
   messages: {
     type: Array,
@@ -157,10 +147,27 @@ const props = defineProps({
   counselorName: {
     type: String,
     default: '상담원'
+  },
+  profanityCount: {
+    type: Number,
+    default: 0
   }
 })
 
-const emit = defineEmits(['toggle-profanity', 'counselor-message'])
+const emit = defineEmits(['toggle-profanity', 'cancel-profanity', 'counselor-message'])
+
+// 카운트 변경 시 애니메이션 트리거
+watch(
+  () => props.profanityCount,
+  (newCount, oldCount) => {
+    if (newCount > oldCount) {
+      isCounterAnimating.value = true
+      setTimeout(() => {
+        isCounterAnimating.value = false
+      }, 600)
+    }
+  }
+)
 
 const chatContainer = ref(null)
 const isUserScrolling = ref(false) // 사용자가 스크롤 중인지 여부

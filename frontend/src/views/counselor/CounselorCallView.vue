@@ -57,11 +57,13 @@
 
         <!-- 중앙: STT 자막 영역 -->
         <div class="lg:col-span-6 h-full overflow-hidden">
-          <STTChatPanel 
-            :messages="sttMessages" 
+          <STTChatPanel
+            :messages="sttMessages"
             :is-call-active="isCallActive"
             :counselor-name="counselorName"
-            @toggle-profanity="handleToggleProfanity" 
+            :profanity-count="callStore.currentCall.profanityCount"
+            @toggle-profanity="handleToggleProfanity"
+            @cancel-profanity="handleCancelProfanity"
             @counselor-message="handleCounselorMessage"
           />
         </div>
@@ -271,17 +273,12 @@ watch(() => callStore.currentCall?.id, (newId) => {
 }, { immediate: true });
 
 // 메모 서버 저장 (통화 종료 시 /end API로 전송)
-const saveMemoToServer = async () => {
+const saveMemoToServer = async (terminationReason = 'NORMAL') => {
   const memoValue = memo.value?.trim()
   const consultationId = callStore.currentCall?.consultationId ?? callStore.currentCall?.id
 
   if (!consultationId) {
     console.warn('[CounselorCallView] consultationId가 없어 메모를 저장하지 않습니다')
-    return true
-  }
-
-  if (!memoValue) {
-    console.log('[CounselorCallView] 메모가 비어있어 저장하지 않습니다')
     return true
   }
 
@@ -293,12 +290,12 @@ const saveMemoToServer = async () => {
 
     // 통화 종료 시 메모를 포함하여 finalizeConsultation API 호출
     await axios.patch(`/api/v1/consultations/${consultationId}/end`, {
-      userMemo: memoValue,
+      userMemo: memoValue || '',
       fullTranscript: fullTranscript,
-      profanityCount: callStore.profanityCount || 0,
+      profanityCount: callStore.currentCall?.profanityCount || 0,
       avgAggressionScore: 0.0,
       maxAggressionScore: 0.0,
-      terminationReason: 'NORMAL',
+      terminationReason: terminationReason,
       durationSeconds: 0 // TODO: 실제 통화 시간 계산
     }, {
       headers: {
@@ -507,17 +504,11 @@ const handleAutoTerminationConfirm = async () => {
     // 통화 종료 처리
     const callData = callStore.endCall()
 
-    // TODO: API 호출 - 블랙리스트 등록
-    // await addToBlacklist(callData.customerId, callStore.currentCall.agentId)
-
-    const saved = await saveMemoToServer()
+    const saved = await saveMemoToServer('PROFANITY_LIMIT')
     if (saved) {
       clearMemoDraft()
       skipDraftSaveOnUnmount = true
     }
-
-    // TODO: 통화 기록 저장
-    // await saveCallRecord(callData)
 
     // 음성 녹음 종료 및 파일 다운로드
     await stopAndSaveRecording()
@@ -529,7 +520,6 @@ const handleAutoTerminationConfirm = async () => {
       console.log('[CounselorCallView] 상담사 상태 REST, 상담 OFF (자동 종료)')
     } catch (statusError) {
       console.error('[CounselorCallView] 상태 복구 실패:', statusError)
-      // 상태 복구 실패해도 통화 종료는 계속 진행
     }
 
     // 상태 초기화
@@ -542,12 +532,19 @@ const handleAutoTerminationConfirm = async () => {
   } catch (error) {
     console.error('자동 종료 처리 실패:', error)
     notificationStore.notifyError('통화 종료 처리에 실패했습니다')
+    router.push({ name: 'dashboard' })
   }
 }
 
 // 욕설 표시/숨기기 토글
 const handleToggleProfanity = (index) => {
   sttMessages.value[index].showOriginal = !sttMessages.value[index].showOriginal
+}
+
+// 욕설 판정 취소 (카운트 감소 + 폭언 플래그 해제)
+const handleCancelProfanity = (index) => {
+  sttMessages.value[index].hasProfanity = false
+  callStore.decrementProfanityCount()
 }
 
 // 상담사 메시지 입력 핸들러

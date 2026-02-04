@@ -164,6 +164,8 @@ watch(connectionState, (newState) => {
     // 매칭 완료 후 대기열 조회 중지 (더 이상 대기열에 없음)
     stopQueuePolling()
     disconnectQueueSocket()
+    stopHeartbeat()
+    cleanupQueueTicket()
   } else if (newState === 'error') {
     console.error('[ClientWaiting] LiveKit 연결 실패 감지')
     notificationStore.notifyError('연결에 실패했습니다. 다시 시도해주세요.')
@@ -184,6 +186,53 @@ let queuePollingInterval = null
 let queueSocketReconnectTimeout = null
 let shouldReconnect = true
 const QUEUE_SOCKET_RECONNECT_DELAY = 3000
+
+// --- 하트비트 ---
+const queueTicket = ref(sessionStorage.getItem('clientQueueTicket'))
+let heartbeatInterval = null
+let isHeartbeatPending = false
+
+const sendHeartbeat = async () => {
+  if (!queueTicket.value || isHeartbeatPending) return
+  isHeartbeatPending = true
+  try {
+    await axios.post('/api/v1/queue/heartbeat', { queueTicket: queueTicket.value })
+    console.log('[Heartbeat] 전송 성공')
+  } catch (error) {
+    console.error('[Heartbeat] 전송 실패:', error.response?.data || error.message)
+  } finally {
+    isHeartbeatPending = false
+  }
+}
+
+const startHeartbeat = () => {
+  console.log('[Heartbeat] 시작 - queueTicket:', queueTicket.value)
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval)
+    heartbeatInterval = null
+  }
+  sendHeartbeat()
+  heartbeatInterval = setInterval(() => sendHeartbeat(), 10000)
+}
+
+const stopHeartbeat = () => {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval)
+    heartbeatInterval = null
+  }
+}
+
+const cleanupQueueTicket = () => {
+  queueTicket.value = null
+  sessionStorage.removeItem('clientQueueTicket')
+}
+
+const handleVisibilityChange = () => {
+  if (document.visibilityState === 'visible' && queueTicket.value) {
+    console.log('[Heartbeat] 탭 활성화 - 즉시 하트비트 전송')
+    sendHeartbeat()
+  }
+}
 
 const getQueueSocketUrl = () => {
   const configuredBase = import.meta.env.VITE_WS_BASE_URL
@@ -404,6 +453,9 @@ const confirmEndCall = async () => {
     console.warn('[ClientWaiting] 대기열 취소 실패 (무시):', error.response?.status)
   }
 
+  stopHeartbeat()
+  cleanupQueueTicket()
+
   callStore.endCall()
   router.push('/client')
 }
@@ -499,6 +551,13 @@ onMounted(async () => {
 
   // 주기적으로 대기 순번 업데이트 (5초마다) - 순번 표시용
   startQueuePolling()
+
+  // 하트비트 시작 (queueTicket이 있으면)
+  console.log('[Heartbeat] sessionStorage 확인 - clientQueueTicket:', queueTicket.value)
+  if (queueTicket.value) {
+    startHeartbeat()
+  }
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
 // 컴포넌트 언마운트 시 정리
@@ -507,6 +566,8 @@ onUnmounted(async () => {
 
   stopQueuePolling()
   disconnectQueueSocket()
+  stopHeartbeat()
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 
   // ARS 오디오 정리
   if (arsAudio.value) {
@@ -518,6 +579,7 @@ onUnmounted(async () => {
   // 비정상 이탈 시 (정상 매칭 이동이 아닌 경우) 대기열에서 제거
   if (!isNavigatingToCall.value) {
     console.log('[ClientWaiting] 비정상 이탈 감지 - 대기열 취소 요청')
+    cleanupQueueTicket()
     try {
       const accessToken = sessionStorage.getItem('customerAccessToken')
       if (accessToken) {
