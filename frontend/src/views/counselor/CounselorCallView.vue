@@ -273,17 +273,12 @@ watch(() => callStore.currentCall?.id, (newId) => {
 }, { immediate: true });
 
 // 메모 서버 저장 (통화 종료 시 /end API로 전송)
-const saveMemoToServer = async () => {
+const saveMemoToServer = async (terminationReason = 'NORMAL') => {
   const memoValue = memo.value?.trim()
   const consultationId = callStore.currentCall?.consultationId ?? callStore.currentCall?.id
 
   if (!consultationId) {
     console.warn('[CounselorCallView] consultationId가 없어 메모를 저장하지 않습니다')
-    return true
-  }
-
-  if (!memoValue) {
-    console.log('[CounselorCallView] 메모가 비어있어 저장하지 않습니다')
     return true
   }
 
@@ -305,7 +300,7 @@ const saveMemoToServer = async () => {
     const terminationReason = (callStore.currentCall.profanityCount >= 3) ? 'PROFANITY_LIMIT' : 'NORMAL'
     
     await axios.patch(`/api/v1/consultations/${consultationId}/end`, {
-      userMemo: memoValue,
+      userMemo: memoValue || '',
       fullTranscript: fullTranscript,
       profanityCount: callStore.currentCall.profanityCount || 0,
       avgAggressionScore: 0.0,
@@ -536,7 +531,6 @@ const handleAutoTerminationConfirm = async () => {
       console.log('[CounselorCallView] 상담사 상태 REST, 상담 OFF (자동 종료)')
     } catch (statusError) {
       console.error('[CounselorCallView] 상태 복구 실패:', statusError)
-      // 상태 복구 실패해도 통화 종료는 계속 진행
     }
 
     // 상태 초기화
@@ -550,6 +544,7 @@ const handleAutoTerminationConfirm = async () => {
   } catch (error) {
     console.error('자동 종료 처리 실패:', error)
     notificationStore.notifyError('통화 종료 처리에 실패했습니다')
+    router.push({ name: 'dashboard' })
   }
 }
 
