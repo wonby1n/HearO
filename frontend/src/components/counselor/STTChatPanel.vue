@@ -5,9 +5,9 @@
       <h3 class="text-lg font-semibold text-gray-900">실시간 자막</h3>
     </div>
 
-    <!-- 폭언 감지 알림 (중앙 상단) -->
+    <!-- 폭언 감지 알림 (오른쪽 하단 토스트) -->
     <div class="stt-notification-container" role="alert" aria-live="polite" aria-atomic="true">
-      <TransitionGroup name="notification-list">
+      <TransitionGroup name="notification-slide">
         <NotificationItem v-for="notification in notifications" :key="notification.id" :id="notification.id"
           :type="notification.type" :message="notification.message" :count="notification.count"
           @close="notificationStore.removeNotification(notification.id)" />
@@ -15,7 +15,8 @@
     </div>
 
     <!-- 자막 영역 (flex-1 overflow-y-auto min-h-0) -->
-    <div ref="chatContainer" class="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin relative min-h-0">
+    <div ref="chatContainer" class="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin relative min-h-0"
+      :class="callStore.currentCall.profanityCount >= 1 ? 'pt-20' : ''">
       <!-- 메시지 목록 -->
       <div v-for="(message, index) in messages" :key="index" class="flex flex-col" :class="message.speaker === 'agent' ? 'items-end' : 'items-start'">
         <!-- 이름 + 시간 (말풍선 위) -->
@@ -25,11 +26,15 @@
         </div>
 
         <!-- 말풍선 -->
-        <div :class="['max-w-[70%] rounded-2xl px-4 py-3 shadow-sm', message.speaker === 'agent' ? 'bg-primary-600 text-white rounded-tr-sm' : 'bg-gray-100 text-gray-900 rounded-tl-sm']">
+        <div :class="[
+          'max-w-[70%] rounded-2xl px-4 py-3 shadow-sm',
+          message.speaker === 'agent' ? 'bg-primary-600 text-white rounded-tr-sm' : 'bg-gray-100 text-gray-900 rounded-tl-sm',
+          message.hasProfanity && !message.isProfanityCancelled ? 'ring-2 ring-red-400' : ''
+        ]">
           <!-- 메시지 내용 -->
           <div class="text-sm leading-relaxed">
             <!-- 욕설이 있는 경우 블러 처리 -->
-            <template v-if="message.hasProfanity">
+            <template v-if="message.hasProfanity && !message.isProfanityCancelled">
               <div class="flex items-center gap-2">
                 <svg class="w-4 h-4 text-red-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fill-rule="evenodd"
@@ -40,14 +45,13 @@
                   {{ message.maskedText }}
                 </span>
                 <span v-else>{{ message.text }}</span>
-                <button @click="$emit('toggle-profanity', index)" class="text-xs underline hover:no-underline"
-                  :class="message.speaker === 'agent' ? 'text-white' : 'text-primary-600'">
-                  {{ message.showOriginal ? '숨기기' : '확인' }}
-                </button>
-                <button @click="$emit('cancel-profanity', index)" class="text-xs underline hover:no-underline text-red-500">
-                  취소
-                </button>
               </div>
+            </template>
+
+            <!-- 폭언 취소된 경우 일반 메시지로 표시 -->
+            <template v-else-if="message.hasProfanity && message.isProfanityCancelled">
+              <span class="opacity-70 line-through">{{ message.maskedText }}</span>
+              <span class="ml-2">{{ message.text }}</span>
             </template>
 
             <!-- 일반 메시지 -->
@@ -61,6 +65,33 @@
             :class="message.speaker === 'agent' ? 'text-white' : 'text-gray-500'">
             신뢰도: {{ Math.round(message.confidence * 100) }}%
           </div>
+        </div>
+
+        <!-- 폭언 컨트롤 버튼 (말풍선 아래) -->
+        <div v-if="message.hasProfanity && !message.isProfanityCancelled" class="flex items-center gap-2 mt-2 px-1">
+          <button
+            @click="$emit('toggle-profanity', index)"
+            class="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all hover:scale-105"
+            :class="message.showOriginal
+              ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              : 'bg-primary-100 text-primary-700 hover:bg-primary-200'"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path v-if="!message.showOriginal" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+              <path v-if="!message.showOriginal" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+            </svg>
+            {{ message.showOriginal ? '숨기기' : '확인' }}
+          </button>
+          <button
+            @click="$emit('cancel-profanity', index)"
+            class="flex items-center gap-1 px-3 py-1.5 bg-orange-100 text-orange-700 rounded-lg text-xs font-medium hover:bg-orange-200 transition-all hover:scale-105"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+            오탐 취소
+          </button>
         </div>
       </div>
 
@@ -77,19 +108,32 @@
       </div>
     </div>
 
-    <!-- 비속어 카운터 (중앙 하단) -->
-    <div v-if="props.profanityCount >= 1" class="profanity-counter">
-      <span :class="['text-red-600 font-bold text-lg', { 'counter-pulse': isCounterAnimating }]">
-        비속어 총 {{ props.profanityCount }}회 감지
-      </span>
-      <br>
-      <span v-if="props.profanityCount >= 2" class="text-red-600 font-bold text-sm">
-        3회가 감지되면 종료됩니다
-      </span>
-      <span v-else class="text-orange-600 font-semibold text-sm">
-        비속어 사용을 자제해주세요
-      </span>
-    </div>
+    <!-- 비속어 카운터 (상단 고정 배너) -->
+    <Transition name="slide-down">
+      <div v-if="callStore.currentCall.profanityCount >= 1" class="profanity-banner">
+        <div class="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-red-50 to-orange-50 border-l-4 border-red-500 shadow-md">
+          <svg class="w-5 h-5 text-red-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+          </svg>
+          <div class="flex-1">
+            <div :class="['font-bold text-sm', { 'counter-pulse': isCounterAnimating }]">
+              <span class="text-red-700">비속어 {{ callStore.currentCall.profanityCount }}회 감지</span>
+              <span class="text-gray-500 ml-2">(3회 시 자동 종료)</span>
+            </div>
+            <div v-if="callStore.currentCall.profanityCount >= 2" class="text-xs text-red-600 font-semibold mt-0.5">
+              ⚠️ 1회 더 감지되면 통화가 종료됩니다
+            </div>
+            <div v-else class="text-xs text-orange-600 font-medium mt-0.5">
+              비속어 사용을 자제해 주세요
+            </div>
+          </div>
+          <div class="flex items-center justify-center w-10 h-10 rounded-full"
+            :class="callStore.currentCall.profanityCount >= 2 ? 'bg-red-500' : 'bg-orange-500'">
+            <span class="text-white font-bold text-lg">{{ callStore.currentCall.profanityCount }}</span>
+          </div>
+        </div>
+      </div>
+    </Transition>
 
     <!-- 입력창 (flex-shrink-0) -->
     <div class="flex-shrink-0 px-4 py-3 border-t bg-gray-50">
@@ -116,10 +160,12 @@
 <script setup>
 import { ref, watch, nextTick, computed, onMounted, onUnmounted } from 'vue'
 import { useNotificationStore } from '@/stores/notification'
+import { useCallStore } from '@/stores/call'
 import NotificationItem from '@/components/notification/NotificationItem.vue'
 
-// 알림 스토어
+// 스토어
 const notificationStore = useNotificationStore()
+const callStore = useCallStore()
 
 // 개발용: 콘솔에서 테스트 가능하도록 window에 노출
 if (import.meta.env.DEV) {
@@ -134,6 +180,19 @@ const notifications = computed(() => {
 
 // 카운터 애니메이션 상태
 const isCounterAnimating = ref(false)
+
+// 카운트 변경 시 애니메이션 트리거
+watch(
+  () => callStore.currentCall.profanityCount,
+  (newCount, oldCount) => {
+    if (newCount > oldCount) {
+      isCounterAnimating.value = true
+      setTimeout(() => {
+        isCounterAnimating.value = false
+      }, 600)
+    }
+  }
+)
 
 const props = defineProps({
   messages: {
@@ -155,19 +214,6 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['toggle-profanity', 'cancel-profanity', 'counselor-message'])
-
-// 카운트 변경 시 애니메이션 트리거
-watch(
-  () => props.profanityCount,
-  (newCount, oldCount) => {
-    if (newCount > oldCount) {
-      isCounterAnimating.value = true
-      setTimeout(() => {
-        isCounterAnimating.value = false
-      }, 600)
-    }
-  }
-)
 
 const chatContainer = ref(null)
 const isUserScrolling = ref(false) // 사용자가 스크롤 중인지 여부
@@ -255,53 +301,73 @@ onUnmounted(() => {
   background: #555;
 }
 
-/* 알림 컨테이너 - 중앙 상단 */
+/* 알림 컨테이너 - 오른쪽 하단 토스트 */
 .stt-notification-container {
-  position: absolute;
-  top: 70px;
-  left: 50%;
-  transform: translateX(-50%);
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
   z-index: 50;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-end;
+  gap: 12px;
   pointer-events: none;
+  max-width: 400px;
 }
 
 .stt-notification-container>* {
   pointer-events: auto;
 }
 
-/* TransitionGroup 애니메이션 */
-.notification-list-enter-active,
-.notification-list-leave-active {
-  transition: all 0.3s ease;
+/* TransitionGroup 애니메이션 - 슬라이드 */
+.notification-slide-enter-active {
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.notification-list-enter-from {
+.notification-slide-leave-active {
+  transition: all 0.3s ease-out;
+}
+
+.notification-slide-enter-from {
   opacity: 0;
-  transform: translateY(-20px);
+  transform: translateX(100px) scale(0.8);
 }
 
-.notification-list-leave-to {
+.notification-slide-leave-to {
   opacity: 0;
-  transform: translateY(-20px) scale(0.9);
+  transform: translateX(50px) scale(0.9);
 }
 
-.notification-list-move {
+.notification-slide-move {
   transition: transform 0.3s ease;
 }
 
-/* 비속어 카운터 - 중앙 하단 */
-.profanity-counter {
+/* 비속어 배너 - 상단 고정 */
+.profanity-banner {
   position: absolute;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 40;
-  padding: 8px 16px;
-  text-align: center;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+}
+
+/* 슬라이드 다운 애니메이션 */
+.slide-down-enter-active {
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.slide-down-leave-active {
+  transition: all 0.3s ease-out;
+}
+
+.slide-down-enter-from {
+  opacity: 0;
+  transform: translateY(-100%);
+}
+
+.slide-down-leave-to {
+  opacity: 0;
+  transform: translateY(-100%);
 }
 
 /* 카운터 펄스 애니메이션 */
