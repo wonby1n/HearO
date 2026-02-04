@@ -21,4 +21,6 @@ public interface ConsultationService {
     Page<ConsultationListResponse> getMyConsultations(Long userId, Pageable pageable);
 
     Page<ConsultationListResponse> getCustomerConsultations(Integer customerId, Pageable pageable);
+
+    ConsultationMemoPatchResponse updateMemo(Integer consultationId, String memo);
 }

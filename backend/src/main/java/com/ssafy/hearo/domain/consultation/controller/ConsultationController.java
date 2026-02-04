@@ -131,4 +131,15 @@ public class ConsultationController {
         Page<ConsultationListResponse> result = consultationService.getCustomerConsultations(customerId, pageable);
         return ResponseEntity.ok(BaseResponse.success(result));
     }
+
+    @PatchMapping("/{consultationId}/memo")
+    public ResponseEntity<ConsultationMemoPatchResponse> patchMemo(
+            @PathVariable Integer consultationId,
+            @RequestBody ConsultationMemoPatchRequest request
+    ) {
+        return ResponseEntity.ok(
+                consultationService.updateMemo(consultationId, request.getUserMemo())
+        );
+    }
+
 }
