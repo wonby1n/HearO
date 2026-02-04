@@ -6,66 +6,75 @@
         <h2 class="greeting-text text-2xl font-bold text-gray-900 tracking-tight">
           어서오세요, <span class="user-name text-primary-main">{{ authStore.user?.name || '로그인안됨' }}</span>님
         </h2>
-        <p class="datetime-text text-xs font-medium text-gray-400 mt-1.5 flex items-center gap-1.5">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <p class="datetime-text text-sm font-medium text-gray-500 mt-1.5 flex items-center gap-1.5">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           {{ formattedDateTime }}
         </p>
       </div>
 
-      <!-- 중앙: 상담 상태 토글 버튼 -->
-      <div class="status-toggle-section">
-        <button
-          @click="toggleConsultationStatus"
-          class="status-btn px-6 py-2.5 rounded-xl shadow-sm transition-all duration-300 hover:shadow-md active:scale-95 focus:outline-none"
-          :data-active="dashboardStore.consultationStatus.isActive"
-        >
-          <div class="flex items-center text-white">
-            <div class="icon-circle mr-3 flex items-center justify-center bg-white/20 rounded-lg p-1">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-              </svg>
+      <!-- 우측: 상담 상태 + 대기 고객 수 -->
+      <div class="flex items-center gap-3">
+        <!-- 상담 상태 토글 버튼 -->
+        <div class="status-toggle-section">
+          <button
+            @click="toggleConsultationStatus"
+            class="status-btn px-4 py-4 rounded-xl shadow-md transition-all duration-300 hover:shadow-lg active:scale-95 focus:outline-none"
+            :data-active="dashboardStore.consultationStatus.isActive"
+          >
+            <div class="flex items-center gap-3">
+              <div class="icon-circle bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+              </div>
+              <div class="flex-1">
+                <p class="text-white/80 text-[10px] font-semibold uppercase tracking-wider">상담 상태</p>
+                <div class="flex items-baseline gap-1.5">
+                  <span class="text-3xl font-black text-white tracking-tight">
+                    {{ dashboardStore.consultationStatus.isActive ? 'ON' : 'OFF' }}
+                  </span>
+                </div>
+              </div>
             </div>
-            <div class="text-left">
-              <p class="font-bold text-sm leading-tight">
-                상담 {{ dashboardStore.consultationStatus.isActive ? 'ON' : 'OFF' }}
-              </p>
-              <p class="text-[10px] opacity-80 font-medium">
-                {{ formattedCallStatus }}
-              </p>
-            </div>
-          </div>
-        </button>
-      </div>
+          </button>
+        </div>
 
-      <!-- 우측: 대기 고객 수 -->
-      <div class="waiting-section text-right relative">
-        <div class="flex items-center justify-end gap-2.5">
-          <div class="p-2 bg-gray-50 rounded-full">
-            <svg class="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-            </svg>
-          </div>
-          <div class="relative">
-            <span
-              class="count-text text-2xl font-black text-primary-main tracking-tighter transition-all duration-300 inline-block"
-              :class="{ 'customer-count-pulse': isCountAnimating }"
-            >
-              {{ dashboardStore.waitingCustomers }}<small class="text-xs font-bold ml-0.5">명</small>
-            </span>
-            <Transition name="count-change">
-              <span
-                v-if="countChange !== 0"
-                class="count-indicator absolute -top-1.5 -right-6 text-[10px] font-black px-1.5 py-0.5 rounded-full"
-                :class="countChange > 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'"
-              >
-                {{ countChange > 0 ? '+' : '' }}{{ countChange }}
-              </span>
-            </Transition>
+        <!-- 대기 고객 수 -->
+        <div class="waiting-section">
+          <div class="waiting-card bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl p-4 shadow-md border border-primary-400">
+            <div class="flex items-center gap-3">
+              <div class="icon-circle bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                </svg>
+              </div>
+              <div class="flex-1">
+                <p class="text-white/80 text-[10px] font-semibold uppercase tracking-wider">대기 고객</p>
+                <div class="flex items-baseline gap-1.5 relative">
+                  <span
+                    class="count-text text-3xl font-black text-white tracking-tight transition-all duration-300"
+                    :class="{ 'customer-count-pulse': isCountAnimating }"
+                  >
+                    {{ dashboardStore.waitingCustomers }}
+                  </span>
+                  <span class="text-white/80 text-sm font-bold">명</span>
+                  
+                  <Transition name="count-change">
+                    <span
+                      v-if="countChange !== 0"
+                      class="count-indicator absolute -top-1 -right-6 text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-sm"
+                      :class="countChange > 0 ? 'bg-green-400 text-green-900' : 'bg-red-400 text-red-900'"
+                    >
+                      {{ countChange > 0 ? '+' : '' }}{{ countChange }}
+                    </span>
+                  </Transition>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-        <p class="text-[11px] font-bold text-gray-400 mt-0.5 uppercase tracking-widest">현재 대기 고객 수</p>
       </div>
     </div>
   </div>
@@ -390,9 +399,19 @@ onUnmounted(() => {
 
 @keyframes customerCountPulse {
   0% { transform: scale(1); }
-  25% { transform: scale(1.15); color: #2563eb; }
+  25% { transform: scale(1.15); }
   50% { transform: scale(1.1); }
   100% { transform: scale(1); }
+}
+
+/* 대기 고객 카드 스타일 */
+.waiting-card {
+  transition: all 0.3s ease;
+}
+
+.waiting-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 25px -5px rgba(31, 58, 140, 0.3), 0 10px 10px -5px rgba(31, 58, 140, 0.2);
 }
 
 /* 지표 증감 애니메이션 */

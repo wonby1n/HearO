@@ -34,13 +34,20 @@
               {{ getCategoryLabel(consultation.productCategory) }}
             </span>
           </div>
-          <div class="col-span-2 flex items-center text-sm">
+          <div class="col-span-2 flex items-center gap-2 text-sm">
             <button
               @click.stop="handleCustomerClick(consultation.customerId)"
               class="font-medium text-primary-700 hover:text-primary-900 hover:underline transition-all"
             >
               {{ consultation.customerName }}
             </button>
+            <span
+              v-if="consultation.terminationReason === 'PROFANITY_LIMIT' || consultation.terminationReason === 'AGGRESSION_LIMIT'"
+              class="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-bold rounded-full flex items-center gap-1"
+              title="폭언/공격성으로 인한 자동 종료"
+            >
+              ⚠️ 주의 요망
+            </span>
           </div>
           <div class="col-span-2 flex items-center text-sm text-gray-600">
             {{ formatPhoneNumber(consultation.customerPhone) }}
@@ -89,6 +96,69 @@
 
           <!-- 탭 컨텐츠 -->
           <div class="px-6 py-4">
+            <!-- 상담사 메모 탭 -->
+            <div v-if="activeTab[consultation.consultationId] === 'counselor-memo'">
+              <div class="bg-white rounded-lg border border-primary-200 p-6 shadow-sm">
+                <div v-if="editingMemo[consultation.consultationId]">
+                  <textarea
+                    v-model="memoText[consultation.consultationId]"
+                    class="w-full min-h-[150px] p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
+                    placeholder="상담사 메모를 입력하세요..."
+                  ></textarea>
+                  <div class="flex gap-2 mt-3">
+                    <button
+                      @click="saveMemo(consultation.consultationId)"
+                      class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium text-sm"
+                    >
+                      저장
+                    </button>
+                    <button
+                      @click="cancelEditMemo(consultation.consultationId)"
+                      class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm"
+                    >
+                      취소
+                    </button>
+                  </div>
+                </div>
+                <div v-else>
+                  <div v-if="consultation.counselorMemo" class="mb-3">
+                    <p class="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed bg-gray-50 p-4 rounded-lg">{{ consultation.counselorMemo }}</p>
+                  </div>
+                  <div v-else class="text-sm text-gray-500 text-center py-8 bg-gray-50 rounded-lg mb-3">
+                    작성된 메모가 없습니다.
+                  </div>
+                  <button
+                    @click="startEditMemo(consultation.consultationId, consultation.counselorMemo)"
+                    class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium text-sm"
+                  >
+                    {{ consultation.counselorMemo ? '메모 수정' : '메모 작성' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 녹음 파일 탭 -->
+            <div v-if="activeTab[consultation.consultationId] === 'recording'">
+              <div class="bg-white rounded-lg border border-primary-200 p-6 shadow-sm">
+                <div v-if="consultation.voiceRecording">
+                  <audio
+                    controls
+                    class="w-full"
+                    :src="`https://i14e106.p.ssafy.io${consultation.voiceRecording.fileUrl}`"
+                  >
+                    브라우저가 오디오 재생을 지원하지 않습니다.
+                  </audio>
+                  <div class="mt-2 flex items-center justify-between text-xs text-gray-500">
+                    <span>파일 크기: {{ formatFileSize(consultation.voiceRecording.fileSize) }}</span>
+                    <span>길이: {{ formatDuration(consultation.voiceRecording.durationSeconds) }}</span>
+                  </div>
+                </div>
+                <div v-else class="text-sm text-gray-500 text-center py-8 bg-gray-50 rounded-lg">
+                  녹음 파일이 없습니다.
+                </div>
+              </div>
+            </div>
+
             <!-- AI 요약 탭 -->
             <div v-if="activeTab[consultation.consultationId] === 'ai-summary'">
               <div class="bg-white rounded-lg border border-primary-200 p-4 shadow-sm">
@@ -250,8 +320,12 @@
 
 <script setup>
 import { ref, h } from 'vue'
+import { useRouter } from 'vue-router'
+import axios from 'axios'
 
-defineProps({
+const router = useRouter()
+
+const props = defineProps({
   consultations: {
     type: Array,
     required: true
@@ -262,6 +336,8 @@ const emit = defineEmits(['customer-click'])
 
 const expandedId = ref(null)
 const activeTab = ref({})
+const editingMemo = ref({}) // consultationId -> boolean
+const memoText = ref({}) // consultationId -> string
 
 // 카테고리 영문 → 한글 변환 함수
 const getCategoryLabel = (category) => {
@@ -330,14 +406,21 @@ const tabs = [
     id: 'counselor-memo',
     label: '상담사 메모',
     icon: () => h('svg', { class: 'w-4 h-4', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
-      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' })
+      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z' })
     ])
   },
   {
     id: 'result',
-    label: '상담 결과',
+    label: '상담 통계',
     icon: () => h('svg', { class: 'w-4 h-4', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
-      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' })
+      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' })
+    ])
+  },
+  {
+    id: 'recording',
+    label: '녹음 파일',
+    icon: () => h('svg', { class: 'w-4 h-4', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
+      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z' })
     ])
   }
 ]
@@ -347,11 +430,48 @@ const toggleExpand = (id) => {
     expandedId.value = null
   } else {
     expandedId.value = id
-    // 탭이 없으면 첫 번째 탭(AI 요약)으로 초기화
     if (!activeTab.value[id]) {
       activeTab.value[id] = 'ai-summary'
     }
   }
+}
+
+// 메모 편집 시작
+const startEditMemo = (consultationId, currentMemo) => {
+  editingMemo.value[consultationId] = true
+  memoText.value[consultationId] = currentMemo || ''
+}
+
+// 메모 저장
+const saveMemo = async (consultationId) => {
+  try {
+    const memo = memoText.value[consultationId]
+    await axios.patch(`/api/v1/consultations/${consultationId}/memo`, {
+      counselorMemo: memo
+    }, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('accessToken')}`
+      }
+    })
+    
+    // 성공 시 해당 consultation 객체 업데이트
+    const consultation = props.consultations.find(c => c.consultationId === consultationId)
+    if (consultation) {
+      consultation.counselorMemo = memo
+    }
+    
+    editingMemo.value[consultationId] = false
+    console.log('✅ 상담사 메모 저장 성공')
+  } catch (error) {
+    console.error('❌ 상담사 메모 저장 실패:', error)
+    alert('메모 저장에 실패했습니다.')
+  }
+}
+
+// 메모 편집 취소
+const cancelEditMemo = (consultationId) => {
+  editingMemo.value[consultationId] = false
+  memoText.value[consultationId] = ''
 }
 
 const truncateText = (text, maxLength) => {

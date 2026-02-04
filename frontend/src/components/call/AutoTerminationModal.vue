@@ -92,13 +92,13 @@ const handleConfirm = () => {
 
 .modal-container {
   background: white;
-  border-radius: 16px;
-  padding: 32px;
-  max-width: 560px;
+  border-radius: 20px;
+  padding: 28px;
+  max-width: 520px;
   width: 100%;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   animation: modalSlideUp 0.3s ease-out;
-  max-height: 85vh;
+  max-height: 80vh;
   overflow-y: auto;
 }
 
@@ -157,16 +157,17 @@ const handleConfirm = () => {
 }
 
 .confirm-button {
-  padding: 12px 32px;
+  padding: 14px 36px;
   background: #dc2626;
   color: white;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.15s ease;
-  min-width: 120px;
+  transition: all 0.2s ease;
+  min-width: 140px;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
 }
 
 .confirm-button:hover {
