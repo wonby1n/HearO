@@ -110,51 +110,59 @@ export const CheckCircleIcon = {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  min-width: 280px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1);
+  min-width: 300px;
   max-width: 400px;
+  backdrop-filter: blur(8px);
 }
 
-/* 폭언 감지 - 빨간색 + 점멸 애니메이션 */
+/* 폭언 감지 - 빨간색 그라데이션 + 진동 애니메이션 */
 .notification-profanity {
-  background-color: #ff4444;
+  background: linear-gradient(135deg, #ff3b3b 0%, #ff5252 100%);
   color: white;
-  animation: blink 1s ease-in-out infinite;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  animation: profanity-pulse 1.5s ease-in-out infinite;
 }
 
-@keyframes blink {
+@keyframes profanity-pulse {
   0%, 100% {
-    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 8px 24px rgba(255, 59, 59, 0.4), 0 2px 8px rgba(255, 59, 59, 0.2);
   }
   50% {
-    opacity: 0.7;
+    transform: scale(1.02);
+    box-shadow: 0 12px 32px rgba(255, 59, 59, 0.5), 0 4px 12px rgba(255, 59, 59, 0.3);
   }
 }
 
-/* 비속어 감지 - 파란색 */
+/* 비속어 감지 - 파란색 그라데이션 */
 .notification-abuse {
-  background-color: #4a5eb8;
+  background: linear-gradient(135deg, #4a5eb8 0%, #5d6bc0 100%);
   color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-/* 경고 - 주황색 */
+/* 경고 - 주황색 그라데이션 */
 .notification-warning {
-  background-color: #ff9800;
+  background: linear-gradient(135deg, #ff9800 0%, #ffa726 100%);
   color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-/* 정보 - 회색 */
+/* 정보 - 블루 그라데이션 */
 .notification-info {
-  background-color: #607d8b;
+  background: linear-gradient(135deg, #2196f3 0%, #42a5f5 100%);
   color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-/* 성공 - 녹색 */
+/* 성공 - 녹색 그라데이션 */
 .notification-success {
-  background-color: #4caf50;
+  background: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%);
   color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .notification-icon {
