@@ -49,7 +49,10 @@
         <div class="lg:col-span-6">
           <STTChatPanel
             :messages="sttMessages"
+            :is-call-active="isCallActive"
+            :counselor-name="counselorName"
             @toggle-profanity="handleToggleProfanity"
+            @counselor-message="handleCounselorMessage"
           />
         </div>
 
@@ -95,26 +98,26 @@ import { startConsultation } from '@/services/consultationService'
 import { useNotificationStore } from '@/stores/notification'
 import { useCallStore } from '@/stores/call'
 import { useDashboardStore } from '@/stores/dashboard'
+import { useAuthStore } from '@/stores/auth'
 import axios from 'axios'
 import { useAudioRecorder } from '@/composables/useAudioRecorder'
 
-// 로컬 AI 서버 엔드포인트 (Vite env로 덮어쓸 수 있음) 
+// 로컬 AI 서버 엔드포인트 (Vite env로 덮어쓸 수 있음)
 const TOXIC_API_URL = import.meta.env.VITE_TOXIC_API_URL || 'http://127.0.0.1:8000/unsmile'
-const WHISPER_API_URL = import.meta.env.VITE_WHISPER_API_URL || 'http://127.0.0.1:8000/stt'
 
-// 상담원: 고객 오디오 딜레이(기본 3초) 
+// 상담원: 고객 오디오 딜레이(기본 3초)
 const CUSTOMER_AUDIO_DELAY_SEC = 3
 const MUTE_POSTPAD_MS = 600
-
-// 상담원 Whisper STT: 무음 감지(보수적으로 짧게) 
-const VAD_SILENCE_MS = Number(import.meta.env.VITE_COUNSELOR_VAD_SILENCE_MS || 650)
-const VAD_MIN_UTTER_MS = Number(import.meta.env.VITE_COUNSELOR_VAD_MIN_UTTER_MS || 800)
 
 const router = useRouter()
 const notificationStore = useNotificationStore()
 const callStore = useCallStore()
 const dashboardStore = useDashboardStore()
+const authStore = useAuthStore()
 const { startRecording, addTrack: addRecordingTrack, stopRecording, downloadRecording, cleanup: cleanupRecorder } = useAudioRecorder()
+
+// 상담원 이름
+const counselorName = computed(() => authStore.getUser?.name || '상담원')
 
 // 음성 녹음 종료 및 파일 다운로드 (공통 헬퍼 — 수동·자동종료·고객종료 공유)
 const stopAndSaveRecording = async () => {
@@ -134,16 +137,6 @@ let currentMicStream = null // getUserMedia stream 참조 — 종료 시 트랙 
 let audioCtx = null
 const pipelines = new Map() // participantId -> { gain, delay, blocked, fallbackEl, analyser }
 const audioContainer = ref(null)
-
-// 상담원 Whisper VAD 상태
-let vadCtx = null
-let vadStream = null
-let vadSource = null
-let vadProcessor = null
-let vadBuffers = []
-let vadSpeeching = false
-let vadLastVoiceAt = 0
-let vadStartAt = 0
 
 // 자동 종료 모달
 const showAutoTerminationModal = ref(false)
@@ -520,6 +513,17 @@ const handleToggleProfanity = (index) => {
   sttMessages.value[index].showOriginal = !sttMessages.value[index].showOriginal
 }
 
+// 상담사 메시지 입력 핸들러
+const handleCounselorMessage = (message) => {
+  addSttMessage({
+    speaker: 'agent',
+    text: message,
+    maskedText: '',
+    hasProfanity: false,
+    confidence: 1.0
+  })
+}
+
 /**
  * STT 메시지 추가 (실제 STT/WebSocket 연동 시 이 함수 호출)
  * @param {Object} message - STT 메시지 객체
@@ -701,161 +705,6 @@ const maskText = (text) => {
   return text.replace(/[\S]/g, '•')
 }
 
-// ---- Whisper STT (상담원 로컬) ----
-const floatTo16BitPCM = (float32) => {
-  const out = new Int16Array(float32.length)
-  for (let i = 0; i < float32.length; i++) {
-    let s = Math.max(-1, Math.min(1, float32[i]))
-    out[i] = s < 0 ? s * 0x8000 : s * 0x7fff
-  }
-  return out
-}
-
-const encodeWav16kMono = async (float32, inputSampleRate) => {
-  // 간단한 linear resample → 16k
-  const targetRate = 16000
-  const ratio = inputSampleRate / targetRate
-  const targetLength = Math.floor(float32.length / ratio)
-  const resampled = new Float32Array(targetLength)
-  for (let i = 0; i < targetLength; i++) {
-    const idx = i * ratio
-    const i0 = Math.floor(idx)
-    const i1 = Math.min(float32.length - 1, i0 + 1)
-    const t = idx - i0
-    resampled[i] = float32[i0] * (1 - t) + float32[i1] * t
-  }
-
-  const pcm16 = floatTo16BitPCM(resampled)
-  const headerSize = 44
-  const buffer = new ArrayBuffer(headerSize + pcm16.byteLength)
-  const view = new DataView(buffer)
-  const writeString = (offset, str) => {
-    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i))
-  }
-
-  writeString(0, 'RIFF')
-  view.setUint32(4, 36 + pcm16.byteLength, true)
-  writeString(8, 'WAVE')
-  writeString(12, 'fmt ')
-  view.setUint32(16, 16, true) // PCM
-  view.setUint16(20, 1, true) // PCM
-  view.setUint16(22, 1, true) // mono
-  view.setUint32(24, targetRate, true)
-  view.setUint32(28, targetRate * 2, true) // byte rate
-  view.setUint16(32, 2, true) // block align
-  view.setUint16(34, 16, true) // bits
-  writeString(36, 'data')
-  view.setUint32(40, pcm16.byteLength, true)
-  new Uint8Array(buffer, headerSize).set(new Uint8Array(pcm16.buffer))
-  return new Blob([buffer], { type: 'audio/wav' })
-}
-
-const sendToWhisper = async (wavBlob) => {
-  try {
-    const form = new FormData()
-    form.append('file', wavBlob, 'audio.wav')
-    const res = await fetch(WHISPER_API_URL, {
-      method: 'POST',
-      body: form
-    })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const data = await res.json().catch(() => null)
-
-    // 서버가 {text:"..."} 또는 {transcript:"..."} 등을 반환한다고 가정
-    const text = data?.text ?? data?.transcript ?? data?.result ?? ''
-    return String(text || '').trim()
-  } catch (e) {
-    console.warn('[CounselorCallView] Whisper STT 실패:', e)
-    return ''
-  }
-}
-
-const startCounselorWhisperVad = async () => {
-  try {
-    if (vadCtx) return
-    vadCtx = new (window.AudioContext || window.webkitAudioContext)()
-    vadStream = await navigator.mediaDevices.getUserMedia({ audio: true })
-    vadSource = vadCtx.createMediaStreamSource(vadStream)
-    // ScriptProcessor는 deprecated지만 호환성 좋음
-    vadProcessor = vadCtx.createScriptProcessor(2048, 1, 1)
-
-    vadProcessor.onaudioprocess = async (e) => {
-      const input = e.inputBuffer.getChannelData(0)
-
-      // RMS 계산
-      let sum = 0
-      for (let i = 0; i < input.length; i++) sum += input[i] * input[i]
-      const rms = Math.sqrt(sum / input.length)
-      const now = performance.now()
-
-      const isVoice = rms > 0.02
-      if (isVoice) {
-        if (!vadSpeeching) {
-          vadSpeeching = true
-          vadStartAt = now
-          vadBuffers = []
-        }
-        vadLastVoiceAt = now
-        vadBuffers.push(new Float32Array(input))
-      } else if (vadSpeeching) {
-        // 말하던 중 무음이 VAD_SILENCE_MS 이상이면 한 구간 종료
-        if (now - vadLastVoiceAt >= VAD_SILENCE_MS) {
-          const dur = now - vadStartAt
-          vadSpeeching = false
-
-          if (dur >= VAD_MIN_UTTER_MS && vadBuffers.length) {
-            const total = vadBuffers.reduce((acc, a) => acc + a.length, 0)
-            const merged = new Float32Array(total)
-            let off = 0
-            for (const b of vadBuffers) {
-              merged.set(b, off)
-              off += b.length
-            }
-            vadBuffers = []
-
-            const wav = await encodeWav16kMono(merged, vadCtx.sampleRate)
-            const text = await sendToWhisper(wav)
-            if (text) {
-              addSttMessage({
-                speaker: 'agent',
-                text,
-                maskedText: '',
-                hasProfanity: false,
-                confidence: 0.9
-              })
-            }
-          } else {
-            vadBuffers = []
-          }
-        }
-      }
-    }
-
-    vadSource.connect(vadProcessor)
-    vadProcessor.connect(vadCtx.destination) // 처리 구동용(출력 음량은 거의 무시됨)
-    console.log('[CounselorCallView] 상담원 Whisper VAD 시작')
-  } catch (e) {
-    console.warn('[CounselorCallView] Whisper VAD 시작 실패:', e)
-  }
-}
-
-const stopCounselorWhisperVad = async () => {
-  try {
-    vadProcessor?.disconnect?.()
-    vadSource?.disconnect?.()
-    vadStream?.getTracks?.().forEach(t => t.stop())
-    await vadCtx?.close?.()
-  } catch {
-    // ignore
-  } finally {
-    vadCtx = null
-    vadStream = null
-    vadSource = null
-    vadProcessor = null
-    vadBuffers = []
-    vadSpeeching = false
-  }
-}
 
 onBeforeUnmount(() => {
   if (memoSaveTimeout) clearTimeout(memoSaveTimeout);
@@ -1011,9 +860,6 @@ onMounted(() => {
           participantId: participant?.identity || null
         })
       })
-
-      // 4) 상담원 STT(Whisper) 시작
-      await startCounselorWhisperVad()
     })()
 
     // 고객이 통화를 종료했을 때 이벤트 리스너 추가
@@ -1059,9 +905,6 @@ onBeforeUnmount(() => {
   // 매칭 데이터 정리 (대시보드로 돌아갈 때)
   dashboardStore.clearMatchedData()
   console.log('[CounselorCallView] 매칭 데이터 정리 완료')
-
-  // Whisper/VAD 정리
-  stopCounselorWhisperVad()
 
   // 음성 녹음 정리
   cleanupRecorder()

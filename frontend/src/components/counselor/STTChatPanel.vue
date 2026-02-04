@@ -1,7 +1,7 @@
 <template>
-  <div class="flex flex-col h-full bg-white rounded-lg shadow-sm border border-gray-200 relative">
+  <div class="flex flex-col h-full bg-white rounded-lg shadow-sm border border-gray-200">
     <!-- 헤더 -->
-    <div class="px-6 py-4 border-b border-gray-200">
+    <div class="flex-shrink-0 px-6 py-4 border-b border-gray-200">
       <h3 class="text-lg font-semibold text-gray-900">실시간 자막</h3>
     </div>
 
@@ -14,36 +14,30 @@
       </TransitionGroup>
     </div>
 
-    <!-- 자막 영역 (채팅 형태) -->
-    <div ref="chatContainer" class="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin">
-
+    <!-- 자막 영역 (채팅 형태) - 스크롤 영역 -->
+    <div ref="chatContainer" class="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin relative min-h-0">
       <!-- 메시지 목록 -->
       <div v-for="(message, index) in messages" :key="index" :class="[
-        'flex',
-        message.speaker === 'agent' ? 'justify-end' : 'justify-start'
+        'flex flex-col',
+        message.speaker === 'agent' ? 'items-end' : 'items-start'
       ]">
-        <div :class="[
-          'max-w-[70%] rounded-lg px-4 py-3 shadow-sm',
-          message.speaker === 'agent'
-            ? 'bg-primary-600 text-white'
-            : 'bg-gray-100 text-gray-900'
-        ]">
-          <!-- 화자 라벨 + 시간 -->
-          <div class="flex items-center justify-between gap-2 mb-1">
-            <span :class="[
-              'text-xs font-medium',
-              message.speaker === 'agent' ? 'text-white opacity-90' : 'text-gray-600'
-            ]">
-              {{ getSpeakerLabel(message.speaker) }}
-            </span>
-            <span :class="[
-              'text-xs',
-              message.speaker === 'agent' ? 'text-white opacity-75' : 'text-gray-500'
-            ]">
-              {{ message.timestamp }}
-            </span>
-          </div>
+        <!-- 이름 + 시간 (말풍선 위) -->
+        <div class="flex items-center gap-2 mb-1 px-1">
+          <span class="text-xs font-medium text-gray-600">
+            {{ getSpeakerLabel(message.speaker) }}
+          </span>
+          <span class="text-xs text-gray-400">
+            {{ message.timestamp }}
+          </span>
+        </div>
 
+        <!-- 말풍선 -->
+        <div :class="[
+          'max-w-[70%] rounded-2xl px-4 py-3 shadow-sm',
+          message.speaker === 'agent'
+            ? 'bg-primary-600 text-white rounded-tr-sm'
+            : 'bg-gray-100 text-gray-900 rounded-tl-sm'
+        ]">
           <!-- 메시지 내용 -->
           <div class="text-sm leading-relaxed">
             <!-- 욕설이 있는 경우 블러 처리 -->
@@ -90,20 +84,40 @@
           <p class="text-sm">대화 내용이 여기에 표시됩니다</p>
         </div>
       </div>
+
+      <!-- 비속어 카운터 (중앙 하단) -->
+      <div v-if="notificationStore.profanityCount >= 1" class="profanity-counter">
+        <span :class="['text-red-600 font-bold text-lg', { 'counter-pulse': isCounterAnimating }]">
+          비속어 총 {{ notificationStore.profanityCount }}회 감지
+        </span>
+        <br>
+        <span v-if="notificationStore.profanityCount >= 2" class="text-red-600 font-bold text-sm">
+          3회가 감지되면 종료됩니다
+        </span>
+        <span v-else class="text-orange-600 font-semibold text-sm">
+          비속어 사용을 자제해주세요
+        </span>
+      </div>
     </div>
 
-    <!-- 비속어 카운터 (중앙 하단) -->
-    <div v-if="notificationStore.profanityCount >= 1" class="profanity-counter">
-      <span :class="['text-red-600 font-bold text-lg', { 'counter-pulse': isCounterAnimating }]">
-        비속어 총 {{ notificationStore.profanityCount }}회 감지
-      </span>
-      <br>
-      <span v-if="notificationStore.profanityCount >= 2" class="text-red-600 font-bold text-sm">
-        3회가 감지되면 종료됩니다
-      </span>
-      <span v-else class="text-orange-600 font-semibold text-sm">
-        비속어 사용을 자제해주세요
-      </span>
+    <!-- 상담사 입력창 -->
+    <div class="flex-shrink-0 px-4 py-3 border-t border-gray-200 bg-gray-50">
+      <form @submit.prevent="handleSubmit" class="flex gap-2">
+        <input
+          v-model="counselorInput"
+          type="text"
+          placeholder="상담사 메시지 입력..."
+          class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          :disabled="!isCallActive"
+        />
+        <button
+          type="submit"
+          :disabled="!counselorInput.trim() || !isCallActive"
+          class="px-4 py-2 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+        >
+          전송
+        </button>
+      </form>
     </div>
   </div>
 </template>
@@ -147,22 +161,42 @@ const props = defineProps({
   messages: {
     type: Array,
     default: () => []
+  },
+  isCallActive: {
+    type: Boolean,
+    default: true
+  },
+  counselorName: {
+    type: String,
+    default: '상담원'
   }
 })
 
-const emit = defineEmits(['toggle-profanity'])
+const emit = defineEmits(['toggle-profanity', 'counselor-message'])
 
 const chatContainer = ref(null)
 const isUserScrolling = ref(false) // 사용자가 스크롤 중인지 여부
+const counselorInput = ref('') // 상담사 입력 텍스트
 
 // 화자 라벨 반환
 const getSpeakerLabel = (speaker) => {
+  if (speaker === 'agent') {
+    return props.counselorName
+  }
   const labels = {
-    agent: '상담원',
     customer: '고객',
     ai: 'AI 제안'
   }
   return labels[speaker] || speaker
+}
+
+// 상담사 메시지 전송
+const handleSubmit = () => {
+  const message = counselorInput.value.trim()
+  if (!message || !props.isCallActive) return
+
+  emit('counselor-message', message)
+  counselorInput.value = ''
 }
 
 // 맨 아래에 있는지 확인 (여유 50px)
