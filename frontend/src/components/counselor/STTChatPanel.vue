@@ -84,7 +84,7 @@
         3회가 감지되면 종료됩니다
       </span>
       <span v-else class="text-orange-600 font-semibold text-sm">
-        비속어 사용을 자제해주세요
+        안심하고 상담을 이어나가세요!
       </span>
     </div>
 

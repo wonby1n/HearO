@@ -27,8 +27,11 @@
           @click="toggleExpand(consultation.consultationId)"
         >
           <div class="col-span-2 flex items-center">
-            <span class="px-3 py-1.5 bg-primary-100 text-primary-700 rounded-lg text-sm font-medium">
-              {{ consultation.productCategory || '미분류' }}
+            <span 
+              :class="getCategoryBadgeClass(consultation.productCategory)"
+              class="px-3 py-1.5 rounded-lg text-sm font-semibold"
+            >
+              {{ getCategoryLabel(consultation.productCategory) }}
             </span>
           </div>
           <div class="col-span-2 flex items-center text-sm">
@@ -163,8 +166,11 @@
                   <h5 class="text-sm font-semibold text-gray-800 mb-3">상담 통계</h5>
                   <div class="flex justify-between items-center text-sm">
                     <span class="text-gray-600">제품 카테고리:</span>
-                    <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
-                      {{ consultation.productCategory || '미분류' }}
+                    <span 
+                      :class="getCategoryBadgeClass(consultation.productCategory)"
+                      class="px-3 py-1 rounded-full text-xs font-semibold"
+                    >
+                      {{ getCategoryLabel(consultation.productCategory) }}
                     </span>
                   </div>
                   <div class="flex justify-between items-center text-sm">
@@ -256,6 +262,42 @@ const emit = defineEmits(['customer-click'])
 
 const expandedId = ref(null)
 const activeTab = ref({})
+
+// 카테고리 영문 → 한글 변환 함수
+const getCategoryLabel = (category) => {
+  const categoryMap = {
+    'REFRIGERATOR': '냉장고',
+    'WASHING_MACHINE': '세탁기',
+    'AIR_CONDITIONER': '에어컨',
+    'TV': 'TV',
+    'OTHER': '기타'
+  }
+  return categoryMap[category] || category || '미분류'
+}
+
+// 카테고리 아이콘 반환 함수
+const getCategoryIcon = (category) => {
+  const iconMap = {
+    'REFRIGERATOR': '🧊',
+    'WASHING_MACHINE': '🌀',
+    'AIR_CONDITIONER': '❄️',
+    'TV': '📺',
+    'OTHER': '📦'
+  }
+  return iconMap[category] || '🏷️'
+}
+
+// 카테고리별 배지 색상 클래스 반환 함수
+const getCategoryBadgeClass = (category) => {
+  const classMap = {
+    'REFRIGERATOR': 'bg-blue-100 text-blue-700',
+    'WASHING_MACHINE': 'bg-purple-100 text-purple-700',
+    'AIR_CONDITIONER': 'bg-cyan-100 text-cyan-700',
+    'TV': 'bg-green-100 text-green-700',
+    'OTHER': 'bg-gray-100 text-gray-700'
+  }
+  return classMap[category] || 'bg-gray-100 text-gray-700'
+}
 
 const handleCustomerClick = (customerId) => {
   emit('customer-click', customerId)

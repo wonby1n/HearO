@@ -4,9 +4,25 @@
       <!-- 헤더 -->
       <div class="bg-white border-b border-gray-200 px-8 py-6">
         <div class="flex items-center justify-between mb-6">
-          <div>
-            <h1 class="text-2xl font-bold text-primary-600">Call History</h1>
-            <p class="text-sm text-gray-500 mt-1">상담 이력을 확인하고 관리하세요</p>
+          <div class="flex items-center gap-4">
+            <div>
+              <h1 class="text-2xl font-bold text-primary-600">Call History</h1>
+              <p class="text-sm text-gray-500 mt-1">상담 이력을 확인하고 관리하세요</p>
+            </div>
+            <!-- 상담 상태 배지 -->
+            <div
+              class="status-badge px-4 py-2 rounded-lg shadow-sm transition-all duration-300"
+              :data-active="dashboardStore.consultationStatus.isActive"
+            >
+              <div class="flex items-center text-white gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+                <span class="text-xs font-bold">
+                  상담 {{ dashboardStore.consultationStatus.isActive ? 'ON' : 'OFF' }}
+                </span>
+              </div>
+            </div>
           </div>
           <div class="flex items-center gap-3">
             <div class="bg-primary-50 px-4 py-2 rounded-lg">
@@ -31,31 +47,39 @@
             </svg>
           </div>
 
-          <!-- 카테고리 필터 -->
-          <select
-            v-model="categoryFilter"
-            class="px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all font-medium text-gray-700"
-            @change="handleFilterChange"
-          >
-            <option value="">전체 카테고리</option>
-            <option value="냉장고">냉장고</option>
-            <option value="세탁기">세탁기</option>
-            <option value="에어컨">에어컨</option>
-            <option value="TV">TV</option>
-            <option value="기타">기타</option>
-          </select>
+          <!-- 카테고리 필터 (Pill 버튼) -->
+          <div class="flex items-center gap-2">
+            <button
+              v-for="category in categories"
+              :key="category.value"
+              @click="categoryFilter = category.value"
+              :class="[
+                'category-pill px-4 py-2 rounded-full text-sm font-semibold transition-all duration-200',
+                categoryFilter === category.value
+                  ? category.activeClass
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              ]"
+            >
+              {{ category.label }}
+            </button>
+          </div>
 
-          <!-- 정렬 버튼 -->
-          <select
-            v-model="sortOrder"
-            class="px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all font-medium text-gray-700"
-            @change="handleSortChange"
-          >
-            <option value="latest">최신순</option>
-            <option value="oldest">오래된 순</option>
-            <option value="name">이름순</option>
-            <option value="duration">통화시간 순</option>
-          </select>
+          <!-- 정렬 필터 -->
+          <div class="relative">
+            <select
+              v-model="sortOrder"
+              class="sort-select appearance-none px-5 py-2.5 pr-10 bg-white border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all font-semibold text-sm text-gray-700 cursor-pointer hover:border-primary-300 shadow-sm"
+              @change="handleSortChange"
+            >
+              <option value="latest">최신순</option>
+              <option value="oldest">오래된 순</option>
+              <option value="name">이름순</option>
+              <option value="duration">통화시간순</option>
+            </select>
+            <svg class="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </div>
         </div>
       </div>
 
@@ -146,6 +170,39 @@ import { ref, computed, onMounted } from 'vue'
 import DashboardLayout from '@/components/layout/DashboardLayout.vue'
 import CallHistoryTable from '@/components/counselor/CallHistoryTable.vue'
 import { getMyConsultations, getConsultationsByCustomer } from '@/services/consultationService'
+import { useDashboardStore } from '@/stores/dashboard'
+
+const dashboardStore = useDashboardStore()
+
+// 카테고리 정의 (아이콘 포함)
+const categories = [
+  { value: '', label: '전체', icon: '🏷️', activeClass: 'bg-primary-600 text-white shadow-md' },
+  { value: 'REFRIGERATOR', label: '냉장고', icon: '🧊', activeClass: 'bg-blue-500 text-white shadow-md' },
+  { value: 'WASHING_MACHINE', label: '세탁기', icon: '🌀', activeClass: 'bg-purple-500 text-white shadow-md' },
+  { value: 'AIR_CONDITIONER', label: '에어컨', icon: '❄️', activeClass: 'bg-cyan-500 text-white shadow-md' },
+  { value: 'TV', label: 'TV', icon: '📺', activeClass: 'bg-green-500 text-white shadow-md' },
+  { value: 'OTHER', label: '기타', icon: '📦', activeClass: 'bg-gray-500 text-white shadow-md' }
+]
+
+// 카테고리 영문 → 한글 변환 함수
+const getCategoryLabel = (category) => {
+  const categoryMap = {
+    'REFRIGERATOR': '냉장고',
+    'WASHING_MACHINE': '세탁기',
+    'AIR_CONDITIONER': '에어컨',
+    'TV': 'TV',
+    'OTHER': '기타'
+  }
+  return categoryMap[category] || category || '미분류'
+}
+
+// 정렬 옵션 정의
+const sortOptions = [
+  { value: 'latest', label: '최신순' },
+  { value: 'oldest', label: '오래된 순' },
+  { value: 'name', label: '이름순' },
+  { value: 'duration', label: '통화시간순' }
+]
 
 const searchQuery = ref('')
 const categoryFilter = ref('')
@@ -279,3 +336,44 @@ onMounted(() => {
   loadConsultations()
 })
 </script>
+
+<style scoped>
+/* 상담 상태 배지 스타일 */
+.status-badge {
+  background-color: #6b7280; /* gray-500 - OFF 상태 */
+}
+
+.status-badge[data-active="true"] {
+  background-color: #ef4444; /* red-500 - ON 상태 */
+  animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+/* 카테고리 필터 pill 버튼 스타일 */
+.category-pill {
+  cursor: pointer;
+  user-select: none;
+}
+
+.category-pill:active {
+  transform: scale(0.95);
+}
+
+/* 정렬 필터 select 스타일 */
+.sort-select {
+  min-width: 150px;
+}
+
+.sort-select:hover {
+  background-color: #fafafa;
+}
+
+.sort-select:focus {
+  outline: none;
+}
+</style>
