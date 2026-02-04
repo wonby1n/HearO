@@ -3,7 +3,7 @@ import SockJS from 'sockjs-client'
 import { Client } from '@stomp/stompjs'
 
 export function useMatchingNotification(options = {}) {
-  const { customerId, counselorId, onMatched } = options
+  const { customerId, counselorId, onMatched, onRankUpdate } = options
 
   const client = ref(null)
   const isConnected = ref(false)
@@ -39,12 +39,27 @@ export function useMatchingNotification(options = {}) {
                 return
               }
 
+              // 자신의 customerId와 일치하는지 검증
+              const myCustomerId = String(customerId)
+              const matchedCustomerId = String(data.customerId)
+              if (myCustomerId !== matchedCustomerId) {
+                console.warn('[STOMP] 다른 고객의 매칭 메시지 무시:', {
+                  myCustomerId,
+                  matchedCustomerId
+                })
+                return
+              }
+
               console.log('[STOMP] 매칭 완료:', data)
               isMatched.value = true
               matchData.value = data
               onMatched?.(data)
+            } else if (data.status === 'WAITING' && data.rank !== undefined) {
+              // 대기 순위 업데이트
+              console.log('[STOMP] 순위 업데이트:', data.rank)
+              onRankUpdate?.(data.rank)
             } else {
-              console.log('[STOMP] 매칭 상태:', data.status)
+              console.log('[STOMP] 기타 상태:', data.status, data)
             }
           })
 

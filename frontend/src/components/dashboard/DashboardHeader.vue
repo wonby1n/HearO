@@ -121,6 +121,7 @@ let countChangeTimer = null
 let countAnimationTimer = null
 let clockInterval = null
 let heartbeatInterval = null
+let queueStatsInterval = null
 let isRequestPending = false
 
 // --- 포맷팅 ---
@@ -227,6 +228,9 @@ const updateCounselorStatus = async (status) => {
 
 
 
+// 롤백 중 watch 재실행 방지 플래그
+let isRollingBack = false
+
 const toggleConsultationStatus = () => {
   const newStatus = !dashboardStore.consultationStatus.isActive
   dashboardStore.consultationStatus.isActive = newStatus
@@ -236,6 +240,12 @@ const toggleConsultationStatus = () => {
 watch(
   () => dashboardStore.consultationStatus.isActive,
   async (isActive, oldValue) => {
+    // 롤백 중이면 무시 (무한 루프 방지)
+    if (isRollingBack) {
+      isRollingBack = false
+      return
+    }
+
     // 초기 로드 시 실행 방지 (undefined → false 변경 시 무시)
     if (oldValue === undefined && !isActive) {
       return
@@ -248,6 +258,7 @@ watch(
 
     if (!statusUpdateSuccess) {
       console.error('[DashboardHeader] Status 변경 실패, 원래 상태로 롤백')
+      isRollingBack = true
       dashboardStore.consultationStatus.isActive = !isActive
       return
     }
@@ -303,6 +314,13 @@ onMounted(() => {
   // Visibility API: 브라우저 throttling 대응
   document.addEventListener('visibilitychange', handleVisibilityChange)
 
+  // 대기열 통계 조회 (초기 로드)
+  dashboardStore.fetchQueueStats()
+  // 5초마다 대기열 통계 갱신
+  queueStatsInterval = setInterval(() => {
+    dashboardStore.fetchQueueStats()
+  }, 5000)
+
   // 상담 ON 상태면 하트비트 및 매칭 알림 재시작
   if (dashboardStore.consultationStatus.isActive) {
     startHeartbeat()
@@ -320,6 +338,7 @@ onUnmounted(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload)
   document.removeEventListener('visibilitychange', handleVisibilityChange)
   if (clockInterval) clearInterval(clockInterval)
+  if (queueStatsInterval) clearInterval(queueStatsInterval)
   stopHeartbeat()
   if (countChangeTimer) clearTimeout(countChangeTimer)
   if (countAnimationTimer) clearTimeout(countAnimationTimer)

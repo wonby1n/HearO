@@ -256,7 +256,7 @@ const handleSubmit = async () => {
   padding: 16px;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
-  font-size: 14px;
+  font-size: 16px; /* 16px 미만이면 모바일에서 자동 확대됨 */
   color: #1f2937;
   resize: none;
   outline: none;

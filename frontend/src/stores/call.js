@@ -6,6 +6,7 @@ export const useCallStore = defineStore('call', () => {
   // 현재 통화 정보
   const currentCall = ref({
     id: null,
+    consultationId: null, // 상담 ID (POST /api/v1/consultations 응답)
     registrationId: null, // 접수 ID (POST /api/v1/registrations 응답)
     customerId: null,
     roomToken: null,
@@ -90,6 +91,7 @@ export const useCallStore = defineStore('call', () => {
   const resetCall = () => {
     currentCall.value = {
       id: null,
+      consultationId: null,
       registrationId: null,
       customerId: null,
       roomToken: null,
@@ -104,6 +106,12 @@ export const useCallStore = defineStore('call', () => {
     audioTrack.value = null
     connectionError.value = null
     autoTerminationTriggered.value = false
+  }
+
+  // consultationId 설정 (상담원으로부터 수신 시)
+  const setConsultationId = (id) => {
+    currentCall.value.consultationId = id
+    console.log('[CallStore] consultationId 설정:', id)
   }
 
   // 연결 중 여부
@@ -175,6 +183,7 @@ export const useCallStore = defineStore('call', () => {
     startCall,
     endCall,
     resetCall,
+    setConsultationId,
     addTranscript,
     incrementProfanityCount,
     decrementProfanityCount,

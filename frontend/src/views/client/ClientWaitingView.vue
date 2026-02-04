@@ -20,8 +20,11 @@
         </h2>
 
         <!-- 대기 순번 배지 (매칭 전에만 표시) -->
-        <div v-if="connectionState !== 'connected'" class="queue-badge">
-          <span>대기 순번 {{ queuePosition }}번</span>
+        <div v-if="connectionState !== 'connected'" class="queue-info">
+          <div class="queue-badge">
+            <span>대기 순번 {{ queuePosition }}번</span>
+          </div>
+          <p class="queue-total">현재 대기 인원: {{ totalWaitingCount }}명</p>
         </div>
 
         <p class="status-description">
@@ -110,6 +113,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
 import { useCallConnection } from '@/composables/useCallConnection'
 import { useCallStore } from '@/stores/call'
 import { useCustomerStore } from '@/stores/customer'
@@ -143,6 +147,11 @@ const { connectionState, startWaiting, disconnect: disconnectLiveKit } = useCall
 
     // 통화 화면으로 이동
     router.push('/client/call')
+  },
+  onRankUpdate: (newRank) => {
+    console.log('[ClientWaiting] STOMP 순위 업데이트:', newRank)
+    queuePosition.value = newRank
+    customerStore.updateQueueInfo({ position: newRank, isWaiting: true })
   }
 })
 
@@ -150,14 +159,17 @@ const { connectionState, startWaiting, disconnect: disconnectLiveKit } = useCall
 watch(connectionState, (newState) => {
   if (newState === 'connected') {
     console.log('[ClientWaiting] LiveKit 연결 완료 - 상담사 입장 대기 중...')
-    // UI를 "상담사 연결 중..." 상태로 변경 (자동 이동 안 함)
+    // 매칭 완료 후 대기열 조회 중지 (더 이상 대기열에 없음)
+    stopQueuePolling()
+    disconnectQueueSocket()
   }
 })
 
 // 상태 관리
-const queuePosition = ref(customerStore.queueInfo.position || 0) // 대기 순번 (추후 백엔드 연동)
+const queuePosition = ref(customerStore.queueInfo.position || 0) // 내 대기 순번
+const totalWaitingCount = ref(0) // 전체 대기 인원수
 const isMuted = ref(false)
-const isSpeakerOn = ref(true)
+const isSpeakerOn = ref(false)
 const showConfirmModal = ref(false)
 const arsAudio = ref(null)
 const isARSPlaying = ref(false)
@@ -289,21 +301,38 @@ const disconnectQueueSocket = () => {
     queueSocket.value = null
   }
 }
-// Queue position fetch (TODO: backend integration)
+// 대기열 순번 및 전체 인원 조회
 const fetchQueuePosition = async () => {
-  try {
-    // TODO: 백엔드 API 연동
-    // const response = await api.get('/queue/position', {
-    //   params: { customerId: customerStore.currentCustomer?.id }
-    // })
-    // queuePosition.value = response.data.position
+  // 이미 매칭 완료된 경우 조회 스킵
+  if (connectionState.value === 'connected') {
+    return
+  }
 
-    // 테스트용: 랜덤하게 순번 감소 시뮬레이션
-    if (queuePosition.value > 1) {
-      // 실제 환경에서는 백엔드에서 받아온 값으로 대체
-      // queuePosition.value = response.data.position
+  // 고객 인증 토큰 가져오기
+  const accessToken = sessionStorage.getItem('customerAccessToken') || localStorage.getItem('customerAccessToken')
+  console.log('[DEBUG] fetchQueuePosition - accessToken:', accessToken ? '있음' : '없음')
+  const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
+
+  try {
+    // 내 대기 순번 조회
+    const statusResponse = await axios.get('/api/v1/queue/status', { headers })
+    if (statusResponse.data) {
+      const rank = statusResponse.data.waitingRank || 0
+      queuePosition.value = rank
+      customerStore.updateQueueInfo({ position: rank, isWaiting: true })
+    }
+
+    // 전체 대기 인원 조회 (인증 불필요)
+    const statsResponse = await axios.get('/api/v1/queue/stats')
+    if (statsResponse.data) {
+      const total = (statsResponse.data.normalQueueSize || 0) + (statsResponse.data.blacklistQueueSize || 0)
+      totalWaitingCount.value = total
     }
   } catch (error) {
+    // 404는 대기열에 없는 경우 (매칭 완료 또는 아직 등록 안 됨) - 무시
+    if (error.response?.status === 404) {
+      return
+    }
     console.error('[Client] 대기열 조회 실패:', error)
   }
 }
@@ -352,7 +381,19 @@ const confirmEndCall = async () => {
     arsAudio.value = null
   }
 
-  // TODO: 백엔드에 대기 취소 요청
+  // 백엔드에 대기 취소 요청
+  try {
+    const accessToken = sessionStorage.getItem('customerAccessToken') || localStorage.getItem('customerAccessToken')
+    if (accessToken) {
+      await axios.delete('/api/v1/queue/cancel', {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      })
+      console.log('[ClientWaiting] 대기열 취소 완료')
+    }
+  } catch (error) {
+    // 이미 대기열에서 제거된 경우 등 - 무시
+    console.warn('[ClientWaiting] 대기열 취소 실패 (무시):', error.response?.status)
+  }
 
   callStore.endCall()
   router.push('/client')
@@ -459,18 +500,30 @@ onUnmounted(async () => {
     arsAudio.value = null
   }
 
-  // LiveKit 연결 정리 (비정상 이탈인 경우만)
-  if (connectionState.value === 'connected' && !isNavigatingToCall.value) {
-    console.log('[ClientWaiting] 비정상 이탈 감지 - LiveKit 연결 종료')
+  // 비정상 이탈 시 (정상 매칭 이동이 아닌 경우) 대기열에서 제거
+  if (!isNavigatingToCall.value) {
+    console.log('[ClientWaiting] 비정상 이탈 감지 - 대기열 취소 요청')
     try {
-      await disconnectLiveKit()
-
-      // callStore에서도 제거
-      if (callStore.livekitRoom) {
-        callStore.setLivekitRoom(null)
+      const accessToken = sessionStorage.getItem('customerAccessToken') || localStorage.getItem('customerAccessToken')
+      if (accessToken) {
+        await axios.delete('/api/v1/queue/cancel', {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        })
       }
     } catch (error) {
-      console.error('[ClientWaiting] LiveKit 연결 종료 실패:', error)
+      // 무시
+    }
+
+    // LiveKit 연결 정리
+    if (connectionState.value === 'connected') {
+      try {
+        await disconnectLiveKit()
+        if (callStore.livekitRoom) {
+          callStore.setLivekitRoom(null)
+        }
+      } catch (error) {
+        console.error('[ClientWaiting] LiveKit 연결 종료 실패:', error)
+      }
     }
   }
 })
@@ -573,6 +626,14 @@ defineExpose({
   margin: 0;
 }
 
+/* 대기 정보 컨테이너 */
+.queue-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
 /* 대기 순번 배지 */
 .queue-badge {
   display: inline-flex;
@@ -584,6 +645,13 @@ defineExpose({
   font-weight: 600;
   padding: 8px 20px;
   border-radius: 20px;
+}
+
+/* 전체 대기 인원 표시 */
+.queue-total {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0;
 }
 
 .status-description {
