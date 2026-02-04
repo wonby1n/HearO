@@ -11,6 +11,7 @@ import { ref, onMounted } from 'vue'
 import { useDashboardStore } from '@/stores/dashboard'
 import CustomerInfoPanel from '@/components/counselor/CustomerInfoPanel.vue'
 import { fetchCustomerData } from '@/services/customerService'
+import { getLatestConsultations } from '@/services/consultationService'
 import { mockCustomerInfo } from '@/mocks/counselor'
 
 const dashboardStore = useDashboardStore()
@@ -66,6 +67,30 @@ const loadCustomerData = async () => {
     console.log('[CustomerInfoSection] Registration ID:', registrationId);
 
     const response = await fetchCustomerData(registrationId);
+    console.log('[CustomerInfoSection] fetchCustomerData 응답:', response);
+
+    // 과거 상담 이력 조회
+    let consultationHistory = []
+    try {
+      if (response.customerId) {
+        console.log('[CustomerInfoSection] 과거 상담 이력 조회 시작, customerId:', response.customerId)
+        const consultations = await getLatestConsultations(response.customerId)
+        console.log('[CustomerInfoSection] 과거 상담 이력 조회 성공:', consultations)
+
+        // 백엔드 응답을 UI 포맷으로 변환
+        consultationHistory = consultations.map(c => ({
+          date: formatDate(c.createdAt),
+          agent: '상담원', // TODO: 백엔드에서 상담원 이름 제공 시 수정
+          summary: c.title + (c.subtitle ? ` - ${c.subtitle}` : ''),
+          duration: c.durationSeconds ? `${Math.floor(c.durationSeconds / 60)}분` : '',
+          terminationReason: c.terminationReason
+        }))
+      }
+    } catch (historyError) {
+      console.warn('[CustomerInfoSection] 과거 상담 이력 조회 실패:', historyError)
+      // 이력 조회 실패해도 고객 정보는 표시
+    }
+
     customerInfo.value = {
       id: response.id,
       customerId: response.customerId,
@@ -79,7 +104,7 @@ const loadCustomerData = async () => {
       productImage: response.productImageUrl || '/images/default-product.png',
       errorCode: response.errorCode || '정보 없음',
       symptoms: response.symptom ? [response.symptom] : (response.symptoms || ['정보 없음']),
-      consultationHistory: response.consultationHistory || []
+      consultationHistory
     };
   } catch (error) {
     console.error('[CustomerInfoSection] 고객 로드 실패:', error);
