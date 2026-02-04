@@ -2,6 +2,7 @@ package com.ssafy.hearo.domain.matching.service;
 
 import com.ssafy.hearo.domain.matching.dto.MatchingResult;
 import com.ssafy.hearo.domain.queue.service.QueueEventPublisher;
+import com.ssafy.hearo.domain.queue.service.QueueLeaseService;
 import com.ssafy.hearo.domain.queue.service.QueueService;
 import com.ssafy.hearo.domain.queue.service.QueueService.PopResult;
 import com.ssafy.hearo.domain.registration.entity.Registration;
@@ -26,6 +27,7 @@ import java.util.UUID;
 public class MatchingScheduler {
 
     private final QueueService queueService;
+    private final QueueLeaseService queueLeaseService;
     private final CounselorAvailabilityService counselorAvailabilityService;
     private final CounselorScoreService counselorScoreService;
     private final QueueEventPublisher queueEventPublisher;
@@ -97,6 +99,9 @@ public class MatchingScheduler {
             // 상담원을 비가용 상태로 변경
             counselorAvailabilityService.setUnavailable(selectedCounselor);
 
+            // 매칭 성공 시 lease 삭제 (더 이상 heartbeat 불필요)
+            queueLeaseService.deleteLeaseByCustomerId(result.customerId());
+
             // 매칭 이벤트 발행 (상담 세션 생성용)
             eventPublisher.publishEvent(new MatchingCompletedEvent(
                     result.customerId(), selectedCounselor, roomName));
@@ -104,7 +109,7 @@ public class MatchingScheduler {
             // WebSocket으로 고객/상담원에게 매칭 알림 전송
             sendMatchingNotifications(result.customerId(), selectedCounselor, roomName);
 
-            log.info("매칭 완료: 고객={}, 상담원={}, 방={}",
+            log.info("매칭 완료: 고객={}, 상담원={}, 방={} (lease 삭제됨)",
                     result.customerId(), selectedCounselor, roomName);
 
             matchedCount++;
