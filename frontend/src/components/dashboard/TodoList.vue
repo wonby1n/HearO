@@ -14,13 +14,13 @@
       v-model="newTodoText"
       type="text"
       placeholder="할 일을 입력하세요..."
-      class="todo-input flex-1 px-4 py-2 border rounded-lg outline-none transition-all"
+      class="todo-input flex-1 min-w-0 px-4 py-2 border rounded-lg outline-none transition-all"
       :disabled="isLoading"
     />
     <button
       type="submit"
       :disabled="!newTodoText.trim() || isLoading"
-      class="todo-add-btn px-5 py-2 text-white font-bold rounded-lg transition-all"
+      class="todo-add-btn flex-shrink-0 px-5 py-2 text-white font-bold rounded-lg transition-all"
     >
       추가
     </button>

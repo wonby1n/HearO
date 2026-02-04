@@ -296,13 +296,16 @@ const saveMemoToServer = async (terminationReason = 'NORMAL') => {
     console.log('[CounselorCallView] 통화 시간:', durationSeconds, '초 (', Math.floor(durationSeconds / 60), '분', durationSeconds % 60, '초)')
 
     // 통화 종료 시 메모를 포함하여 finalizeConsultation API 호출
+    // 폭언 3회 이상 시 PROFANITY_LIMIT으로 설정
+    const terminationReason = (callStore.currentCall.profanityCount >= 3) ? 'PROFANITY_LIMIT' : 'NORMAL'
+    
     await axios.patch(`/api/v1/consultations/${consultationId}/end`, {
       userMemo: memoValue || '',
       fullTranscript: fullTranscript,
       profanityCount: callStore.currentCall.profanityCount || 0,
       avgAggressionScore: 0.0,
       maxAggressionScore: 0.0,
-      terminationReason: 'NORMAL',
+      terminationReason: terminationReason,
       durationSeconds: durationSeconds
     }, {
       headers: {
@@ -511,7 +514,8 @@ const handleAutoTerminationConfirm = async () => {
     // 통화 종료 처리
     const callData = callStore.endCall()
 
-    const saved = await saveMemoToServer('PROFANITY_LIMIT')
+    // 메모 저장
+    const saved = await saveMemoToServer()
     if (saved) {
       clearMemoDraft()
       skipDraftSaveOnUnmount = true
@@ -532,10 +536,11 @@ const handleAutoTerminationConfirm = async () => {
     // 상태 초기화
     callStore.resetCall()
 
-    // 대시보드로 이동
+    // 대시보드로 이동하면서 TimeModal 트리거 플래그 설정
+    sessionStorage.setItem('triggerTimeModal', 'true')
     router.push({ name: 'dashboard' })
 
-    notificationStore.notifyInfo('고객이 블랙리스트에 등록되었습니다')
+    notificationStore.notifyInfo('고객이 블랙리스트에 등록되었습니다. 10분간 의무 휴식이 필요합니다.')
   } catch (error) {
     console.error('자동 종료 처리 실패:', error)
     notificationStore.notifyError('통화 종료 처리에 실패했습니다')
