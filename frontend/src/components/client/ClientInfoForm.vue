@@ -310,7 +310,7 @@ const handleBack = () => router.push({ name: 'client-landing' })
 const handleSubmit = async () => {
   if (!isFormValid.value) return
   
-  const productId = localStorage.getItem('clientProductId')
+  const productId = sessionStorage.getItem('clientProductId')
 
   const consultationData = {
     symptom: formData.value.symptomDetail,
@@ -320,7 +320,7 @@ const handleSubmit = async () => {
     warrantyEndsAt: props.warrantyEndsAt
   }
 
-  localStorage.setItem('clientConsultationData', JSON.stringify(consultationData))
+  sessionStorage.setItem('clientConsultationData', JSON.stringify(consultationData))
   router.push('/client/consultation/verification')
 }
 </script>

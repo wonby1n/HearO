@@ -482,7 +482,7 @@ onMounted(async () => {
   }
 
 
-    const customerId = sessionStorage.getItem('clientCustomerId') || localStorage.getItem('clientCustomerId') || customerStore.currentCustomer.id
+    const customerId = sessionStorage.getItem('clientCustomerId') || customerStore.currentCustomer.id
     const registrationId = sessionStorage.getItem('clientRegistrationId')
 
     startCustomerSTT()
