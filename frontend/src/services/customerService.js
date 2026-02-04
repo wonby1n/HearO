@@ -12,8 +12,7 @@ import axios from "axios";
 const getAuthToken = () => {
   return (
     localStorage.getItem("accessToken") || // 상담원 토큰
-    sessionStorage.getItem("customerAccessToken") || // 고객 토큰
-    localStorage.getItem("customerAccessToken")
+    sessionStorage.getItem("customerAccessToken") // 고객 토큰
   );
 };
 

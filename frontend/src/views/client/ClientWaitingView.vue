@@ -250,8 +250,8 @@ const clearQueueSocketReconnect = () => {
 }
 
 const connectQueueSocket = () => {
-  // localStorage에서 customerId 가져오기 (store가 비어있을 수 있음)
-  const customerId = sessionStorage.getItem('clientCustomerId') || localStorage.getItem('clientCustomerId') || customerStore.currentCustomer?.id
+  // sessionStorage에서 customerId 가져오기 (store가 비어있을 수 있음)
+  const customerId = sessionStorage.getItem('clientCustomerId') || customerStore.currentCustomer?.id
   if (!customerId) {
     console.warn('[QueueWS] customerId missing - skip WebSocket connect')
     return
@@ -309,7 +309,7 @@ const fetchQueuePosition = async () => {
   }
 
   // 고객 인증 토큰 가져오기
-  const accessToken = sessionStorage.getItem('customerAccessToken') || localStorage.getItem('customerAccessToken')
+  const accessToken = sessionStorage.getItem('customerAccessToken')
   console.log('[DEBUG] fetchQueuePosition - accessToken:', accessToken ? '있음' : '없음')
   const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
 
@@ -383,7 +383,7 @@ const confirmEndCall = async () => {
 
   // 백엔드에 대기 취소 요청
   try {
-    const accessToken = sessionStorage.getItem('customerAccessToken') || localStorage.getItem('customerAccessToken')
+    const accessToken = sessionStorage.getItem('customerAccessToken')
     if (accessToken) {
       await axios.delete('/api/v1/queue/cancel', {
         headers: { Authorization: `Bearer ${accessToken}` }
@@ -504,7 +504,7 @@ onUnmounted(async () => {
   if (!isNavigatingToCall.value) {
     console.log('[ClientWaiting] 비정상 이탈 감지 - 대기열 취소 요청')
     try {
-      const accessToken = sessionStorage.getItem('customerAccessToken') || localStorage.getItem('customerAccessToken')
+      const accessToken = sessionStorage.getItem('customerAccessToken')
       if (accessToken) {
         await axios.delete('/api/v1/queue/cancel', {
           headers: { Authorization: `Bearer ${accessToken}` }

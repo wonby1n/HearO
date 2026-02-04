@@ -149,12 +149,12 @@ const loadProductInfo = async (productId) => {
     imageUrl.value = productData.imageUrl || ''
     category.value = productData.category || ''
 
-    // localStorage에 저장 (뒤로가기 시 사용)
-    localStorage.setItem('clientProductId', productId)
-    localStorage.setItem('clientProductName', productData.name)
-    localStorage.setItem('clientModelNumber', productData.code)
-    localStorage.setItem('clientImageUrl', productData.imageUrl || '')
-    localStorage.setItem('clientCategory', productData.category || '')
+    // sessionStorage에 저장 (뒤로가기 시 사용, 세션 종료 시 자동 정리)
+    sessionStorage.setItem('clientProductId', productId)
+    sessionStorage.setItem('clientProductName', productData.name)
+    sessionStorage.setItem('clientModelNumber', productData.code)
+    sessionStorage.setItem('clientImageUrl', productData.imageUrl || '')
+    sessionStorage.setItem('clientCategory', productData.category || '')
 
     // 성공 시 3초 대기 후 전환
     setTimeout(() => {
@@ -173,10 +173,10 @@ onMounted(async () => {
   const { productId, manufacturedAt: mDate, warrantyEndsAt: wDate } = route.query
 
   // 날짜 정보 저장
-  manufacturedAt.value = mDate || localStorage.getItem('clientManufacturedAt') || ''
-  warrantyEndsAt.value = wDate || localStorage.getItem('clientWarrantyEndsAt') || ''
-  if (mDate) localStorage.setItem('clientManufacturedAt', mDate)
-  if (wDate) localStorage.setItem('clientWarrantyEndsAt', wDate)
+  manufacturedAt.value = mDate || sessionStorage.getItem('clientManufacturedAt') || ''
+  warrantyEndsAt.value = wDate || sessionStorage.getItem('clientWarrantyEndsAt') || ''
+  if (mDate) sessionStorage.setItem('clientManufacturedAt', mDate)
+  if (wDate) sessionStorage.setItem('clientWarrantyEndsAt', wDate)
 
   // 1. productId가 URL에 있으면 API 호출
   if (productId) {
@@ -184,12 +184,12 @@ onMounted(async () => {
     return
   }
 
-  // 2. URL에 없으면 localStorage에서 복원 (뒤로가기)
-  const savedProductId = localStorage.getItem('clientProductId')
-  const savedProductName = localStorage.getItem('clientProductName')
-  const savedModelNumber = localStorage.getItem('clientModelNumber')
-  const savedImageUrl = localStorage.getItem('clientImageUrl')
-  const savedCategory = localStorage.getItem('clientCategory')
+  // 2. URL에 없으면 sessionStorage에서 복원 (뒤로가기)
+  const savedProductId = sessionStorage.getItem('clientProductId')
+  const savedProductName = sessionStorage.getItem('clientProductName')
+  const savedModelNumber = sessionStorage.getItem('clientModelNumber')
+  const savedImageUrl = sessionStorage.getItem('clientImageUrl')
+  const savedCategory = sessionStorage.getItem('clientCategory')
 
   if (savedProductId && savedProductName) {
     productName.value = savedProductName

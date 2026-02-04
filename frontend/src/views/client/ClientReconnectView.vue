@@ -76,8 +76,8 @@ const handleReconnect = async () => {
     isReconnecting.value = true
     console.log('[ClientReconnect] 재연결 시작')
 
-    // 1. localStorage에서 제품 정보 읽기
-    const productId = localStorage.getItem('clientProductId')
+    // 1. sessionStorage에서 제품 정보 읽기
+    const productId = sessionStorage.getItem('clientProductId')
     if (!productId) {
       throw new Error('제품 정보를 찾을 수 없습니다. 처음부터 다시 시작해주세요.')
     }
