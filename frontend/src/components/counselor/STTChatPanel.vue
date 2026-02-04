@@ -1,7 +1,7 @@
 <template>
-  <div class="flex flex-col h-full bg-white rounded-lg shadow-sm border border-gray-200 relative">
-    <!-- 헤더 -->
-    <div class="px-6 py-4 border-b border-gray-200">
+  <div class="flex flex-col h-full bg-white rounded-lg shadow-sm border border-gray-200">
+    <!-- 헤더 (flex-shrink-0) -->
+    <div class="flex-shrink-0 px-6 py-4 border-b border-gray-200">
       <h3 class="text-lg font-semibold text-gray-900">실시간 자막</h3>
     </div>
 
@@ -14,36 +14,18 @@
       </TransitionGroup>
     </div>
 
-    <!-- 자막 영역 (채팅 형태) -->
-    <div ref="chatContainer" class="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin">
-
+    <!-- 자막 영역 (flex-1 overflow-y-auto min-h-0) -->
+    <div ref="chatContainer" class="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin relative min-h-0">
       <!-- 메시지 목록 -->
-      <div v-for="(message, index) in messages" :key="index" :class="[
-        'flex',
-        message.speaker === 'agent' ? 'justify-end' : 'justify-start'
-      ]">
-        <div :class="[
-          'max-w-[70%] rounded-lg px-4 py-3 shadow-sm',
-          message.speaker === 'agent'
-            ? 'bg-primary-600 text-white'
-            : 'bg-gray-100 text-gray-900'
-        ]">
-          <!-- 화자 라벨 + 시간 -->
-          <div class="flex items-center justify-between gap-2 mb-1">
-            <span :class="[
-              'text-xs font-medium',
-              message.speaker === 'agent' ? 'text-white opacity-90' : 'text-gray-600'
-            ]">
-              {{ getSpeakerLabel(message.speaker) }}
-            </span>
-            <span :class="[
-              'text-xs',
-              message.speaker === 'agent' ? 'text-white opacity-75' : 'text-gray-500'
-            ]">
-              {{ message.timestamp }}
-            </span>
-          </div>
+      <div v-for="(message, index) in messages" :key="index" class="flex flex-col" :class="message.speaker === 'agent' ? 'items-end' : 'items-start'">
+        <!-- 이름 + 시간 (말풍선 위) -->
+        <div class="flex items-center gap-2 mb-1 px-1">
+          <span class="text-xs font-medium text-gray-600">{{ getSpeakerLabel(message.speaker) }}</span>
+          <span class="text-xs text-gray-400">{{ message.timestamp }}</span>
+        </div>
 
+        <!-- 말풍선 -->
+        <div :class="['max-w-[70%] rounded-2xl px-4 py-3 shadow-sm', message.speaker === 'agent' ? 'bg-primary-600 text-white rounded-tr-sm' : 'bg-gray-100 text-gray-900 rounded-tl-sm']">
           <!-- 메시지 내용 -->
           <div class="text-sm leading-relaxed">
             <!-- 욕설이 있는 경우 블러 처리 -->
@@ -105,6 +87,26 @@
         비속어 사용을 자제해주세요
       </span>
     </div>
+
+    <!-- 입력창 (flex-shrink-0) -->
+    <div class="flex-shrink-0 px-4 py-3 border-t bg-gray-50">
+      <form @submit.prevent="handleSubmit" class="flex gap-2">
+        <input 
+          v-model="counselorInput" 
+          type="text" 
+          placeholder="상담사 메시지 입력..." 
+          :disabled="!isCallActive"
+          class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+        />
+        <button 
+          type="submit" 
+          :disabled="!counselorInput.trim() || !isCallActive"
+          class="px-6 py-2 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+        >
+          전송
+        </button>
+      </form>
+    </div>
   </div>
 </template>
 
@@ -147,22 +149,27 @@ const props = defineProps({
   messages: {
     type: Array,
     default: () => []
+  },
+  isCallActive: {
+    type: Boolean,
+    default: true
+  },
+  counselorName: {
+    type: String,
+    default: '상담원'
   }
 })
 
-const emit = defineEmits(['toggle-profanity'])
+const emit = defineEmits(['toggle-profanity', 'counselor-message'])
 
 const chatContainer = ref(null)
 const isUserScrolling = ref(false) // 사용자가 스크롤 중인지 여부
+const counselorInput = ref('')
 
 // 화자 라벨 반환
 const getSpeakerLabel = (speaker) => {
-  const labels = {
-    agent: '상담원',
-    customer: '고객',
-    ai: 'AI 제안'
-  }
-  return labels[speaker] || speaker
+  if (speaker === 'agent') return props.counselorName
+  return speaker === 'customer' ? '고객' : speaker
 }
 
 // 맨 아래에 있는지 확인 (여유 50px)
@@ -197,6 +204,15 @@ watch(
     }
   }
 )
+
+// 상담사 메시지 전송 핸들러
+const handleSubmit = () => {
+  const message = counselorInput.value.trim()
+  if (!message || !props.isCallActive) return
+  
+  emit('counselor-message', message)
+  counselorInput.value = ''
+}
 
 // 컴포넌트 마운트 시 스크롤 이벤트 리스너 등록
 onMounted(() => {
