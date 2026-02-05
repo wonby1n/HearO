@@ -235,7 +235,7 @@ const props = defineProps({
     default: () => ({
       customerName: '고객 정보 없음',
       phone: '010-1234-5678',
-      productName: '삼성',
+      productName: '정보 없음',
       productCategory: '정보 없음',
       modelCode: 'SSAFY-E106',
       modelNumber: 'SSAFY-E106',
@@ -262,6 +262,9 @@ const productImg = computed(() => {
   const url = props.customerInfo.productImage
   return url ? `https://i14e106.p.ssafy.io${url}` : null
 })
+
+// 고객 이름 마스킹
+
 
 // 전화번호 마스킹 (010-****-5678)
 const maskedPhone = computed(() => {

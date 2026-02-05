@@ -44,7 +44,7 @@ public class QueueLeaseServiceImpl implements QueueLeaseService {
         redisTemplate.opsForValue().set(leaseKey, customerId, DEFAULT_LEASE_TTL_SECONDS, TimeUnit.SECONDS);
         redisTemplate.opsForValue().set(ticketKey, queueTicket, DEFAULT_LEASE_TTL_SECONDS, TimeUnit.SECONDS);
 
-        log.info("Lease 생성: customerId={}, ticket={}, TTL={}초", customerId, queueTicket, DEFAULT_LEASE_TTL_SECONDS);
+        log.info("[Lease] 생성: 고객 {} (ticket: {}, TTL: {}초)", customerId, queueTicket, DEFAULT_LEASE_TTL_SECONDS);
         return queueTicket;
     }
 
@@ -58,7 +58,7 @@ public class QueueLeaseServiceImpl implements QueueLeaseService {
         String customerId = redisTemplate.opsForValue().get(leaseKey);
 
         if (customerId == null) {
-            log.warn("Lease 갱신 실패: 유효하지 않은 ticket={}", queueTicket);
+            log.warn("[Lease] 갱신 실패: 유효하지 않은 ticket {}", queueTicket);
             return false;
         }
 
@@ -113,7 +113,7 @@ public class QueueLeaseServiceImpl implements QueueLeaseService {
             redisTemplate.delete(TICKET_KEY_PREFIX + customerId);
         }
 
-        log.info("Lease 삭제: ticket={}, customerId={}", queueTicket, customerId);
+        log.info("[Lease] 삭제: 고객 {} (ticket: {})", customerId, queueTicket);
     }
 
     @Override
@@ -130,7 +130,7 @@ public class QueueLeaseServiceImpl implements QueueLeaseService {
             redisTemplate.delete(LEASE_KEY_PREFIX + queueTicket);
         }
 
-        log.info("Lease 삭제 (by customerId): customerId={}, ticket={}", customerId, queueTicket);
+        log.info("[Lease] 삭제 (매칭 완료): 고객 {} (ticket: {})", customerId, queueTicket);
     }
 
     @Override

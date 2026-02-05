@@ -115,6 +115,31 @@ public class UserStateService {
         user.decreaseEnergyImmediately(damageAmount);
     }
 
+    /**
+     * 3. [특수 기능] 특정 유저의 에너지를 강제로 설정
+     * - 로그인 시, 통화 종료 시 등 특정 시점에 호출하여 에너지를 초기화하거나 조정
+     */
+    public void setEnergy(Long userId, int targetEnergy, String reason) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자 없음"));
+
+        // 3-1. 현재(변경 직전) 에너지 계산
+        int currentEnergy = user.calculateRealTimeEnergy(LocalDateTime.now());
+        int previousEnergy = user.getLastEnergyValue();
+
+        // 3-2. 목표 에너지로 설정 (0 ~ 100 범위 제한)
+        int finalEnergy = Math.max(0, Math.min(100, targetEnergy));
+
+        // 3-3. 히스토리 저장
+        saveHistory(user, currentEnergy, finalEnergy, user.getStatus(), "강제 설정: " + reason);
+
+        // 3-4. User 엔티티 업데이트 (상태는 유지, 에너지만 변경)
+        // updateEnergyAnchor를 재사용하되, 현재 상태를 그대로 넘김
+        user.updateEnergyAnchor(user.getStatus(), finalEnergy);
+        
+        log.info("User {} energy set to {} (reason: {})", userId, finalEnergy, reason);
+    }
+
     // 히스토리 저장 헬퍼 메서드
     private void saveHistory(User user, int prev, int curr, UserStatus status, String reason) {
         EnergyHistory history = EnergyHistory.builder()

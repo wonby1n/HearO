@@ -42,7 +42,7 @@ public class QueueServiceImpl implements QueueService {
 
         Long rank = getWaitingRank(customerId).orElse(1L);
 
-        log.info("고객 {} Normal Queue에 등록, 순위: {}", customerId, rank);
+        log.info("[대기열] 고객 {} Normal Queue에 등록 (순위: {}위)", customerId, rank);
 
         // 대기열 변경 알림
         QueueSizes sizes = getQueueSizes();
@@ -314,9 +314,8 @@ public class QueueServiceImpl implements QueueService {
 
             // 1. lease 검증 - heartbeat가 끊긴 고객인지 확인
             if (!queueLeaseService.isLeaseAlive(customerId)) {
-                log.warn("{}에서 유령 고객 {} 제거 (lease 만료)",
-                        isNormalQueue ? "Normal Queue" : "Blacklist Queue",
-                        customerId);
+                log.warn("[대기열] 유령고객 제거: {} ({}에서, lease 만료)",
+                        customerId, isNormalQueue ? "Normal" : "Blacklist");
                 // lease가 없으면 유령 고객 - 큐에서 제거하고 스킵
                 continue;
             }
@@ -325,9 +324,8 @@ public class QueueServiceImpl implements QueueService {
             long now = System.currentTimeMillis();
             long entryAge = now - score.longValue();
             if (entryAge > QUEUE_ENTRY_TIMEOUT_MS) {
-                log.warn("{}에서 유령 고객 {} 제거 (대기 시간: {}초)",
-                        isNormalQueue ? "Normal Queue" : "Blacklist Queue",
-                        customerId, entryAge / 1000);
+                log.warn("[대기열] 유령고객 제거: {} ({}에서, 대기시간 {}초 초과)",
+                        customerId, isNormalQueue ? "Normal" : "Blacklist", entryAge / 1000);
                 // 오래된 항목 - lease도 삭제
                 queueLeaseService.deleteLeaseByCustomerId(customerId);
                 continue;
@@ -338,16 +336,15 @@ public class QueueServiceImpl implements QueueService {
 
             if (!matchableCounselors.isEmpty()) {
                 // 매칭 성공
-                log.info("{}에서 고객 {} 매칭 성공. 가능한 상담원: {}",
-                        isNormalQueue ? "Normal Queue" : "Blacklist Queue",
-                        customerId, matchableCounselors);
+                log.info("[대기열] 고객 {} 매칭 후보 발견 ({}에서) → 가능한 상담원: {}",
+                        customerId, isNormalQueue ? "Normal" : "Blacklist", matchableCounselors);
                 return new PopResult(customerId, matchableCounselors, 0, 0);
             }
 
             // 매칭 실패 - 임시 스택에 보관
             tempStack.add(new CustomerWithScore(customerId, score));
-            log.debug("고객 {} 매칭 불가, 임시 보관 (가용 상담원 {}명 모두 블랙리스트)",
-                    customerId, availableCounselorIds.size());
+            log.info("[대기열] 고객 {} 매칭 불가 (가용 상담원 {} 모두 블랙리스트) → 임시 보관",
+                    customerId, availableCounselorIds);
         }
 
         return PopResult.empty();
@@ -394,7 +391,8 @@ public class QueueServiceImpl implements QueueService {
         for (CustomerWithScore item : tempStack) {
             zSetOps.add(BLACKLIST_QUEUE_KEY, item.customerId, item.score);
         }
-        log.info("Normal Queue에서 {} 명을 Blacklist Queue로 이동", tempStack.size());
+        log.info("[대기열] {}명 Normal → Blacklist 이동: {}",
+                tempStack.size(), tempStack.stream().map(CustomerWithScore::customerId).toList());
     }
 
     private void publishQueueUpdate() {
