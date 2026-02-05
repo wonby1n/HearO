@@ -16,6 +16,7 @@ import com.ssafy.hearo.domain.registration.entity.Registration;
 import com.ssafy.hearo.domain.registration.repository.RegistrationRepository;
 import com.ssafy.hearo.domain.user.entity.User;
 import com.ssafy.hearo.domain.user.repository.UserRepository;
+import com.ssafy.hearo.domain.user.service.UserStateService;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -39,6 +40,7 @@ public class ConsultationServiceImpl implements ConsultationService{
     private final ConsultationRatingService ratingService;
     private final ConsultationSummaryService summaryService;
     private final BlacklistRepository blacklistRepository;
+    private final UserStateService userStateService;
 
     public List<ConsultationSummaryResponse> getLatest3ByCustomerId(Integer customerId) {
         return consultationRepository.findTop3ByCustomer_IdOrderByCreatedAtDesc(customerId)
@@ -110,6 +112,10 @@ public class ConsultationServiceImpl implements ConsultationService{
         // 블랙리스트 처리 (기존 로직 재사용)
         blacklistIfNeeded(consultation.getUser(), consultation.getCustomer(), reason);
 
+        // [특수 로직] 조하원 유저 상담 종료 시 에너지 0으로 강제 설정
+        if ("jhw@ssafy.com".equals(consultation.getUser().getEmail())) {
+            userStateService.setEnergy(userId, 0, "상담 종료: 조하원 유저 에너지 초기화");
+        }
         return ConsultationEndResponse.from(consultation);
     }
 

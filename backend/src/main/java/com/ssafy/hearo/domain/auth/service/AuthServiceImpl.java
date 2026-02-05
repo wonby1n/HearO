@@ -46,6 +46,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserStateService userStateService;
 
     @Override
+    @Transactional // 로그인 시 상태 변경(에너지 초기화)이 있을 수 있으므로 트랜잭션 필요
     public LoginResponse login(LoginRequest request, HttpServletResponse response) {
         // Find user by email
         User user = userRepository.findByEmail(request.email())
@@ -54,6 +55,11 @@ public class AuthServiceImpl implements AuthService {
         // Verify password
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
             throw new BadCredentialsException("비밀번호가 일치하지 않습니다");
+        }
+
+        // [특수 로직] 조하원(jhw@ssafy.com) 유저 로그인 시 에너지 5로 강제 설정
+        if ("jhw@ssafy.com".equals(user.getEmail())) {
+            userStateService.setEnergy(user.getId(), 5, "로그인: 조하원 유저 에너지 초기화");
         }
 
         // Generate tokens
