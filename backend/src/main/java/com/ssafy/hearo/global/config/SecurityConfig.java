@@ -66,6 +66,7 @@ public class SecurityConfig {
                     .requestMatchers("/api/v1/queue/status").permitAll()
                     .requestMatchers("/api/v1/queue/cancel").permitAll()
                     .requestMatchers("/api/v1/queue/stats").permitAll()
+                    .requestMatchers("/api/v1/queue/heartbeat").permitAll()
                     // Calls endpoint
                     .requestMatchers("/api/v1/calls/**").permitAll()
                     // Product endpoints (for customers - public access)
