@@ -168,6 +168,7 @@ import AIGuidePanel from '@/components/counselor/AIGuidePanel.vue'
 import AutoTerminationModal from '@/components/call/AutoTerminationModal.vue'
 import ManualEndCallModal from '@/components/call/ManualEndCallModal.vue'
 import { startConsultation, getLatestConsultations } from '@/services/consultationService'
+import { generateAISummary } from '@/services/aiService'
 import { useNotificationStore } from '@/stores/notification'
 import { useCallStore } from '@/stores/call'
 import { useDashboardStore } from '@/stores/dashboard'
@@ -280,6 +281,10 @@ const showEndConfirmModal = ref(false) // 종료 확인 모달
 // 폭언 3회 → 자동 종료 트리거 감지
 watch(() => callStore.autoTerminationTriggered, async (triggered) => {
   if (triggered) {
+    // ⚠️ 중요: consultationId를 먼저 저장
+    const consultationId = callStore.currentConsultationId
+    console.log('[CounselorCallView] 자동 종료 - 저장된 consultationId:', consultationId)
+
     // LiveKit 즉시 종료 → 고객 측 ParticipantDisconnected 트리거
     if (callStore.livekitRoom) {
       try {
@@ -291,7 +296,44 @@ watch(() => callStore.autoTerminationTriggered, async (triggered) => {
       callStore.setLivekitRoom(null)
     }
 
+    // 모달을 먼저 표시 (로딩 상태로)
+    aiSummary.value = null // 로딩 상태
     showAutoTerminationModal.value = true
+    console.log('[CounselorCallView] 자동 종료 모달 표시 (AI 요약 로딩 중)')
+
+    // AI 요약 생성 (백그라운드에서 실행, 모달은 이미 표시됨)
+    try {
+      console.log('[CounselorCallView] 자동 종료 - AI 요약 생성 시작')
+      const fullTranscript = sttMessages.value
+        .map(msg => `${msg.speaker}: ${msg.text}`)
+        .join('\n')
+
+      // 디버깅 로그
+      console.log('[CounselorCallView] 🔍 자동 종료 AI 요약 생성 체크:')
+      console.log('  - consultationId:', consultationId)
+      console.log('  - sttMessages 개수:', sttMessages.value.length)
+      console.log('  - fullTranscript 길이:', fullTranscript.trim().length)
+
+      if (consultationId && fullTranscript.trim()) {
+        const summary = await generateAISummary(consultationId, fullTranscript)
+        aiSummary.value = summary
+        console.log('[CounselorCallView] 자동 종료 - AI 요약 생성 완료:', summary)
+      } else {
+        console.warn('[CounselorCallView] 자동 종료 - AI 요약 생성 스킵 (consultationId 또는 transcript 없음)')
+        aiSummary.value = {
+          title: '요약 생성 실패',
+          subtitle: '상담 내용이 충분하지 않습니다',
+          aiSummary: 'AI 요약을 생성할 수 없습니다.'
+        }
+      }
+    } catch (aiError) {
+      console.error('[CounselorCallView] 자동 종료 - AI 요약 생성 실패:', aiError)
+      aiSummary.value = {
+        title: '요약 생성 실패',
+        subtitle: 'AI 요약 생성 중 오류가 발생했습니다',
+        aiSummary: '잠시 후 다시 시도해주세요.'
+      }
+    }
   }
 })
 
@@ -540,6 +582,10 @@ const handleEndConfirmOk = async () => {
   console.log('[CounselorCallView] 통화 종료 확인')
 
   try {
+    // ⚠️ 중요: consultationId를 먼저 저장 (endCall()이 초기화하기 전에)
+    const consultationId = callStore.currentConsultationId
+    console.log('[CounselorCallView] 저장된 consultationId:', consultationId)
+
     // 통화 종료 버튼을 누르는 즉시 LiveKit 연결 종료 (고객에게 즉시 알림)
     isCallActive.value = false
     callStore.endCall()
@@ -568,9 +614,45 @@ const handleEndConfirmOk = async () => {
     // 마이크 상태를 음소거로 설정 (UI 동기화)
     isMuted.value = true
 
-    // 모달 표시 (메모 작성 및 요약 확인용)
+    // 모달을 먼저 표시 (로딩 상태로)
+    aiSummary.value = null // 로딩 상태
     showManualEndModal.value = true
-    console.log('[CounselorCallView] 수동 종료 모달 표시')
+    console.log('[CounselorCallView] 수동 종료 모달 표시 (AI 요약 로딩 중)')
+
+    // AI 요약 생성 (백그라운드에서 실행, 모달은 이미 표시됨)
+    try {
+      console.log('[CounselorCallView] AI 요약 생성 시작')
+      const fullTranscript = sttMessages.value
+        .map(msg => `${msg.speaker}: ${msg.text}`)
+        .join('\n')
+
+      // 디버깅 로그
+      console.log('[CounselorCallView] 🔍 AI 요약 생성 체크:')
+      console.log('  - consultationId:', consultationId)
+      console.log('  - sttMessages 개수:', sttMessages.value.length)
+      console.log('  - fullTranscript 길이:', fullTranscript.trim().length)
+      console.log('  - fullTranscript 내용:', fullTranscript.substring(0, 200))
+
+      if (consultationId && fullTranscript.trim()) {
+        const summary = await generateAISummary(consultationId, fullTranscript)
+        aiSummary.value = summary // { title, subtitle, aiSummary }
+        console.log('[CounselorCallView] AI 요약 생성 완료:', summary)
+      } else {
+        console.warn('[CounselorCallView] AI 요약 생성 스킵 (consultationId 또는 transcript 없음)')
+        aiSummary.value = {
+          title: '요약 생성 실패',
+          subtitle: '상담 내용이 충분하지 않습니다',
+          aiSummary: 'AI 요약을 생성할 수 없습니다.'
+        }
+      }
+    } catch (aiError) {
+      console.error('[CounselorCallView] AI 요약 생성 실패:', aiError)
+      aiSummary.value = {
+        title: '요약 생성 실패',
+        subtitle: 'AI 요약 생성 중 오류가 발생했습니다',
+        aiSummary: '잠시 후 다시 시도해주세요.'
+      }
+    }
   } catch (error) {
     console.error('[CounselorCallView] 통화 종료 버튼 처리 실패:', error)
     notificationStore.notifyError('통화 종료 중 오류가 발생했습니다')
@@ -1197,6 +1279,10 @@ onMounted(async () => {
     callStore.livekitRoom.on(RoomEvent.ParticipantDisconnected, async (participant) => {
       console.log('[CounselorCallView] 고객이 통화를 종료했습니다:', participant.identity)
 
+      // ⚠️ 중요: consultationId를 먼저 저장
+      const consultationId = callStore.currentConsultationId
+      console.log('[CounselorCallView] 고객 종료 - 저장된 consultationId:', consultationId)
+
       isCallActive.value = false
 
       // 음성 녹음 종료 및 파일 다운로드
@@ -1211,6 +1297,45 @@ onMounted(async () => {
           console.error('[CounselorCallView] LiveKit 연결 종료 실패 (고객 종료):', err)
         }
         callStore.setLivekitRoom(null)
+      }
+
+      // 모달을 먼저 표시 (로딩 상태로)
+      aiSummary.value = null // 로딩 상태
+      showManualEndModal.value = true
+      console.log('[CounselorCallView] 고객 종료 모달 표시 (AI 요약 로딩 중)')
+
+      // AI 요약 생성 (백그라운드에서 실행, 모달은 이미 표시됨)
+      try {
+        console.log('[CounselorCallView] 고객 종료 - AI 요약 생성 시작')
+        const fullTranscript = sttMessages.value
+          .map(msg => `${msg.speaker}: ${msg.text}`)
+          .join('\n')
+
+        // 디버깅 로그
+        console.log('[CounselorCallView] 🔍 고객 종료 AI 요약 생성 체크:')
+        console.log('  - consultationId:', consultationId)
+        console.log('  - sttMessages 개수:', sttMessages.value.length)
+        console.log('  - fullTranscript 길이:', fullTranscript.trim().length)
+
+        if (consultationId && fullTranscript.trim()) {
+          const summary = await generateAISummary(consultationId, fullTranscript)
+          aiSummary.value = summary
+          console.log('[CounselorCallView] 고객 종료 - AI 요약 생성 완료:', summary)
+        } else {
+          console.warn('[CounselorCallView] 고객 종료 - AI 요약 생성 스킵 (consultationId 또는 transcript 없음)')
+          aiSummary.value = {
+            title: '요약 생성 실패',
+            subtitle: '상담 내용이 충분하지 않습니다',
+            aiSummary: 'AI 요약을 생성할 수 없습니다.'
+          }
+        }
+      } catch (aiError) {
+        console.error('[CounselorCallView] 고객 종료 - AI 요약 생성 실패:', aiError)
+        aiSummary.value = {
+          title: '요약 생성 실패',
+          subtitle: 'AI 요약 생성 중 오류가 발생했습니다',
+          aiSummary: '잠시 후 다시 시도해주세요.'
+        }
       }
 
       // 통화 종료 모달 표시 (메모 저장용)

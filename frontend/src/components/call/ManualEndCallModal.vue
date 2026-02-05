@@ -34,7 +34,7 @@ const props = defineProps({
     required: true
   },
   aiSummary: {
-    type: String,
+    type: [String, Object],
     default: ''
   },
   memo: {
@@ -74,8 +74,8 @@ const handleConfirm = () => {
 .modal-container {
   background: white;
   border-radius: 20px;
-  padding: 28px;
-  max-width: 520px;
+  padding: 32px;
+  max-width: 800px;
   width: 100%;
   max-height: 80vh;
   overflow-y: auto;
