@@ -35,12 +35,13 @@ public class ConsultationController {
     }
 
     @GetMapping("/latest")
-    public ResponseEntity<BaseResponse<List<ConsultationSummaryResponse>>> getLatestConsultations(GetLatestConsultationRequest request) {
-        Integer customerId = request.getCustomerId();
+    public ResponseEntity<BaseResponse<List<ConsultationSummaryResponse>>> getLatestConsultations(
+            @RequestParam Integer customerId
+    ) {
         List<ConsultationSummaryResponse> result = consultationService.getLatest3ByCustomerId(customerId);
-
         return ResponseEntity.ok(BaseResponse.success(result));
     }
+
 
     // ========== 상담 종료 후 추가정보 업데이트(PATCH) ==========
 
