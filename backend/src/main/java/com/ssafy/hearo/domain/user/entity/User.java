@@ -48,6 +48,20 @@ public class User extends BaseTimeEntity {
     @Column(name = "current_status", nullable = false)
     private UserStatus status = UserStatus.OFFLINE;
 
+    // ========== 일일 스트레스 관리 필드 ==========
+    
+    @Column(name = "daily_profanity_count", nullable = false)
+    private Integer dailyProfanityCount = 0;
+
+    @Column(name = "daily_aggression_sum", nullable = false, precision = 10, scale = 2)
+    private java.math.BigDecimal dailyAggressionSum = java.math.BigDecimal.ZERO;
+
+    @Column(name = "daily_call_count", nullable = false)
+    private Integer dailyCallCount = 0;
+
+    @Column(name = "stress_reset_date", nullable = false)
+    private java.time.LocalDate stressResetDate = java.time.LocalDate.now();
+
     // ========== 생성자 ==========
     @Builder
     public User(String email, String password, String name, UserRole role) {
@@ -58,6 +72,10 @@ public class User extends BaseTimeEntity {
         this.lastEnergyValue = 100;
         this.status = UserStatus.REST;
         this.lastStatusChangeTime = LocalDateTime.now();
+        this.dailyProfanityCount = 0;
+        this.dailyAggressionSum = java.math.BigDecimal.ZERO;
+        this.dailyCallCount = 0;
+        this.stressResetDate = java.time.LocalDate.now();
     }
 
     // ========== 비즈니스 메서드 (핵심 로직) ==========
@@ -75,7 +93,15 @@ public class User extends BaseTimeEntity {
         long minutesPassed = Duration.between(this.lastStatusChangeTime, now).toMinutes();
 
         // 2. 변화량 계산 (시간 * 분당 증감률)
-        double change = minutesPassed * this.status.getEnergyRatePerMinute();
+        double rate = this.status.getEnergyRatePerMinute();
+        
+        // [특수 로직] 조하원(jhw@ssafy.com) 유저는 업무 중(AVAILABLE, IN_CALL)일 때 분당 10씩 감소
+        if ("jhw@ssafy.com".equals(this.email) && 
+           (this.status == UserStatus.AVAILABLE || this.status == UserStatus.IN_CALL)) {
+            rate = -10.0;
+        }
+
+        double change = minutesPassed * rate;
 
         // 3. 결과 계산 (0 ~ 100 클램핑)
         int currentEnergy = (int) (this.lastEnergyValue + change);
@@ -111,5 +137,13 @@ public class User extends BaseTimeEntity {
 
     public void updateProfile(String name) {
         this.name = name;
+    }
+
+    // [특수 로직] 조하원 유저 로그인 시 에너지 5로 설정
+    public void setEnergyForJhw() {
+        if ("jhw@ssafy.com".equals(this.email)) {
+            this.lastEnergyValue = 5;
+            this.lastStatusChangeTime = LocalDateTime.now();
+        }
     }
 }
