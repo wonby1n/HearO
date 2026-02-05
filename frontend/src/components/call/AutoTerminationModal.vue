@@ -52,7 +52,7 @@ const props = defineProps({
     required: true
   },
   aiSummary: {
-    type: String,
+    type: [String, Object],
     default: ''
   },
   memo: {
@@ -93,8 +93,8 @@ const handleConfirm = () => {
 .modal-container {
   background: white;
   border-radius: 20px;
-  padding: 28px;
-  max-width: 520px;
+  padding: 32px;
+  max-width: 800px;
   width: 100%;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   animation: modalSlideUp 0.3s ease-out;
@@ -114,41 +114,43 @@ const handleConfirm = () => {
 }
 
 .ai-transfer-notice {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border: 2px solid #1F3A8C;
   border-radius: 12px;
-  padding: 16px;
+  padding: 18px;
   display: flex;
   align-items: center;
   gap: 12px;
+  box-shadow: 0 2px 8px rgba(31, 58, 140, 0.1);
 }
 
 .bot-icon {
-  width: 24px;
-  height: 24px;
-  color: #3b82f6;
+  width: 28px;
+  height: 28px;
+  color: #1F3A8C;
   flex-shrink: 0;
 }
 
 .ai-message {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
-  color: #1e40af;
+  color: #1F3A8C;
   margin: 0;
 }
 
 .info-box {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background: #fef2f2;
+  border: 2px solid #fca5a5;
   border-radius: 12px;
-  padding: 16px;
+  padding: 18px;
 }
 
 .info-text {
-  font-size: 13px;
-  color: #6b7280;
+  font-size: 14px;
+  color: #991b1b;
   line-height: 1.7;
   margin: 0;
+  font-weight: 500;
 }
 
 .button-container {
@@ -158,7 +160,7 @@ const handleConfirm = () => {
 
 .confirm-button {
   padding: 14px 36px;
-  background: #dc2626;
+  background: #1F3A8C;
   color: white;
   border: none;
   border-radius: 12px;
@@ -167,11 +169,13 @@ const handleConfirm = () => {
   cursor: pointer;
   transition: all 0.2s ease;
   min-width: 140px;
-  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+  box-shadow: 0 4px 12px rgba(31, 58, 140, 0.3);
 }
 
 .confirm-button:hover {
-  background: #b91c1c;
+  background: #1a3278;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(31, 58, 140, 0.4);
 }
 
 .confirm-button:active {
