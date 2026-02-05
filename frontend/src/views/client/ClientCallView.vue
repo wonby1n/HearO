@@ -197,20 +197,25 @@ const sendCustomerSttToCounselor = async (text) => {
 }
 
 const startCustomerSTT = async () => {
-  console.log('[ClientCallView] startCustomerSTT 호출됨')
-  console.log('[ClientCallView] room.value:', room.value)
-  console.log('[ClientCallView] callStore.livekitRoom:', callStore.livekitRoom)
+  // Android 디버깅용 alert (테스트 후 제거)
+  // alert('STT 시작 시도: room=' + !!callStore.livekitRoom)
+
+  console.log('[STT-DEBUG] startCustomerSTT 호출됨')
+  console.log('[STT-DEBUG] room.value:', !!room.value)
+  console.log('[STT-DEBUG] callStore.livekitRoom:', !!callStore.livekitRoom)
 
   // room 연결된 이후에만
   if (!(room.value || callStore.livekitRoom)) {
-    console.warn('[ClientCallView] STT 스킵: room 연결 안됨')
+    console.warn('[STT-DEBUG] ❌ STT 스킵: room 연결 안됨')
     return
   }
 
   const SR = getSpeechRecognition()
-  console.log('[ClientCallView] SpeechRecognition API:', SR)
+  console.log('[STT-DEBUG] SpeechRecognition API 존재:', !!SR)
   if (!SR) {
-    console.warn('[ClientCallView] Web Speech STT 미지원 브라우저')
+    console.warn('[STT-DEBUG] ❌ Web Speech API 미지원')
+    // Android에서 미지원인 경우 사용자에게 알림
+    console.error('이 브라우저는 음성 인식을 지원하지 않습니다.')
     return
   }
 
@@ -480,6 +485,9 @@ const handleDisconnected = (reason) => {
 
 // 컴포넌트 마운트 시 초기화
 onMounted(async () => {
+  console.log('[STT-DEBUG] === ClientCallView onMounted 시작 ===')
+  console.log('[STT-DEBUG] callStore.livekitRoom 초기값:', !!callStore.livekitRoom)
+
   // 테스트용 고객 정보 설정
   if (!customerStore.hasCustomerInfo) {
     customerStore.setCustomerInfo({
@@ -553,7 +561,7 @@ onMounted(async () => {
       const audioTrack = stream.getAudioTracks()[0]
       if (audioTrack) {
         await callStore.livekitRoom.localParticipant.publishTrack(audioTrack)
-        console.log('[ClientCallView] ✅ 마이크 활성화 완료')
+        console.log('[STT-DEBUG] ✅ 마이크 활성화 완료, STT 시작 호출')
 
         // 고객 STT 시작
         startCustomerSTT()
