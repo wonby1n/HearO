@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
     <!--숨겨진 음성 재생 컨테이너-->
     <div ref="audioContainer" style="display: none;"></div>
     <!-- 자동 종료 모달 (시스템 트리거) -->
@@ -13,17 +13,17 @@
     <!-- 통화 종료 확인 모달 -->
     <Teleport to="body">
       <div v-if="showEndConfirmModal" class="fixed inset-0 z-50 flex items-center justify-center">
-        <div class="absolute inset-0 bg-black/50" @click="handleEndConfirmCancel"></div>
-        <div class="relative bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4">
-          <h3 class="text-lg font-semibold text-gray-900 mb-2">상담 종료</h3>
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="handleEndConfirmCancel"></div>
+        <div class="relative bg-white rounded-2xl shadow-2xl p-7 w-full max-w-sm mx-4">
+          <h3 class="text-xl font-bold text-gray-900 mb-3">상담 종료</h3>
           <p class="text-gray-600 mb-6">정말 상담을 종료하시겠습니까?</p>
           <div class="flex gap-3">
             <button @click="handleEndConfirmCancel"
-              class="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors">
+              class="flex-1 px-4 py-3 border-2 border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-50 transition-all">
               취소
             </button>
             <button @click="handleEndConfirmOk"
-              class="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors">
+              class="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all shadow-lg shadow-red-600/30">
               종료
             </button>
           </div>
@@ -32,11 +32,20 @@
     </Teleport>
 
     <!-- 상단 헤더 -->
-    <header class="bg-white shadow-sm border-b border-gray-200">
-      <div class="max-w-[1920px] mx-auto px-6 py-4">
+    <header class="bg-white shadow-md border-b-2 border-primary-100">
+      <div class="max-w-[1920px] mx-auto px-8 py-5">
         <div class="flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <h1 class="text-2xl font-bold text-primary-600">HearO</h1>
+          <div class="flex items-center gap-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center shadow-lg">
+                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3zm0 18.5c-3.76-1.08-6.5-5.06-6.5-9.41V6.3l6.5-2.6 6.5 2.6v4.79c0 4.35-2.74 8.33-6.5 9.41z"/>
+                </svg>
+              </div>
+              <h1 class="text-2xl font-black text-gray-900 tracking-tight">Hear<span class="text-primary-600">O</span></h1>
+            </div>
+            <div class="h-8 w-px bg-gray-300"></div>
+            <span class="text-sm font-semibold text-gray-600">상담 진행 중</span>
           </div>
 
           <CallTimer :isActive="isCallActive" />
@@ -49,46 +58,98 @@
 
     <!-- 메인 컨텐츠 -->
     <main class="max-w-[1920px] mx-auto p-6">
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-140px)]">
-        <!-- 좌측: 고객 정보 패널 -->
-        <div class="lg:col-span-3 h-full overflow-hidden">
-          <CustomerInfoSection />
-        </div>
+      <GridLayout
+        v-model:layout="layout"
+        :col-num="12"
+        :row-height="60"
+        :is-draggable="false"
+        :is-resizable="false"
+        :vertical-compact="true"
+        :margin="[24, 24]"
+        :use-css-transforms="true"
+        @layout-updated="saveLayout"
+      >
+        <!-- 고객 정보 패널 -->
+        <GridItem
+          :x="layout[0].x"
+          :y="layout[0].y"
+          :w="layout[0].w"
+          :h="layout[0].h"
+          :i="layout[0].i"
+          :min-w="2"
+          :min-h="8"
+          drag-allow-from=".drag-handle"
+        >
+          <div class="h-full overflow-hidden">
+            <CustomerInfoSection />
+          </div>
+        </GridItem>
 
-        <!-- 중앙: STT 자막 영역 -->
-        <div class="lg:col-span-6 h-full overflow-hidden">
-          <STTChatPanel
-            :messages="sttMessages"
-            :is-call-active="isCallActive"
-            :counselor-name="counselorName"
-            @toggle-profanity="handleToggleProfanity"
-            @cancel-profanity="handleCancelProfanity"
-            @counselor-message="handleCounselorMessage"
-          />
-        </div>
+        <!-- STT 자막 영역 -->
+        <GridItem
+          :x="layout[1].x"
+          :y="layout[1].y"
+          :w="layout[1].w"
+          :h="layout[1].h"
+          :i="layout[1].i"
+          :min-w="4"
+          :min-h="8"
+          drag-allow-from=".drag-handle"
+        >
+          <div class="h-full overflow-hidden">
+            <STTChatPanel
+              :messages="sttMessages"
+              :is-call-active="isCallActive"
+              :counselor-name="counselorName"
+              @toggle-profanity="handleToggleProfanity"
+              @cancel-profanity="handleCancelProfanity"
+              @counselor-message="handleCounselorMessage"
+            />
+          </div>
+        </GridItem>
 
-        <!-- 우측: AI 가이드 및 메모 -->
-        <div class="lg:col-span-3 h-full overflow-hidden">
-          <div class="bg-white rounded-lg shadow-sm border border-gray-200 h-full flex flex-col overflow-hidden gap-4">
-            <!-- AI 가이드 섹션 (상단, 스크롤 가능) -->
-            <div class="flex-2 overflow-hidden flex flex-col border-b border-gray-200">
-              <div class="p-4 border-b border-gray-100">
-                <h3 class="text-lg font-semibold text-gray-900">AI 가이드</h3>
-              </div>
-              <div class="flex-1 overflow-y-auto p-4">
-                <AIGuidePanel class="h-full" />
-              </div>
+        <!-- AI 가이드 패널 -->
+        <GridItem
+          :x="layout[2].x"
+          :y="layout[2].y"
+          :w="layout[2].w"
+          :h="layout[2].h"
+          :i="layout[2].i"
+          :min-w="2"
+          :min-h="4"
+          drag-allow-from=".drag-handle"
+        >
+          <div class="bg-white rounded-2xl shadow-lg border border-gray-200 h-full flex flex-col overflow-hidden">
+            <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-primary-50 to-blue-50">
+              <h3 class="text-lg font-bold text-gray-900">AI 가이드</h3>
             </div>
-
-            <!-- 메모 섹션 (하단, 스크롤 가능) -->
-            <div class="flex-1 overflow-hidden flex flex-col">
-              <div class="p-4">
-                <CallMemoPanel v-model="memo" :saved-label="memoSaveLabel" />
-              </div>
+            <div class="flex-1 overflow-y-auto p-5">
+              <AIGuidePanel class="h-full" />
             </div>
           </div>
-        </div>
-      </div>
+        </GridItem>
+
+        <!-- 메모 패널 -->
+        <GridItem
+          :x="layout[3].x"
+          :y="layout[3].y"
+          :w="layout[3].w"
+          :h="layout[3].h"
+          :i="layout[3].i"
+          :min-w="2"
+          :min-h="4"
+          drag-allow-from=".drag-handle"
+        >
+          <div class="bg-white rounded-2xl shadow-lg border border-gray-200 h-full flex flex-col overflow-hidden">
+            <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-primary-50 to-blue-50">
+              <h3 class="text-lg font-bold text-gray-900">메모</h3>
+            </div>
+            <div class="flex-1 overflow-hidden p-5">
+              <CallMemoPanel v-model="memo" :saved-label="memoSaveLabel" />
+            </div>
+          </div>
+        </GridItem>
+      </GridLayout>
     </main>
   </div>
 </template>
@@ -97,6 +158,7 @@
 import { ref, watch, computed, onBeforeUnmount, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { RoomEvent, Track } from 'livekit-client'
+import { GridLayout, GridItem } from 'vue3-grid-layout-next'
 import CallTimer from '@/components/counselor/CallTimer.vue'
 import CustomerInfoSection from '@/components/counselor/CustomerInfoSection.vue'
 import STTChatPanel from '@/components/counselor/STTChatPanel.vue'
@@ -105,7 +167,7 @@ import CallMemoPanel from '@/components/counselor/CallMemoPanel.vue'
 import AIGuidePanel from '@/components/counselor/AIGuidePanel.vue'
 import AutoTerminationModal from '@/components/call/AutoTerminationModal.vue'
 import ManualEndCallModal from '@/components/call/ManualEndCallModal.vue'
-import { startConsultation } from '@/services/consultationService'
+import { startConsultation, getLatestConsultations } from '@/services/consultationService'
 import { useNotificationStore } from '@/stores/notification'
 import { useCallStore } from '@/stores/call'
 import { useDashboardStore } from '@/stores/dashboard'
@@ -131,6 +193,51 @@ const callStore = useCallStore()
 const dashboardStore = useDashboardStore()
 const authStore = useAuthStore()
 const { startRecording, addTrack: addRecordingTrack, stopRecording, downloadRecording, cleanup: cleanupRecorder } = useAudioRecorder()
+
+// --- 레이아웃 관리 ---
+const LAYOUT_STORAGE_KEY = 'counselor-call-layout'
+
+// 기본 레이아웃 설정
+const defaultLayout = [
+  { i: 'customer-info', x: 0, y: 0, w: 4, h: 8, minW: 2, minH: 6 },  // 가로 넓게 (3→4), 세로 줄임 (12→8)
+  { i: 'stt-chat', x: 4, y: 0, w: 5, h: 12, minW: 4, minH: 8 },      // 가로 줄임 (6→5), x 위치 조정
+  { i: 'ai-guide', x: 9, y: 0, w: 3, h: 6, minW: 2, minH: 4 },       // 유지
+  { i: 'memo', x: 0, y: 8, w: 4, h: 4, minW: 2, minH: 3 }            // 고객정보 아래로 이동, 세로 줄임 (6→4)
+]
+
+// 저장된 레이아웃 로드 또는 기본값 사용
+const loadLayout = () => {
+  try {
+    const saved = localStorage.getItem(LAYOUT_STORAGE_KEY)
+    if (saved) {
+      return JSON.parse(saved)
+    }
+  } catch (error) {
+    console.warn('[CounselorCallView] 레이아웃 로드 실패:', error)
+  }
+  return JSON.parse(JSON.stringify(defaultLayout))
+}
+
+const layout = ref(loadLayout())
+
+// 레이아웃 저장
+const saveLayout = (newLayout) => {
+  try {
+    localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(newLayout))
+    console.log('[CounselorCallView] 레이아웃 저장됨')
+  } catch (error) {
+    console.warn('[CounselorCallView] 레이아웃 저장 실패:', error)
+  }
+}
+
+// 레이아웃 초기화
+const resetLayout = () => {
+  layout.value = JSON.parse(JSON.stringify(defaultLayout))
+  localStorage.removeItem(LAYOUT_STORAGE_KEY)
+  notificationStore.notifySuccess('레이아웃이 초기화되었습니다')
+  console.log('[CounselorCallView] 레이아웃 초기화됨')
+}
+
 
 // 상담원 이름 가져오기
 const counselorName = computed(() => authStore.getUser?.name || '상담원')

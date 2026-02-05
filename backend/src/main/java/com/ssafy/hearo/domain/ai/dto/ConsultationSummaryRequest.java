@@ -8,5 +8,6 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class ConsultationSummaryRequest {
+    private Integer consultationId;
     private String fullTranscript;
 }
