@@ -35,19 +35,22 @@ public class HeartbeatServiceImpl implements HeartbeatService {
     @Override
     public void setHeartbeat(Long userId, boolean isActive) {
         String key = HEARTBEAT_KEY_PREFIX + userId;
+        boolean currentlyAvailable = counselorAvailabilityService.isAvailable(userId);
 
         if (isActive) {
             // Set heartbeat with TTL
             redisTemplate.opsForValue().set(key, HEARTBEAT_VALUE, HEARTBEAT_TTL_SECONDS, TimeUnit.SECONDS);
             // 상담 가능 버튼 클릭 시 가용 상태로 전환
+            log.info("[하트비트] 상담원 {} 하트비트 갱신 (TTL: {}초) | 현재 가용: {} → setAvailable 호출",
+                    userId, HEARTBEAT_TTL_SECONDS, currentlyAvailable);
             counselorAvailabilityService.setAvailable(userId);
-            log.debug("Heartbeat activated and counselor available: {}", userId);
         } else {
             // Remove heartbeat
             redisTemplate.delete(key);
             // 상담 불가능 상태로 전환
+            log.info("[하트비트] 상담원 {} 하트비트 비활성화 | 현재 가용: {} → setUnavailable 호출",
+                    userId, currentlyAvailable);
             counselorAvailabilityService.setUnavailable(userId);
-            log.debug("Heartbeat deactivated and counselor unavailable: {}", userId);
         }
     }
 

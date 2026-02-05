@@ -77,6 +77,8 @@ public class ConsultationServiceImpl implements ConsultationService{
                 .build();
 
         consultationRepository.save(consultation);
+        log.info("[상담] 상담 레코드 생성 - ID: {}, 상담원: {}, 고객: {}, 접수: {}",
+                consultation.getId(), userId, request.getCustomerId(), request.getRegistrationId());
         return ConsultationStartResponse.of(consultation.getId());
     }
 
@@ -108,6 +110,10 @@ public class ConsultationServiceImpl implements ConsultationService{
 
         TerminationReason reason = request.getTerminationReason();
         consultation.endConsultation(reason, request.getDurationSeconds());
+
+        log.info("[상담종료] 상담 {} 종료 - 상담원: {}, 고객: {}, 사유: {}, 시간: {}초",
+                consultationId, userId, consultation.getCustomer().getId(),
+                reason, request.getDurationSeconds());
 
         // 블랙리스트 처리 (기존 로직 재사용)
         blacklistIfNeeded(consultation.getUser(), consultation.getCustomer(), reason);

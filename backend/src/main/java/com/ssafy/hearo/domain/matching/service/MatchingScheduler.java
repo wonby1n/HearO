@@ -51,20 +51,19 @@ public class MatchingScheduler {
         Set<Long> availableCounselors = counselorAvailabilityService.getMatchableCounselorIds();
 
         if (availableCounselors.isEmpty()) {
-            log.debug("매칭 스킵: 매칭 가능한 상담원 없음 (가용 상태 + 하트비트 활성 필요)");
             return;
         }
 
         // 대기열 상태 확인
         QueueService.QueueSizes sizes = queueService.getQueueSizes();
         if (sizes.totalSize() == 0) {
-            log.debug("매칭 스킵: 대기 고객 없음");
             return;
         }
 
-        log.info("매칭 시작 - 가용 상담원: {}명, 대기 고객: {}명 (Blacklist: {}, Normal: {})",
-                availableCounselors.size(), sizes.totalSize(),
-                sizes.blacklistQueueSize(), sizes.normalQueueSize());
+        log.info("[매칭] ========== 매칭 사이클 시작 ==========");
+        log.info("[매칭] 가용 상담원: {} (ID: {})", availableCounselors.size(), availableCounselors);
+        log.info("[매칭] 대기 고객: {}명 (Normal: {}, Blacklist: {})",
+                sizes.totalSize(), sizes.normalQueueSize(), sizes.blacklistQueueSize());
 
         // 가용 상담원 수만큼 매칭 시도
         int matchedCount = 0;
@@ -74,20 +73,25 @@ public class MatchingScheduler {
             // 현재 매칭 가능한 상담원 목록 다시 조회 (매칭 중 변경될 수 있음)
             Set<Long> currentAvailable = counselorAvailabilityService.getMatchableCounselorIds();
             if (currentAvailable.isEmpty()) {
+                log.info("[매칭] 루프 중단: 가용 상담원이 더 이상 없음");
                 break;
             }
+
+            log.info("[매칭] {}번째 매칭 시도 - 현재 가용 상담원: {}", matchedCount + 1, currentAvailable);
 
             // 매칭 가능한 고객 추출
             PopResult result = queueService.popMatchable(currentAvailable);
 
             if (!result.hasMatch()) {
-                log.info("매칭 종료: 더 이상 매칭 가능한 고객 없음. " +
-                         "Blacklist 스킵: {}, Normal→Blacklist 이동: {}",
+                log.info("[매칭] 매칭 가능한 고객 없음 (Blacklist 스킵: {}, Normal→Blacklist 이동: {})",
                         result.skippedCount(), result.movedToBlacklistCount());
                 break;
             }
 
             // 매칭 가능한 상담원 중 최적의 상담원 선택 (가중치 기반)
+            log.info("[매칭] 고객 {} 에 대해 상담원 선택 중... 후보: {}",
+                    result.customerId(), result.matchableCounselorIds());
+
             Long selectedCounselor = counselorScoreService.selectBestCounselor(
                     result.customerId(), result.matchableCounselorIds());
 
@@ -97,10 +101,12 @@ public class MatchingScheduler {
                     result.customerId(), selectedCounselor, roomName);
 
             // 상담원을 비가용 상태로 변경
+            log.info("[매칭] 상담원 {} → 비가용 상태로 변경 (고객 {} 매칭됨)", selectedCounselor, result.customerId());
             counselorAvailabilityService.setUnavailable(selectedCounselor);
 
             // 매칭 성공 시 lease 삭제 (더 이상 heartbeat 불필요)
             queueLeaseService.deleteLeaseByCustomerId(result.customerId());
+            log.info("[매칭] 고객 {} lease 삭제 완료", result.customerId());
 
             // 매칭 이벤트 발행 (상담 세션 생성용)
             eventPublisher.publishEvent(new MatchingCompletedEvent(
@@ -109,15 +115,16 @@ public class MatchingScheduler {
             // WebSocket으로 고객/상담원에게 매칭 알림 전송
             sendMatchingNotifications(result.customerId(), selectedCounselor, roomName);
 
-            log.info("매칭 완료: 고객={}, 상담원={}, 방={} (lease 삭제됨)",
+            log.info("[매칭] ★ 매칭 성공: 고객={} ↔ 상담원={}, 방={}",
                     result.customerId(), selectedCounselor, roomName);
 
             matchedCount++;
         }
 
-        if (matchedCount > 0) {
-            log.info("매칭 사이클 완료: {}건 매칭 성공", matchedCount);
-        }
+        // 매칭 후 남은 가용 상담원 확인
+        Set<Long> remainingAvailable = counselorAvailabilityService.getMatchableCounselorIds();
+        log.info("[매칭] ========== 매칭 사이클 종료: {}건 성공, 남은 가용 상담원: {} ==========",
+                matchedCount, remainingAvailable);
     }
 
     /**

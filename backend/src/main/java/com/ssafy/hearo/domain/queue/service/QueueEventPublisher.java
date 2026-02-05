@@ -108,7 +108,8 @@ public class QueueEventPublisher {
                 .timestamp(System.currentTimeMillis())
                 .build();
 
-        log.info("고객 매칭 알림 전송: customerId={}, roomName={}", customerId, roomName);
+        log.info("[WebSocket] 고객 {} 에게 MATCHED 알림 전송 (방: {}, identity: {})",
+                customerId, roomName, identity);
         messagingTemplate.convertAndSend(userTopic, notification);
     }
 
@@ -132,8 +133,8 @@ public class QueueEventPublisher {
                 .timestamp(System.currentTimeMillis())
                 .build();
 
-        log.info("상담원 매칭 알림 전송: counselorId={}, registrationId={}, customerId={}, roomName={}",
-                counselorId, registrationId, customerId, roomName);
+        log.info("[WebSocket] 상담원 {} 에게 MATCH_ASSIGNED 알림 전송 (고객: {}, 접수: {}, 방: {})",
+                counselorId, customerId, registrationId, roomName);
         messagingTemplate.convertAndSend(counselorTopic, notification);
     }
 }

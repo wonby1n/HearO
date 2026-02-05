@@ -33,18 +33,19 @@ public class RedisKeyExpirationListener extends KeyExpirationEventMessageListene
                 String userIdStr = expiredKey.substring("heartbeat:counselor:".length());
                 Long userId = Long.parseLong(userIdStr);
 
-                log.info("Heartbeat expired for user: {}", userId);
+                log.warn("[하트비트] ⚠ 상담원 {} 하트비트 TTL 만료! (30초간 갱신 없음)", userId);
 
                 // 1. 하트비트 상태 비활성화 (메모리/Redis 등 상태 동기화가 필요하다면)
                 heartbeatService.setHeartbeat(userId, false);
 
                 // 2. 사용자 상태를 REST로 변경하고 에너지 히스토리 저장
+                log.info("[하트비트] 상담원 {} → REST 상태로 전환", userId);
                 userStateService.switchToRestOnHeartbeatTimeout(userId);
 
             } catch (NumberFormatException e) {
-                log.error("Failed to parse userId from expired key: {}", expiredKey, e);
+                log.error("[하트비트] userId 파싱 실패: {}", expiredKey, e);
             } catch (Exception e) {
-                log.error("Error handling heartbeat expiration for key: {}", expiredKey, e);
+                log.error("[하트비트] 만료 처리 중 오류: {}", expiredKey, e);
             }
         }
     }
