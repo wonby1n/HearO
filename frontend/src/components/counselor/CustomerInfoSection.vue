@@ -74,17 +74,8 @@ const loadCustomerData = async () => {
     try {
       if (response.customerId) {
         console.log('[CustomerInfoSection] 과거 상담 이력 조회 시작, customerId:', response.customerId)
-        const consultations = await getLatestConsultations(response.customerId)
-        console.log('[CustomerInfoSection] 과거 상담 이력 조회 성공:', consultations)
-
-        // 백엔드 응답을 UI 포맷으로 변환
-        consultationHistory = consultations.map(c => ({
-          date: formatDate(c.createdAt),
-          agent: '상담원', // TODO: 백엔드에서 상담원 이름 제공 시 수정
-          summary: c.title + (c.subtitle ? ` - ${c.subtitle}` : ''),
-          duration: c.durationSeconds ? `${Math.floor(c.durationSeconds / 60)}분` : '',
-          terminationReason: c.terminationReason
-        }))
+        consultationHistory = await getLatestConsultations(response.customerId)
+        console.log('[CustomerInfoSection] 과거 상담 이력 조회 성공:', consultationHistory)
       }
     } catch (historyError) {
       console.warn('[CustomerInfoSection] 과거 상담 이력 조회 실패:', historyError)
