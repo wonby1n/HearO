@@ -1,8 +1,8 @@
 <template>
-  <div class="flex flex-col h-full bg-white rounded-lg shadow-sm border border-gray-200">
+  <div class="flex flex-col h-full bg-white rounded-2xl shadow-lg border border-gray-200">
     <!-- 헤더 (flex-shrink-0) -->
-    <div class="flex-shrink-0 px-6 py-4 border-b border-gray-200">
-      <h3 class="text-lg font-semibold text-gray-900">실시간 자막</h3>
+    <div class="flex-shrink-0 px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-primary-50 to-blue-50 rounded-t-2xl">
+      <h3 class="text-lg font-bold text-gray-900">실시간 자막</h3>
     </div>
 
     <!-- 폭언 감지 알림 (오른쪽 하단 토스트) -->

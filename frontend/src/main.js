@@ -8,6 +8,9 @@ import { useAuthStore } from './stores/auth'
 // TailwindCSS 스타일 임포트
 import './assets/main.css'
 
+// vue3-grid-layout-next 스타일 임포트
+import 'vue3-grid-layout-next/dist/style.css'
+
 const app = createApp(App)
 
 const pinia = createPinia()
