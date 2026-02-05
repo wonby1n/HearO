@@ -110,15 +110,6 @@ public class ConsultationServiceImpl implements ConsultationService{
         // 블랙리스트 처리 (기존 로직 재사용)
         blacklistIfNeeded(consultation.getUser(), consultation.getCustomer(), reason);
 
-        // AI 요약 생성
-        try {
-            GeneratedConsultationContent generated = summaryService.generateContent(request.getFullTranscript());
-            consultation.updateTitleSubtitle(generated.title(), generated.subtitle());
-            consultation.updateAiSummary(generated.aiSummary());
-        } catch (Exception e) {
-            log.warn("AI summary generation failed. consultationId={}", consultationId, e);
-        }
-
         return ConsultationEndResponse.from(consultation);
     }
 
