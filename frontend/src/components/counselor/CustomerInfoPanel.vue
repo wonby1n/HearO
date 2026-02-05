@@ -136,15 +136,77 @@
 
         <div v-if="customerInfo.consultationHistory && customerInfo.consultationHistory.length > 0" class="space-y-2">
           <div
-            v-for="(history, index) in customerInfo.consultationHistory"
+            v-for="(history, index) in customerInfo.consultationHistory.slice(0, 3)"
             :key="index"
-            class="bg-primary-50 border border-primary-200 rounded-xl p-3"
+            class="bg-gray-50 border border-gray-200 rounded-lg overflow-hidden"
           >
-            <div class="flex items-center justify-between mb-1">
-              <div class="text-sm font-bold text-gray-900">{{ history.date }}</div>
-              <span v-if="history.duration" class="text-xs font-medium text-primary-600 bg-primary-100 px-2 py-0.5 rounded-full">{{ history.duration }}</span>
+            <!-- 기본 정보 (클릭 가능) -->
+            <div 
+              @click="toggleHistory(index)"
+              class="p-3 cursor-pointer hover:bg-gray-100 transition-colors"
+            >
+              <div class="flex items-center justify-between mb-1">
+                <div class="flex items-center gap-2">
+                  <svg 
+                    class="w-4 h-4 text-gray-500 transition-transform"
+                    :class="{ 'rotate-90': expandedHistory[index] }"
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                  </svg>
+                  <div class="font-medium text-gray-900">{{ formatHistoryDate(history.createdAt) }}</div>
+                </div>
+                <div class="flex items-center gap-1">
+                  <span v-if="history.durationSeconds" class="text-xs text-gray-500">{{ formatHistoryDuration(history.durationSeconds) }}</span>
+                  <span
+                    v-if="history.terminationReason === 'PROFANITY_LIMIT' || history.terminationReason === 'AGGRESSION_LIMIT'"
+                    class="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-bold rounded-full"
+                    :title="getTerminationReasonText(history.terminationReason)"
+                  >
+                    ⚠️
+                  </span>
+                </div>
+              </div>
+              <div class="text-gray-700 font-medium text-sm">{{ history.title || '상담 내용 없음' }}</div>
             </div>
-            <div class="text-sm text-gray-700 font-medium">{{ history.summary }}</div>
+
+            <!-- 상세 정보 (확장 시) -->
+            <div v-if="expandedHistory[index]" class="px-3 pb-3 pt-0 border-t border-gray-200 bg-white">
+              <div class="space-y-2 mt-2">
+                <!-- 접수 증상 -->
+                <div v-if="history.symptom">
+                  <div class="text-xs font-semibold text-gray-600 mb-1">접수 증상</div>
+                  <div class="text-sm text-gray-800 bg-gray-50 p-2 rounded">{{ history.symptom }}</div>
+                </div>
+
+                <!-- 에러 코드 -->
+                <div v-if="history.errorCode">
+                  <div class="text-xs font-semibold text-gray-600 mb-1">에러 코드</div>
+                  <div class="text-sm font-mono font-semibold text-primary-700 bg-primary-50 p-2 rounded">{{ history.errorCode }}</div>
+                </div>
+
+                <!-- 종료 사유 -->
+                <div>
+                  <div class="text-xs font-semibold text-gray-600 mb-1">종료 사유</div>
+                  <div class="text-sm text-gray-800">
+                    <span 
+                      class="inline-block px-2 py-1 rounded text-xs font-medium"
+                      :class="getTerminationReasonClass(history.terminationReason)"
+                    >
+                      {{ getTerminationReasonText(history.terminationReason) }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- 욕설 횟수 -->
+                <div v-if="history.profanityCount > 0">
+                  <div class="text-xs font-semibold text-gray-600 mb-1">욕설 감지</div>
+                  <div class="text-sm text-red-700 font-semibold">{{ history.profanityCount }}회</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -159,6 +221,13 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+
+// 확장된 상담 이력 인덱스 추적
+const expandedHistory = ref({})
+
+const toggleHistory = (index) => {
+  expandedHistory.value[index] = !expandedHistory.value[index]
+}
 
 const props = defineProps({
   customerInfo: {
@@ -243,6 +312,61 @@ const imageLoadFailed = ref(false)
 const handleImageError = () => {
   imageLoadFailed.value = true
   console.warn('제품 이미지 로드 실패:', props.customerInfo.productImage)
+}
+
+// 과거 상담 이력 날짜 포맷팅
+const formatHistoryDate = (dateString) => {
+  if (!dateString) return '-'
+  const date = new Date(dateString)
+  return date.toLocaleDateString('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).replace(/\. /g, '.').replace('.', '')
+}
+
+// 과거 상담 이력 통화 시간 포맷팅
+const formatHistoryDuration = (seconds) => {
+  if (seconds === null || seconds === undefined) return '-'
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const secs = seconds % 60
+  
+  if (hours > 0) {
+    return `${hours}시간 ${minutes}분`
+  } else if (minutes > 0) {
+    return `${minutes}분 ${secs}초`
+  } else {
+    return `${secs}초`
+  }
+}
+
+// 종료 사유 텍스트
+const getTerminationReasonText = (reason) => {
+  const reasonMap = {
+    NORMAL: '정상 종료',
+    CUSTOMER_DISCONNECT: '고객 종료',
+    COUNSELOR_DISCONNECT: '상담사 종료',
+    BLACKLIST: '블랙리스트',
+    TIMEOUT: '시간 초과',
+    ERROR: '오류',
+    PROFANITY_LIMIT: '욕설 제한',
+    AGGRESSION_LIMIT: '공격성 제한'
+  }
+  return reasonMap[reason] || reason
+}
+
+// 종료 사유별 스타일 클래스
+const getTerminationReasonClass = (reason) => {
+  if (reason === 'PROFANITY_LIMIT' || reason === 'AGGRESSION_LIMIT') {
+    return 'bg-red-100 text-red-700'
+  } else if (reason === 'NORMAL' || reason === 'CUSTOMER_DISCONNECT') {
+    return 'bg-green-100 text-green-700'
+  } else if (reason === 'TIMEOUT' || reason === 'ERROR') {
+    return 'bg-yellow-100 text-yellow-700'
+  } else {
+    return 'bg-gray-100 text-gray-700'
+  }
 }
 </script>
 
