@@ -197,10 +197,18 @@ const sendCustomerSttToCounselor = async (text) => {
 }
 
 const startCustomerSTT = async () => {
+  console.log('[ClientCallView] startCustomerSTT 호출됨')
+  console.log('[ClientCallView] room.value:', room.value)
+  console.log('[ClientCallView] callStore.livekitRoom:', callStore.livekitRoom)
+
   // room 연결된 이후에만
-  if (!(room.value || callStore.livekitRoom)) return
+  if (!(room.value || callStore.livekitRoom)) {
+    console.warn('[ClientCallView] STT 스킵: room 연결 안됨')
+    return
+  }
 
   const SR = getSpeechRecognition()
+  console.log('[ClientCallView] SpeechRecognition API:', SR)
   if (!SR) {
     console.warn('[ClientCallView] Web Speech STT 미지원 브라우저')
     return
@@ -223,21 +231,31 @@ const startCustomerSTT = async () => {
   recognition.continuous = true
 
   recognition.onerror = (ev) => {
-    console.warn('[ClientCallView] STT 오류:', ev?.error)
+    console.warn('[ClientCallView] STT 오류:', ev?.error, ev)
+  }
+
+  recognition.onstart = () => {
+    console.log('[ClientCallView] STT onstart 이벤트 발생')
   }
 
   recognition.onend = () => {
+    console.log('[ClientCallView] STT onend 이벤트 발생, isInCall:', callStore.isInCall, 'sttEnabled:', sttEnabled)
     // 통화 중이고 STT가 활성화되어 있으면 자동 재시작
     if (callStore.isInCall && sttEnabled) {
-      try { recognition?.start?.() } catch {}
+      console.log('[ClientCallView] STT 재시작 시도')
+      setTimeout(() => {
+        try { recognition?.start?.() } catch (e) { console.warn('[ClientCallView] STT 재시작 실패:', e) }
+      }, 300) // Android에서 즉시 재시작 시 실패할 수 있어 딜레이 추가
     }
   }
 
   recognition.onresult = async (event) => {
+    console.log('[ClientCallView] STT onresult 이벤트:', event.results.length, '개 결과')
     let finalText = ''
     for (let i = event.resultIndex; i < event.results.length; i++) {
       const res = event.results[i]
       const t = res[0]?.transcript ?? ''
+      console.log('[ClientCallView] STT 결과:', t, 'isFinal:', res.isFinal)
       if (res.isFinal) finalText += t
     }
 
