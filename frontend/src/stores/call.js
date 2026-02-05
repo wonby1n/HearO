@@ -119,6 +119,11 @@ export const useCallStore = defineStore('call', () => {
     return currentCall.value.status === 'connecting'
   })
 
+  // 현재 consultationId getter
+  const currentConsultationId = computed(() => {
+    return currentCall.value.consultationId
+  })
+
   // STT 텍스트 추가
   const addTranscript = (transcript) => {
     transcripts.value.push({
@@ -176,6 +181,7 @@ export const useCallStore = defineStore('call', () => {
     // Getters
     isInCall,
     isConnecting,
+    currentConsultationId,
     // Actions
     initiateCall,
     activateCall,

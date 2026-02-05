@@ -177,8 +177,25 @@
 
             <!-- AI 요약 탭 -->
             <div v-if="activeTab[consultation.consultationId] === 'ai-summary'">
-              <div class="bg-white rounded-lg border border-primary-200 p-4 shadow-sm">
-                <p class="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+              <div class="bg-white rounded-lg border border-primary-200 p-5 shadow-sm">
+                <!-- 섹션별로 파싱된 경우 -->
+                <div v-if="parseSummary(consultation.aiSummary)" class="summary-sections">
+                  <div v-for="(section, index) in parseSummary(consultation.aiSummary)" :key="index" class="summary-section">
+                    <div class="section-header-row">
+                      <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path v-if="section.title === '이슈 요약'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        <path v-else-if="section.title === '고객 요청'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+                        <path v-else-if="section.title === '상담원 안내'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                      </svg>
+                      <span class="section-title-text">{{ section.title }}</span>
+                    </div>
+                    <p class="section-content">{{ section.content }}</p>
+                  </div>
+                </div>
+                
+                <!-- 파싱되지 않은 경우 전체 텍스트 표시 -->
+                <p v-else class="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
                   {{ consultation.aiSummary || 'AI 요약 정보가 없습니다.' }}
                 </p>
               </div>
@@ -492,6 +509,33 @@ const deleteMemo = async (consultationId) => {
   }
 }
 
+// AI 요약을 섹션별로 파싱하는 함수
+const parseSummary = (summary) => {
+  if (!summary || summary.trim().length === 0) {
+    return null
+  }
+
+  const sections = []
+  const sectionTitles = ['이슈 요약', '고객 요청', '상담원 안내', '후속 조치']
+  
+  sectionTitles.forEach((title, index) => {
+    const nextTitle = sectionTitles[index + 1]
+    const regex = nextTitle 
+      ? new RegExp(`${title}[:\\s]*([\\s\\S]*?)(?=${nextTitle})`, 'i')
+      : new RegExp(`${title}[:\\s]*([\\s\\S]*)`, 'i')
+    
+    const match = summary.match(regex)
+    if (match && match[1]) {
+      sections.push({
+        title,
+        content: match[1].trim()
+      })
+    }
+  })
+
+  return sections.length > 0 ? sections : null
+}
+
 const truncateText = (text, maxLength) => {
   if (!text) return '-'
   if (text.length <= maxLength) return text
@@ -543,3 +587,51 @@ const formatFileSize = (bytes) => {
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
 }
 </script>
+
+<style scoped>
+/* AI Summary Sections */
+.summary-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.summary-section {
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.summary-section:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.section-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.section-icon {
+  width: 18px;
+  height: 18px;
+  color: #1F3A8C;
+  flex-shrink: 0;
+}
+
+.section-title-text {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1F3A8C;
+}
+
+.section-content {
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.7;
+  margin: 0;
+  padding-left: 26px;
+  white-space: pre-line;
+}
+</style>
