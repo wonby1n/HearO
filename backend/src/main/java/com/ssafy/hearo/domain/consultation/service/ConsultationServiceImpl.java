@@ -196,4 +196,19 @@ public class ConsultationServiceImpl implements ConsultationService{
         return consultationRepository.findAllByCustomerId(customerId, pageable)
                 .map(ConsultationListResponse::from);
     }
+
+    @Override
+    @Transactional
+    public ConsultationMemoPatchResponse updateMemo(Integer consultationId, String userMemo) {
+
+        Consultation consultation = consultationRepository.findById(consultationId)
+                .orElseThrow(() -> new IllegalArgumentException("상담 내역을 찾을 수 없습니다."));
+
+        consultation.setUserMemo(userMemo);
+
+        return ConsultationMemoPatchResponse.builder()
+                .consultationId(consultation.getId())
+                .userMemo(consultation.getUserMemo())
+                .build();
+    }
 }

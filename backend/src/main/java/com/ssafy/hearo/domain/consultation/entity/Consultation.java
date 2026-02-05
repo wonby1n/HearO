@@ -173,4 +173,8 @@ public class Consultation extends BaseTimeEntity {
         this.rating = rating;
         rating.setConsultation(this);
     }
+
+    public void setUserMemo(String userMemo) {
+        this.userMemo = userMemo;
+    }
 }
