@@ -151,10 +151,10 @@ onMounted(async () => {
   console.log('[DashboardView] 고객 만족도:', dashboardStore.customerSatisfaction)
 
   // 폭언 자동 종료 후 TimeModal 트리거 체크
-  const shouldTriggerTimeModal = sessionStorage.getItem('triggerTimeModal')
+  const shouldTriggerTimeModal = localStorage.getItem('triggerTimeModal')
   if (shouldTriggerTimeModal === 'true') {
     console.log('[DashboardView] 폭언 자동 종료 감지 - TimeModal 열기')
-    sessionStorage.removeItem('triggerTimeModal')
+    localStorage.removeItem('triggerTimeModal')
     isTimeModalOpen.value = true
   }
 

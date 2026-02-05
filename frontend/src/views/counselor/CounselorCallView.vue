@@ -317,10 +317,10 @@ const memoSaveLabel = computed(() => {
 
 const getSessionDraftKey = () => {
   if (typeof window === 'undefined') return '';
-  let storedKey = sessionStorage.getItem('callMemoDraftKey');
+  let storedKey = localStorage.getItem('callMemoDraftKey');
   if (!storedKey) {
     storedKey = `callMemoDraft:${Date.now()}`;
-    sessionStorage.setItem('callMemoDraftKey', storedKey);
+    localStorage.setItem('callMemoDraftKey', storedKey);
   }
   return storedKey;
 }
@@ -644,7 +644,7 @@ const handleAutoTerminationConfirm = async () => {
     callStore.resetCall()
 
     // 대시보드로 이동하면서 TimeModal 트리거 플래그 설정
-    sessionStorage.setItem('triggerTimeModal', 'true')
+    localStorage.setItem('triggerTimeModal', 'true')
     router.push({ name: 'dashboard' })
 
     notificationStore.notifyInfo('고객이 블랙리스트에 등록되었습니다. 10분간 의무 휴식이 필요합니다.')
