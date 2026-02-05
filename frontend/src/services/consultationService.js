@@ -29,10 +29,10 @@ export const startConsultation = async (payload) => {
       },
       token
         ? {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
+          headers: {
+            Authorization: `Bearer ${token}`
           }
+        }
         : undefined
     )
 
@@ -89,10 +89,10 @@ export const fetchConsultationRating = async (consultationId) => {
       `${API_BASE_URL}/consultations/${consultationId}/rating`,
       token
         ? {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
+          headers: {
+            Authorization: `Bearer ${token}`
           }
+        }
         : undefined
     )
 
@@ -160,8 +160,12 @@ export const getLatestConsultations = async (customerId) => {
  */
 export const getMyConsultations = async (page = 0, size = 10) => {
   try {
+    const token = getAuthToken()
     const response = await axios.get(`${API_BASE_URL}/consultations/me`, {
-      params: { page, size }
+      params: { page, size },
+      headers: token ? {
+        Authorization: `Bearer ${token}`
+      } : undefined
     })
 
     if (response.data && response.data.isSuccess) {
@@ -186,8 +190,12 @@ export const getMyConsultations = async (page = 0, size = 10) => {
  */
 export const getConsultationsByCustomer = async (customerId, page = 0, size = 10) => {
   try {
+    const token = getAuthToken()
     const response = await axios.get(`${API_BASE_URL}/consultations/customer/${customerId}`, {
-      params: { page, size }
+      params: { page, size },
+      headers: token ? {
+        Authorization: `Bearer ${token}`
+      } : undefined
     })
 
     if (response.data && response.data.isSuccess) {

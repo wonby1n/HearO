@@ -4,7 +4,7 @@
       <!-- 좌측: 인사말 + 날짜/시간 -->
       <div class="info-section">
         <h2 class="greeting-text text-2xl font-bold text-gray-900 tracking-tight">
-          어서오세요, <span class="user-name text-primary-main">{{ authStore.user?.name || '로그인안됨' }}</span>님
+          안녕하세요, <span class="user-name text-primary-main">{{ authStore.user?.name || '로그인안됨' }}</span>님
         </h2>
         <p class="datetime-text text-sm font-medium text-gray-500 mt-1.5 flex items-center gap-1.5">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -14,33 +14,8 @@
         </p>
       </div>
 
-      <!-- 우측: 상담 상태 + 대기 고객 수 -->
-      <div class="flex items-center gap-3">
-        <!-- 상담 상태 토글 버튼 -->
-        <div class="status-toggle-section">
-          <button
-            @click="toggleConsultationStatus"
-            class="status-btn px-4 py-4 rounded-xl shadow-md transition-all duration-300 hover:shadow-lg active:scale-95 focus:outline-none"
-            :data-active="dashboardStore.consultationStatus.isActive"
-          >
-            <div class="flex items-center gap-3">
-              <div class="icon-circle bg-white/20 p-2 rounded-lg backdrop-blur-sm">
-                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                </svg>
-              </div>
-              <div class="flex-1">
-                <p class="text-white/80 text-[10px] font-semibold uppercase tracking-wider">상담 상태</p>
-                <div class="flex items-baseline gap-1.5">
-                  <span class="text-3xl font-black text-white tracking-tight">
-                    {{ dashboardStore.consultationStatus.isActive ? 'ON' : 'OFF' }}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </button>
-        </div>
-
+      <!-- 우측: 대기 고객 수 + 상담 상태 -->
+      <div class="flex items-center gap-4">
         <!-- 대기 고객 수 -->
         <div class="waiting-section">
           <div class="waiting-card bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl p-4 shadow-md border border-primary-400">
@@ -74,6 +49,31 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- 상담 상태 토글 버튼 (확대 및 고정 너비) -->
+        <div class="status-toggle-section">
+          <button
+            @click="toggleConsultationStatus"
+            class="status-btn w-48 px-6 py-4 rounded-xl shadow-lg transition-all duration-300 hover:shadow-xl active:scale-95 focus:outline-none focus:ring-4 focus:ring-offset-2"
+            :data-active="dashboardStore.consultationStatus.isActive"
+          >
+            <div class="flex items-center gap-4">
+              <div class="icon-circle bg-white/30 p-3 rounded-xl backdrop-blur-sm">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+              </div>
+              <div class="flex-1 text-left">
+                <p class="text-white/90 text-xs font-bold uppercase tracking-wider mb-0.5">상담 상태</p>
+                <div class="flex items-baseline gap-2">
+                  <span class="text-4xl font-black text-white tracking-tight">
+                    {{ dashboardStore.consultationStatus.isActive ? 'ON' : 'OFF' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </button>
         </div>
       </div>
     </div>
@@ -402,16 +402,6 @@ onUnmounted(() => {
   25% { transform: scale(1.15); }
   50% { transform: scale(1.1); }
   100% { transform: scale(1); }
-}
-
-/* 대기 고객 카드 스타일 */
-.waiting-card {
-  transition: all 0.3s ease;
-}
-
-.waiting-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 20px 25px -5px rgba(31, 58, 140, 0.3), 0 10px 10px -5px rgba(31, 58, 140, 0.2);
 }
 
 /* 지표 증감 애니메이션 */
