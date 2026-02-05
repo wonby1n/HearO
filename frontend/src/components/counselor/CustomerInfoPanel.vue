@@ -1,9 +1,9 @@
 <template>
-  <div class="bg-white rounded-lg shadow-sm border border-gray-200 h-full flex flex-col">
+  <div class="bg-white rounded-2xl shadow-lg border border-gray-200 h-full flex flex-col">
     <!-- 고객 정보 섹션 -->
-    <div class="bg-primary-600 text-white px-6 py-4 rounded-t-lg">
-      <h3 class="text-sm font-semibold mb-1">{{ customerInfo.customerName || '고객 정보 없음' }}</h3>
-      <p class="text-lg font-medium">{{ maskedPhone }}</p>
+    <div class="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-primary-50 to-blue-50 rounded-t-2xl">
+      <h3 class="text-lg font-bold text-gray-900 mb-1">{{ customerInfo.customerName || '고객 정보 없음' }}</h3>
+      <p class="text-base font-medium text-gray-700">{{ maskedPhone }}</p>
     </div>
 
     <div class="flex-1 overflow-y-auto p-6">
@@ -95,28 +95,28 @@
       <!-- 접수 증상 -->
       <section>
         <div class="flex items-center gap-2 mb-3">
-          <svg class="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+          <svg class="w-5 h-5 text-primary-600" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
           </svg>
-          <h4 class="text-sm font-semibold text-gray-900">접수 증상</h4>
+          <h4 class="text-sm font-bold text-gray-900">접수 증상</h4>
         </div>
 
-        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div class="bg-primary-50 border border-primary-200 rounded-xl p-4">
           <!-- 에러 코드 (있는 경우) -->
-          <div v-if="customerInfo.errorCode && customerInfo.errorCode !== '정보 없음'" class="mb-3 pb-3 border-b border-red-200">
-            <span class="text-xs text-gray-600">에러 코드:</span>
-            <span class="ml-2 font-mono font-semibold text-red-700">{{ customerInfo.errorCode }}</span>
+          <div v-if="customerInfo.errorCode && customerInfo.errorCode !== '정보 없음'" class="mb-3 pb-3 border-b border-primary-200">
+            <span class="text-xs font-medium text-gray-600">에러 코드</span>
+            <span class="ml-2 font-mono font-bold text-primary-700">{{ customerInfo.errorCode }}</span>
           </div>
 
           <!-- 증상 목록 -->
-          <ul v-if="customerInfo.symptoms && customerInfo.symptoms.length > 0" class="space-y-2 text-sm text-gray-900">
+          <ul v-if="customerInfo.symptoms && customerInfo.symptoms.length > 0" class="space-y-2">
             <li
               v-for="(symptom, index) in customerInfo.symptoms"
               :key="index"
-              class="flex items-start gap-2"
+              class="flex items-start gap-2 text-sm text-gray-800"
             >
-              <span class="text-red-600 mt-1">•</span>
-              <span>{{ symptom }}</span>
+              <span class="text-primary-600 font-bold mt-0.5">•</span>
+              <span class="font-medium">{{ symptom }}</span>
             </li>
           </ul>
           <div v-else class="text-sm text-gray-500 text-center py-2">
@@ -128,10 +128,10 @@
       <!-- 과거 상담 이력 -->
       <section>
         <div class="flex items-center gap-2 mb-3">
-          <svg class="w-5 h-5 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
+          <svg class="w-5 h-5 text-primary-600" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/>
           </svg>
-          <h4 class="text-sm font-semibold text-gray-900">과거 상담 이력</h4>
+          <h4 class="text-sm font-bold text-gray-900">과거 상담 이력</h4>
         </div>
 
         <div v-if="customerInfo.consultationHistory && customerInfo.consultationHistory.length > 0" class="space-y-2">
@@ -210,7 +210,7 @@
           </div>
         </div>
 
-        <div v-else class="text-sm text-gray-500 text-center py-4">
+        <div v-else class="bg-primary-50 border border-primary-200 rounded-xl p-4 text-sm text-gray-500 text-center">
           과거 상담 이력이 없습니다.
         </div>
       </section>
@@ -259,7 +259,7 @@ const props = defineProps({
 
 // ✅ 제품 이미지 경로 계산
 const productImg = computed(() => {
-  const url = props.customerInfo.productImageUrl
+  const url = props.customerInfo.productImage
   return url ? `https://i14e106.p.ssafy.io${url}` : null
 })
 
@@ -269,10 +269,23 @@ const maskedPhone = computed(() => {
     return '010-****-****'
   }
 
-  const parts = props.customerInfo.phone.split('-')
-  if (parts.length === 3) {
-    return `${parts[0]}-****-${parts[2]}`
+  // 하이픈 제거 후 숫자만 추출
+  const phoneNumber = props.customerInfo.phone.replace(/\D/g, '')
+  
+  // 전화번호 길이 검증 (10자리 또는 11자리)
+  if (phoneNumber.length === 11) {
+    // 010-****-5678 형식으로 마스킹
+    const first = phoneNumber.substring(0, 3)  // 010
+    const last = phoneNumber.substring(7)      // 마지막 4자리
+    return `${first}-****-${last}`
+  } else if (phoneNumber.length === 10) {
+    // 02-****-5678 형식으로 마스킹 (서울 지역번호)
+    const first = phoneNumber.substring(0, 2)
+    const last = phoneNumber.substring(6)
+    return `${first}-****-${last}`
   }
+  
+  // 형식이 맞지 않으면 원본 반환
   return props.customerInfo.phone
 })
 
@@ -298,7 +311,7 @@ const warrantyClass = computed(() => {
 const imageLoadFailed = ref(false)
 const handleImageError = () => {
   imageLoadFailed.value = true
-  console.warn('제품 이미지 로드 실패:', props.customerInfo.productImageUrl)
+  console.warn('제품 이미지 로드 실패:', props.customerInfo.productImage)
 }
 
 // 과거 상담 이력 날짜 포맷팅
