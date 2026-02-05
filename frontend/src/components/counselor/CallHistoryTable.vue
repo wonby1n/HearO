@@ -97,13 +97,42 @@
           <!-- 탭 컨텐츠 -->
           <div class="px-6 py-4">
             <!-- 상담사 메모 탭 -->
-            <div v-if="activeTab[consultation.consultationId] === 'counselor-memo'">
-              <div class="bg-white rounded-lg border border-primary-200 p-6 shadow-sm">
+            <div v-if="activeTab[consultation.consultationId] === 'counselor-memo'" class="space-y-4">
+              <!-- 통화 중 작성한 메모 (위) -->
+              <div class="bg-white rounded-lg border border-blue-200 p-4 shadow-sm">
+                <div class="border-b border-blue-200 pb-2 mb-3">
+                  <h4 class="text-sm font-bold text-gray-900 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                    </svg>
+                    통화 중 작성한 메모
+                  </h4>
+                </div>
+                <div v-if="consultation.userMemo">
+                  <p class="text-sm text-gray-900 bg-blue-50 p-4 rounded-lg whitespace-pre-wrap leading-relaxed">
+                    {{ consultation.userMemo }}
+                  </p>
+                </div>
+                <div v-else class="text-sm text-gray-500 text-center py-8 bg-gray-50 rounded-lg">
+                  작성된 메모가 없습니다.
+                </div>
+              </div>
+
+              <!-- 추가 메모 (아래) -->
+              <div class="bg-white rounded-lg border border-primary-200 p-4 shadow-sm">
+                <div class="border-b border-primary-200 pb-2 mb-3">
+                  <h4 class="text-sm font-bold text-gray-900 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                    </svg>
+                    추가 메모
+                  </h4>
+                </div>
                 <div v-if="editingMemo[consultation.consultationId]">
                   <textarea
                     v-model="memoText[consultation.consultationId]"
                     class="w-full min-h-[150px] p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
-                    placeholder="상담사 메모를 입력하세요..."
+                    placeholder="추가 메모를 입력하세요..."
                   ></textarea>
                   <div class="flex gap-2 mt-3">
                     <button
@@ -125,36 +154,23 @@
                     <p class="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed bg-gray-50 p-4 rounded-lg">{{ consultation.counselorMemo }}</p>
                   </div>
                   <div v-else class="text-sm text-gray-500 text-center py-8 bg-gray-50 rounded-lg mb-3">
-                    작성된 메모가 없습니다.
+                    작성된 추가 메모가 없습니다.
                   </div>
-                  <button
-                    @click="startEditMemo(consultation.consultationId, consultation.counselorMemo)"
-                    class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium text-sm"
-                  >
-                    {{ consultation.counselorMemo ? '메모 수정' : '메모 작성' }}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- 녹음 파일 탭 -->
-            <div v-if="activeTab[consultation.consultationId] === 'recording'">
-              <div class="bg-white rounded-lg border border-primary-200 p-6 shadow-sm">
-                <div v-if="consultation.voiceRecording">
-                  <audio
-                    controls
-                    class="w-full"
-                    :src="`https://i14e106.p.ssafy.io${consultation.voiceRecording.fileUrl}`"
-                  >
-                    브라우저가 오디오 재생을 지원하지 않습니다.
-                  </audio>
-                  <div class="mt-2 flex items-center justify-between text-xs text-gray-500">
-                    <span>파일 크기: {{ formatFileSize(consultation.voiceRecording.fileSize) }}</span>
-                    <span>길이: {{ formatDuration(consultation.voiceRecording.durationSeconds) }}</span>
+                  <div class="flex gap-2">
+                    <button
+                      @click="startEditMemo(consultation.consultationId, consultation.counselorMemo)"
+                      class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium text-sm"
+                    >
+                      {{ consultation.counselorMemo ? '메모 수정' : '메모 작성' }}
+                    </button>
+                    <button
+                      v-if="consultation.counselorMemo"
+                      @click="deleteMemo(consultation.consultationId)"
+                      class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm"
+                    >
+                      삭제
+                    </button>
                   </div>
-                </div>
-                <div v-else class="text-sm text-gray-500 text-center py-8 bg-gray-50 rounded-lg">
-                  녹음 파일이 없습니다.
                 </div>
               </div>
             </div>
@@ -206,27 +222,7 @@
               </div>
             </div>
 
-            <!-- 상담사 메모 탭 (상담사가 작성한 메모) -->
-            <div v-if="activeTab[consultation.consultationId] === 'counselor-memo'">
-              <div class="bg-white rounded-lg border border-blue-200 p-4 shadow-sm">
-                <div class="border-b border-blue-200 pb-2 mb-3">
-                  <h4 class="text-sm font-bold text-gray-900 flex items-center gap-2">
-                    <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                    </svg>
-                    통화 중 작성한 메모
-                  </h4>
-                </div>
-                <div v-if="consultation.userMemo">
-                  <p class="text-sm text-gray-900 bg-blue-50 p-4 rounded-lg whitespace-pre-wrap leading-relaxed">
-                    {{ consultation.userMemo }}
-                  </p>
-                </div>
-                <div v-else class="text-sm text-gray-500 text-center py-8 bg-gray-50 rounded-lg">
-                  작성된 메모가 없습니다.
-                </div>
-              </div>
-            </div>
+
 
             <!-- 상담 결과 탭 -->
             <div v-if="activeTab[consultation.consultationId] === 'result'">
@@ -416,13 +412,7 @@ const tabs = [
       h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' })
     ])
   },
-  {
-    id: 'recording',
-    label: '녹음 파일',
-    icon: () => h('svg', { class: 'w-4 h-4', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' }, [
-      h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d: 'M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z' })
-    ])
-  }
+
 ]
 
 const toggleExpand = (id) => {
@@ -472,6 +462,34 @@ const saveMemo = async (consultationId) => {
 const cancelEditMemo = (consultationId) => {
   editingMemo.value[consultationId] = false
   memoText.value[consultationId] = ''
+}
+
+// 메모 삭제 (빈 문자열로 변경)
+const deleteMemo = async (consultationId) => {
+  if (!confirm('추가 메모를 삭제하시겠습니까?')) {
+    return
+  }
+
+  try {
+    await axios.patch(`/api/v1/consultations/${consultationId}/memo`, {
+      counselorMemo: ''
+    }, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('accessToken')}`
+      }
+    })
+    
+    // 성공 시 해당 consultation 객체 업데이트
+    const consultation = props.consultations.find(c => c.consultationId === consultationId)
+    if (consultation) {
+      consultation.counselorMemo = ''
+    }
+    
+    console.log('✅ 상담사 메모 삭제 성공')
+  } catch (error) {
+    console.error('❌ 상담사 메모 삭제 실패:', error)
+    alert('메모 삭제에 실패했습니다.')
+  }
 }
 
 const truncateText = (text, maxLength) => {
