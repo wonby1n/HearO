@@ -285,9 +285,18 @@ watch(() => callStore.autoTerminationTriggered, async (triggered) => {
     const consultationId = callStore.currentConsultationId
     console.log('[CounselorCallView] 자동 종료 - 저장된 consultationId:', consultationId)
 
-    // LiveKit 즉시 종료 → 고객 측 ParticipantDisconnected 트리거
+    // 고객에게 자동 종료 사유 전송 후 LiveKit 종료
     if (callStore.livekitRoom) {
       try {
+        // 고객에게 autoTermination 신호 전송 (disconnect 전)
+        const payload = JSON.stringify({ type: 'autoTermination', reason: 'profanity' })
+        const bytes = new TextEncoder().encode(payload)
+        await callStore.livekitRoom.localParticipant.publishData(bytes, { reliable: true })
+        console.log('[CounselorCallView] 자동 종료 신호 전송 완료')
+
+        // 데이터 수신 보장을 위한 짧은 대기
+        await new Promise(resolve => setTimeout(resolve, 500))
+
         await stopLocalMicrophone()
         await callStore.livekitRoom.disconnect()
       } catch (e) {

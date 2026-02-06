@@ -291,6 +291,9 @@ const {
     // 상담원이 통화를 종료했을 때
     console.log('[ClientCallView] 상담원이 통화를 종료했습니다:', participant.identity)
 
+    // 폭언 자동 종료 진행 중이면 watcher에서 처리하므로 여기서는 무시
+    if (receivedAutoTermination.value || showAutoTerminationModal.value) return
+
     // 타이머 정리
     if (timerInterval) {
       clearInterval(timerInterval)
@@ -334,6 +337,7 @@ const queuePosition = ref(3) // 테스트용 대기 순번
 // isSpeakerOn은 useLiveKit의 isSpeakerEnabled 사용 (기본값: true - 켜짐)
 const showConfirmModal = ref(false)
 const showAutoTerminationModal = ref(false)
+const receivedAutoTermination = ref(false)
 
 let timerInterval = null
 let autoRedirectTimer = null
@@ -525,13 +529,19 @@ onMounted(async () => {
   if (callStore.livekitRoom) {
     console.log('[ClientCallView] 기존 LiveKit 연결 사용:', callStore.livekitRoom.name)
 
-    // 상담원으로부터 consultationId 수신 (먼저 리스너 등록)
+    // 상담원으로부터 데이터 수신 (consultationId, autoTermination 등)
     callStore.livekitRoom.on(RoomEvent.DataReceived, (payload, participant) => {
       try {
         const data = JSON.parse(new TextDecoder().decode(payload))
         if (data.type === 'consultationId' && data.consultationId) {
           callStore.setConsultationId(data.consultationId)
           console.log('[ClientCallView] consultationId 수신:', data.consultationId)
+        }
+        // 폭언 자동 종료 신호 수신
+        if (data.type === 'autoTermination') {
+          console.log('[ClientCallView] 자동 종료 신호 수신:', data.reason)
+          receivedAutoTermination.value = true
+          callStore.autoTerminationTriggered = true
         }
       } catch (e) {
         // JSON 파싱 실패 무시
@@ -583,6 +593,9 @@ onMounted(async () => {
 
     callStore.livekitRoom.on(RoomEvent.ParticipantDisconnected, (participant) => {
       console.log('[ClientCallView] 상담원이 통화를 종료했습니다:', participant.identity)
+
+      // 폭언 자동 종료 진행 중이면 watcher에서 처리하므로 여기서는 무시
+      if (receivedAutoTermination.value || showAutoTerminationModal.value) return
 
       // 타이머 정리
       if (timerInterval) {
