@@ -29,7 +29,8 @@
     <!-- STT 디버그 상태 (개발용 - 나중에 제거) -->
     <div v-if="sttDebugMode" class="stt-debug-panel">
       <div class="stt-debug-status">
-        <span>STT: {{ sttStatus }}</span>
+        <span>STT: {{ sttStatus }} | 결과: {{ sttResultCount }}회</span>
+        <span v-if="sttErrorLog" class="stt-error">에러: {{ sttErrorLog }}</span>
         <span v-if="lastSttText" class="stt-last-text">{{ lastSttText }}</span>
       </div>
     </div>
@@ -174,6 +175,8 @@ let sttStarted = false // STT 시작 여부 (중복 호출 방지)
 const sttDebugMode = ref(true) // true로 설정하면 화면에 STT 상태 표시
 const sttStatus = ref('대기 중')
 const lastSttText = ref('')
+const sttResultCount = ref(0) // onresult 호출 횟수
+const sttErrorLog = ref('') // 마지막 에러
 
 const getSpeechRecognition = () => {
   return window.SpeechRecognition || window.webkitSpeechRecognition || null
@@ -276,19 +279,24 @@ const startCustomerSTT = async () => {
   recognition.continuous = true
 
   recognition.onerror = (ev) => {
-    console.warn('[ClientCallView] STT 오류:', ev?.error, ev)
-    sttStatus.value = `❌ 오류: ${ev?.error || 'unknown'}`
+    const errorType = ev?.error || 'unknown'
+    sttErrorLog.value = errorType
+    sttStatus.value = `❌ ${errorType}`
 
-    if (ev?.error === 'network') {
+    if (errorType === 'network') {
       alert('음성 인식 서비스에 연결할 수 없습니다.\n인터넷 연결을 확인해주세요.')
       sttStarted = false
-    } else if (ev?.error === 'not-allowed' || ev?.error === 'service-not-allowed') {
+    } else if (errorType === 'not-allowed' || errorType === 'service-not-allowed') {
       alert('마이크 권한이 필요합니다.\n브라우저 설정에서 마이크를 허용해주세요.')
       sttStarted = false
-    } else if (ev?.error === 'no-speech') {
+    } else if (errorType === 'no-speech') {
       sttStatus.value = '🎤 음성 대기 중...'
-    } else if (ev?.error === 'aborted') {
-      sttStatus.value = '⏸️ 일시 중지'
+    } else if (errorType === 'aborted') {
+      sttStatus.value = '⏸️ 중단됨'
+    } else if (errorType === 'audio-capture') {
+      sttStatus.value = '❌ 마이크 사용 불가'
+      alert('마이크를 사용할 수 없습니다.\n다른 앱이 마이크를 사용 중일 수 있습니다.')
+      sttStarted = false
     }
   }
 
@@ -311,6 +319,8 @@ const startCustomerSTT = async () => {
   }
 
   recognition.onresult = async (event) => {
+    sttResultCount.value++ // 호출 횟수 증가
+
     let finalText = ''
     let interimText = ''
     for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -326,12 +336,13 @@ const startCustomerSTT = async () => {
     // 화면에 현재 인식 중인 텍스트 표시
     if (interimText) {
       lastSttText.value = `(인식 중) ${interimText}`
+      sttStatus.value = '🎤 인식 중...'
     }
 
     const cleaned = finalText.trim()
     if (cleaned) {
-      lastSttText.value = cleaned
-      sttStatus.value = '✅ 전송 완료'
+      lastSttText.value = `✅ ${cleaned}`
+      sttStatus.value = '✅ 전송!'
       await sendCustomerSttToCounselor(cleaned)
     }
   }
@@ -739,6 +750,11 @@ onUnmounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.stt-error {
+  color: #ff6666;
+  font-size: 11px;
 }
 
 .stt-last-text {
