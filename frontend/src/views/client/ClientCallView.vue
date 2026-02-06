@@ -26,15 +26,6 @@
       </div>
     </Teleport>
 
-    <!-- STT 디버그 상태 (개발용 - 나중에 제거) -->
-    <div v-if="sttDebugMode" class="stt-debug-panel">
-      <div class="stt-debug-status">
-        <span>STT: {{ sttStatus }} | 결과: {{ sttResultCount }}회</span>
-        <span v-if="sttErrorLog" class="stt-error">에러: {{ sttErrorLog }}</span>
-        <span v-if="lastSttText" class="stt-last-text">{{ lastSttText }}</span>
-      </div>
-    </div>
-
     <!-- 메인 컨텐츠 -->
     <div class="main-content">
       <!-- 통화 시간 -->
@@ -159,7 +150,6 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCallStore } from '@/stores/call'
 import { useCustomerStore } from '@/stores/customer'
-import { useNotificationStore } from '@/stores/notification'
 import { useLiveKit } from '@/composables/useLiveKit'
 import { AUTO_TERMINATION_REDIRECT_DELAY_MS } from '@/constants/call'
 import { RoomEvent } from 'livekit-client'
@@ -169,39 +159,13 @@ import { RoomEvent } from 'livekit-client'
 // =========================
 let recognition = null
 let sttEnabled = true // STT 활성화 상태 (음소거 시 false)
-let sttStarted = false // STT 시작 여부 (중복 호출 방지)
-
-// STT 디버그 상태 (개발용)
-const sttDebugMode = ref(true) // true로 설정하면 화면에 STT 상태 표시
-const sttStatus = ref('대기 중')
-const lastSttText = ref('')
-const sttResultCount = ref(0) // onresult 호출 횟수
-const sttErrorLog = ref('') // 마지막 에러
 
 const getSpeechRecognition = () => {
   return window.SpeechRecognition || window.webkitSpeechRecognition || null
 }
 
-// Web Speech API 실제 동작 여부 테스트
-const testSpeechRecognition = () => {
-  const SR = getSpeechRecognition()
-  if (!SR) return false
-
-  try {
-    const testRecognition = new SR()
-    // 안드로이드 일부 브라우저는 객체는 생성되지만 실제 동작 안함
-    // start() 호출 시 에러 발생 여부로 판단
-    testRecognition.abort()
-    return true
-  } catch (e) {
-    console.warn('[STT] Web Speech API 테스트 실패:', e)
-    return false
-  }
-}
-
 const stopCustomerSTT = () => {
   sttEnabled = false
-  sttStarted = false
   try {
     if (recognition) {
       recognition.onresult = null
@@ -233,31 +197,20 @@ const sendCustomerSttToCounselor = async (text) => {
 }
 
 const startCustomerSTT = async () => {
-  sttStatus.value = 'STT 시작 중...'
-
-  // 중복 호출 방지
-  if (sttStarted) {
-    sttStatus.value = '이미 실행 중'
-    return
-  }
+  console.log('[ClientCallView] startCustomerSTT 호출됨')
+  console.log('[ClientCallView] room.value:', room.value)
+  console.log('[ClientCallView] callStore.livekitRoom:', callStore.livekitRoom)
 
   // room 연결된 이후에만
   if (!(room.value || callStore.livekitRoom)) {
-    sttStatus.value = '❌ room 연결 안됨'
+    console.warn('[ClientCallView] STT 스킵: room 연결 안됨')
     return
   }
 
   const SR = getSpeechRecognition()
+  console.log('[ClientCallView] SpeechRecognition API:', SR)
   if (!SR) {
-    sttStatus.value = '❌ API 미지원'
-    alert('이 브라우저는 음성 인식을 지원하지 않습니다.\nChrome 브라우저를 사용해주세요.')
-    return
-  }
-
-  // Web Speech API 실제 동작 테스트
-  if (!testSpeechRecognition()) {
-    sttStatus.value = '❌ API 동작 안함'
-    alert('음성 인식이 이 브라우저에서 동작하지 않습니다.\nChrome 브라우저를 사용해주세요.')
+    console.warn('[ClientCallView] Web Speech STT 미지원 브라우저')
     return
   }
 
@@ -271,7 +224,6 @@ const startCustomerSTT = async () => {
   }
 
   sttEnabled = true
-  sttStarted = true
 
   recognition = new SR()
   recognition.lang = 'ko-KR'
@@ -279,95 +231,51 @@ const startCustomerSTT = async () => {
   recognition.continuous = true
 
   recognition.onerror = (ev) => {
-    const errorType = ev?.error || 'unknown'
-    sttErrorLog.value = errorType
-    sttStatus.value = `❌ ${errorType}`
-
-    if (errorType === 'network') {
-      alert('음성 인식 서비스에 연결할 수 없습니다.\n인터넷 연결을 확인해주세요.')
-      sttStarted = false
-    } else if (errorType === 'not-allowed' || errorType === 'service-not-allowed') {
-      alert('마이크 권한이 필요합니다.\n브라우저 설정에서 마이크를 허용해주세요.')
-      sttStarted = false
-    } else if (errorType === 'no-speech') {
-      sttStatus.value = '🎤 음성 대기 중...'
-    } else if (errorType === 'aborted') {
-      sttStatus.value = '⏸️ 중단됨'
-    } else if (errorType === 'audio-capture') {
-      sttStatus.value = '❌ 마이크 사용 불가'
-      alert('마이크를 사용할 수 없습니다.\n다른 앱이 마이크를 사용 중일 수 있습니다.')
-      sttStarted = false
-    }
+    console.warn('[ClientCallView] STT 오류:', ev?.error, ev)
   }
 
   recognition.onstart = () => {
-    sttStatus.value = '🎤 듣는 중...'
+    console.log('[ClientCallView] STT onstart 이벤트 발생')
   }
 
   recognition.onend = () => {
-    sttStatus.value = '⏸️ 재시작 중...'
+    console.log('[ClientCallView] STT onend 이벤트 발생, isInCall:', callStore.isInCall, 'sttEnabled:', sttEnabled)
     // 통화 중이고 STT가 활성화되어 있으면 자동 재시작
-    if (callStore.isInCall && sttEnabled && sttStarted) {
+    if (callStore.isInCall && sttEnabled) {
+      console.log('[ClientCallView] STT 재시작 시도')
       setTimeout(() => {
-        try {
-          recognition?.start?.()
-        } catch (e) {
-          sttStatus.value = `❌ 재시작 실패: ${e.message}`
-        }
-      }, 300)
+        try { recognition?.start?.() } catch (e) { console.warn('[ClientCallView] STT 재시작 실패:', e) }
+      }, 300) // Android에서 즉시 재시작 시 실패할 수 있어 딜레이 추가
     }
   }
 
   recognition.onresult = async (event) => {
-    sttResultCount.value++ // 호출 횟수 증가
-
+    console.log('[ClientCallView] STT onresult 이벤트:', event.results.length, '개 결과')
     let finalText = ''
-    let interimText = ''
     for (let i = event.resultIndex; i < event.results.length; i++) {
       const res = event.results[i]
       const t = res[0]?.transcript ?? ''
-      if (res.isFinal) {
-        finalText += t
-      } else {
-        interimText += t
-      }
-    }
-
-    // 화면에 현재 인식 중인 텍스트 표시
-    if (interimText) {
-      lastSttText.value = `(인식 중) ${interimText}`
-      sttStatus.value = '🎤 인식 중...'
+      console.log('[ClientCallView] STT 결과:', t, 'isFinal:', res.isFinal)
+      if (res.isFinal) finalText += t
     }
 
     const cleaned = finalText.trim()
-    if (cleaned) {
-      lastSttText.value = `✅ ${cleaned}`
-      sttStatus.value = '✅ 전송!'
-      await sendCustomerSttToCounselor(cleaned)
-    }
+    if (cleaned) await sendCustomerSttToCounselor(cleaned)
   }
 
   try {
     recognition.start()
-    sttStatus.value = '🎤 시작됨'
+    console.log('[ClientCallView] 고객 STT 시작')
   } catch (e) {
-    sttStatus.value = `❌ 시작 실패: ${e.message}`
-    sttStarted = false
-    // 안드로이드 일부 브라우저에서 발생할 수 있음
-    if (e.name === 'InvalidStateError') {
-      // 이미 시작된 상태 - 무시
-    } else {
-      alert('음성 인식을 시작할 수 없습니다.\nChrome 브라우저를 사용해주세요.')
-    }
+    console.warn('[ClientCallView] 고객 STT 시작 실패:', e)
   }
 }
 
 const router = useRouter()
 const callStore = useCallStore()
 const customerStore = useCustomerStore()
-const notificationStore = useNotificationStore()
 
-// LiveKit composable (callStore.livekitRoom이 있으면 주입해서 재사용)
+// LiveKit composable
 const {
   room,
   isConnected,
@@ -379,7 +287,6 @@ const {
   enableMicrophone,
   startAudioPlayback
 } = useLiveKit({
-  externalRoom: callStore.livekitRoom,  // 이미 연결된 room 재사용
   onParticipantDisconnected: (participant) => {
     // 상담원이 통화를 종료했을 때
     console.log('[ClientCallView] 상담원이 통화를 종료했습니다:', participant.identity)
@@ -573,9 +480,6 @@ const handleDisconnected = (reason) => {
 
 // 컴포넌트 마운트 시 초기화
 onMounted(async () => {
-  console.log('[STT-DEBUG] === ClientCallView onMounted 시작 ===')
-  console.log('[STT-DEBUG] callStore.livekitRoom 초기값:', !!callStore.livekitRoom)
-
   // 테스트용 고객 정보 설정
   if (!customerStore.hasCustomerInfo) {
     customerStore.setCustomerInfo({
@@ -599,7 +503,7 @@ onMounted(async () => {
     const customerId = sessionStorage.getItem('clientCustomerId') || customerStore.currentCustomer.id
     const registrationId = sessionStorage.getItem('clientRegistrationId')
 
-    // STT는 마이크 활성화 후에 시작 (아래에서 호출)
+    startCustomerSTT()
     callStore.startCall({
       id: `client-call-${Date.now()}`,
       customerId: customerId ? parseInt(customerId) : null,
@@ -621,42 +525,62 @@ onMounted(async () => {
   if (callStore.livekitRoom) {
     console.log('[ClientCallView] 기존 LiveKit 연결 사용:', callStore.livekitRoom.name)
 
-    // 상담원으로부터 consultationId 수신 리스너 (한 번만 등록)
+    // 상담원으로부터 consultationId 수신 (먼저 리스너 등록)
     callStore.livekitRoom.on(RoomEvent.DataReceived, (payload, participant) => {
       try {
         const data = JSON.parse(new TextDecoder().decode(payload))
         if (data.type === 'consultationId' && data.consultationId) {
           callStore.setConsultationId(data.consultationId)
-          if (callStore.currentCall) {
-            callStore.currentCall.consultationId = data.consultationId
-          }
-          console.log('[ClientCallView] consultationId 수신 및 저장:', data.consultationId)
+          console.log('[ClientCallView] consultationId 수신:', data.consultationId)
         }
       } catch (e) {
-        // JSON 파싱 실패 무시 (STT 데이터 등)
+        // JSON 파싱 실패 무시
       }
     })
 
     try {
-      // 이미 발행된 오디오 트랙이 있는지 확인 (중복 발행 방지)
-      const existingAudioPubs = room.value?.localParticipant?.audioTrackPublications
-      if (existingAudioPubs && existingAudioPubs.size > 0) {
-        console.log('[ClientCallView] 이미 발행된 오디오 트랙 있음, 마이크 활성화 스킵')
-      } else {
-        // enableMicrophone() 사용 (useLiveKit에 주입된 room 사용)
-        console.log('[ClientCallView] 마이크 권한 요청 중...')
-        await enableMicrophone()
-        console.log('[ClientCallView] ✅ 마이크 활성화 완료')
-      }
+      // callStore.livekitRoom을 직접 사용해서 마이크 활성화
+      // (useLiveKit의 room.value와 callStore.livekitRoom은 다른 객체)
+      console.log('[ClientCallView] 마이크 권한 요청 중...')
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      })
 
-      // STT 시작
-      startCustomerSTT()
+      const audioTrack = stream.getAudioTracks()[0]
+      if (audioTrack) {
+        await callStore.livekitRoom.localParticipant.publishTrack(audioTrack)
+        console.log('[ClientCallView] ✅ 마이크 활성화 완료')
+
+        // 고객 STT 시작
+        startCustomerSTT()
+      }
     } catch (err) {
       console.error('[ClientCallView] ❌ 마이크 활성화 실패:', err)
       alert('마이크 권한을 허용해주세요')
     }
 
-    // 상담원 연결 해제 리스너
+    // consultationId 수신 (상담원으로부터 DataChannel을 통해 받음)
+    callStore.livekitRoom.on(RoomEvent.DataReceived, (payload, participant) => {
+      try {
+        const text = new TextDecoder().decode(payload)
+        const data = JSON.parse(text)
+
+        if (data.type === 'consultationId' && data.consultationId) {
+          console.log('[ClientCallView] consultationId 수신:', data.consultationId)
+          if (callStore.currentCall) {
+            callStore.currentCall.consultationId = data.consultationId
+            console.log('[ClientCallView] consultationId 저장 완료:', callStore.currentCall)
+          }
+        }
+      } catch (error) {
+        // STT 데이터 등 다른 데이터는 무시
+      }
+    })
+
     callStore.livekitRoom.on(RoomEvent.ParticipantDisconnected, (participant) => {
       console.log('[ClientCallView] 상담원이 통화를 종료했습니다:', participant.identity)
 
@@ -716,39 +640,6 @@ onUnmounted(async () => {
 </script>
 
 <style scoped>
-/* STT 디버그 패널 (개발용) */
-.stt-debug-panel {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  background: rgba(0, 0, 0, 0.8);
-  color: #00ff00;
-  font-family: monospace;
-  font-size: 12px;
-  padding: 8px 12px;
-  z-index: 9999;
-}
-
-.stt-debug-status {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.stt-error {
-  color: #ff6666;
-  font-size: 11px;
-}
-
-.stt-last-text {
-  color: #ffff00;
-  font-size: 11px;
-  max-height: 40px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .client-call-view {
   min-height: 100vh;
   max-width: 430px;
