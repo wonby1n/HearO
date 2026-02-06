@@ -1,7 +1,10 @@
+version: '3'
 services:
   # 1. Spring Boot 백엔드
   backend:
-    image: hjh1248/hearo-backend:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: spring-backend
     restart: always
     ports:
@@ -13,7 +16,9 @@ services:
 
   # 2. Vue.js 프론트엔드
   frontend:
-    image: hjh1248/hearo-frontend:latest
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: vue-frontend
     restart: always
     ports:
@@ -21,6 +26,7 @@ services:
     networks:
       - ssafy-network
 
+# 인프라 네트워크 사용
 networks:
   ssafy-network:
     external: true
