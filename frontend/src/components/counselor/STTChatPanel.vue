@@ -5,14 +5,7 @@
       <h3 class="text-lg font-bold text-gray-900">실시간 자막</h3>
     </div>
 
-    <!-- 폭언 감지 알림 (오른쪽 하단 토스트) -->
-    <div class="stt-notification-container" role="alert" aria-live="polite" aria-atomic="true">
-      <TransitionGroup name="notification-slide">
-        <NotificationItem v-for="notification in notifications" :key="notification.id" :id="notification.id"
-          :type="notification.type" :message="notification.message" :count="notification.count"
-          @close="notificationStore.removeNotification(notification.id)" />
-      </TransitionGroup>
-    </div>
+
 
     <!-- 자막 영역 (flex-1 overflow-y-auto min-h-0) -->
     <div ref="chatContainer" class="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-thin relative min-h-0"

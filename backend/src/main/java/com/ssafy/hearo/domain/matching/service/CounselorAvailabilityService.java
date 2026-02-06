@@ -28,16 +28,22 @@ public class CounselorAvailabilityService {
      * 상담원을 가용 상태로 설정 (로그인/상담 종료 시)
      */
     public void setAvailable(Long counselorId) {
+        boolean wasAlreadyAvailable = isAvailable(counselorId);
         redisTemplate.opsForSet().add(AVAILABLE_COUNSELORS_KEY, counselorId.toString());
-        log.info("상담원 {} 가용 상태로 설정", counselorId);
+        Set<Long> currentSet = getAvailableCounselorIds();
+        log.info("[가용성] 상담원 {} → 가용 (이전 상태: {}) | 현재 가용 목록: {}",
+                counselorId, wasAlreadyAvailable ? "이미 가용" : "비가용", currentSet);
     }
 
     /**
      * 상담원을 비가용 상태로 설정 (상담 시작/로그아웃 시)
      */
     public void setUnavailable(Long counselorId) {
+        boolean wasAvailable = isAvailable(counselorId);
         redisTemplate.opsForSet().remove(AVAILABLE_COUNSELORS_KEY, counselorId.toString());
-        log.info("상담원 {} 비가용 상태로 설정", counselorId);
+        Set<Long> currentSet = getAvailableCounselorIds();
+        log.info("[가용성] 상담원 {} → 비가용 (이전 상태: {}) | 현재 가용 목록: {}",
+                counselorId, wasAvailable ? "가용" : "이미 비가용", currentSet);
     }
 
     /**
@@ -89,7 +95,7 @@ public class CounselorAvailabilityService {
 
         Set<Long> heartbeatActiveCounselors = heartbeatService.getActiveHeartbeatCounselorIds();
         if (heartbeatActiveCounselors.isEmpty()) {
-            log.debug("하트비트 활성 상담원 없음");
+            log.info("[가용성] 매칭 불가: 가용 상담원 {} 있으나 하트비트 활성 없음", availableCounselors);
             return Set.of();
         }
 
@@ -97,8 +103,14 @@ public class CounselorAvailabilityService {
         Set<Long> matchable = new HashSet<>(availableCounselors);
         matchable.retainAll(heartbeatActiveCounselors);
 
-        log.debug("매칭 가능 상담원: {} (가용: {}, 하트비트: {})",
-                matchable.size(), availableCounselors.size(), heartbeatActiveCounselors.size());
+        if (!matchable.equals(availableCounselors)) {
+            // 가용이지만 하트비트가 꺼진 상담원이 있을 때만 경고
+            Set<Long> availableButNoHeartbeat = new HashSet<>(availableCounselors);
+            availableButNoHeartbeat.removeAll(heartbeatActiveCounselors);
+            if (!availableButNoHeartbeat.isEmpty()) {
+                log.warn("[가용성] 가용이지만 하트비트 없는 상담원: {}", availableButNoHeartbeat);
+            }
+        }
 
         return matchable;
     }

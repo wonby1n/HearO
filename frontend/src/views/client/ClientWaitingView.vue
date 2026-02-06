@@ -119,7 +119,7 @@ import { useCallStore } from '@/stores/call'
 import { useCustomerStore } from '@/stores/customer'
 import { useNotificationStore } from '@/stores/notification'
 import { RoomEvent } from 'livekit-client'
-import ARSvoiceFile from '@/assets/ARSvoice.mp3'
+import ARSvoiceFile from '@/assets/ARSvoice.wav'
 
 const router = useRouter()
 const callStore = useCallStore()

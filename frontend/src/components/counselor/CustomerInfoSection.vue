@@ -1,9 +1,6 @@
 <template>
-  <CustomerInfoPanel
-    :customerInfo="customerInfo || initialPlaceholder"
-    :isLoading="isLoadingCustomerInfo"
-    :error="customerInfoError"
-  />
+  <CustomerInfoPanel :customerInfo="customerInfo || initialPlaceholder" :isLoading="isLoadingCustomerInfo"
+    :error="customerInfoError" />
 </template>
 
 <script setup>
@@ -12,7 +9,6 @@ import { useDashboardStore } from '@/stores/dashboard'
 import CustomerInfoPanel from '@/components/counselor/CustomerInfoPanel.vue'
 import { fetchCustomerData } from '@/services/customerService'
 import { getLatestConsultations } from '@/services/consultationService'
-import { mockCustomerInfo } from '@/mocks/counselor'
 
 const dashboardStore = useDashboardStore()
 
@@ -60,7 +56,6 @@ const loadCustomerData = async () => {
     if (!registrationId) {
       console.warn('[CustomerInfoSection] registrationId를 찾을 수 없습니다. 목 데이터 사용');
       console.warn('[CustomerInfoSection] matchedData 전체:', JSON.stringify(dashboardStore.matchedData))
-      customerInfo.value = mockCustomerInfo;
       return;
     }
 
@@ -100,7 +95,6 @@ const loadCustomerData = async () => {
   } catch (error) {
     console.error('[CustomerInfoSection] 고객 로드 실패:', error);
     customerInfoError.value = '데이터를 불러올 수 없습니다.';
-    customerInfo.value = mockCustomerInfo;
   } finally {
     isLoadingCustomerInfo.value = false;
   }

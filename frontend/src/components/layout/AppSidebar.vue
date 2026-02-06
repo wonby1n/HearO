@@ -20,7 +20,7 @@
         <!-- Dashboard 메뉴 -->
         <li>
           <router-link
-            to="/"
+            to="/dashboard"
             class="nav-item flex items-center px-4 py-3 text-white/70 hover:text-white transition-all duration-300 rounded-xl group relative overflow-hidden"
             active-class="active-nav"
           >

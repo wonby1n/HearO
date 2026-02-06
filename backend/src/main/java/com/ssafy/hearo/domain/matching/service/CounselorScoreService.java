@@ -68,9 +68,10 @@ public class CounselorScoreService {
         for (Long counselorId : availableCounselorIds) {
             double score = calculateScore(counselorId, customerIdInt, category);
             counselorScores.put(counselorId, score);
-            log.debug("상담원 {} 점수: {} (고객: {}, 카테고리: {})",
-                    counselorId, score, customerId, category);
         }
+
+        log.info("[점수] 고객 {} (카테고리: {}) 에 대한 상담원별 점수: {}",
+                customerId, category != null ? category : "없음", counselorScores);
 
         // 최고 점수의 상담원 선택
         Long bestCounselor = counselorScores.entrySet().stream()
@@ -78,8 +79,8 @@ public class CounselorScoreService {
                 .map(Map.Entry::getKey)
                 .orElse(availableCounselorIds.iterator().next());
 
-        log.info("최적 상담원 선택: {} (점수: {}) - 고객: {}, 카테고리: {}",
-                bestCounselor, counselorScores.get(bestCounselor), customerId, category);
+        log.info("[점수] ★ 선택된 상담원: {} (점수: {})",
+                bestCounselor, String.format("%.1f", counselorScores.get(bestCounselor)));
 
         return bestCounselor;
     }

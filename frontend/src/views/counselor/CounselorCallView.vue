@@ -198,12 +198,12 @@ const { startRecording, addTrack: addRecordingTrack, stopRecording, downloadReco
 // --- 레이아웃 관리 ---
 const LAYOUT_STORAGE_KEY = 'counselor-call-layout'
 
-// 기본 레이아웃 설정
+// 기본 레이아웃 설정 (3열 구조: 고객정보 | 실시간자막 | AI가이드&메모)
 const defaultLayout = [
-  { i: 'customer-info', x: 0, y: 0, w: 4, h: 8, minW: 2, minH: 6 },  // 가로 넓게 (3→4), 세로 줄임 (12→8)
-  { i: 'stt-chat', x: 4, y: 0, w: 5, h: 12, minW: 4, minH: 8 },      // 가로 줄임 (6→5), x 위치 조정
-  { i: 'ai-guide', x: 9, y: 0, w: 3, h: 6, minW: 2, minH: 4 },       // 유지
-  { i: 'memo', x: 0, y: 8, w: 4, h: 4, minW: 2, minH: 3 }            // 고객정보 아래로 이동, 세로 줄임 (6→4)
+  { i: 'customer-info', x: 0, y: 0, w: 4, h: 10, minW: 2, minH: 6 },  // 왼쪽 열 (전체 높이)
+  { i: 'stt-chat', x: 4, y: 0, w: 4, h: 10, minW: 4, minH: 8 },       // 중앙 열 (전체 높이)
+  { i: 'ai-guide', x: 8, y: 0, w: 4, h: 6, minW: 2, minH: 4 },        // 오른쪽 열 상단 (AI 가이드, 크게)
+  { i: 'memo', x: 8, y: 8, w: 4, h: 4, minW: 2, minH: 3 }             // 오른쪽 열 하단 (메모, 작게)
 ]
 
 // 저장된 레이아웃 로드 또는 기본값 사용
@@ -1120,6 +1120,11 @@ onBeforeUnmount(() => {
 defineExpose({ addSttMessage })
 
 onMounted(async () => {
+  // 레이아웃 초기화 (새로운 3열 구조 적용)
+  console.log('[CounselorCallView] 레이아웃 초기화 중...')
+  layout.value = JSON.parse(JSON.stringify(defaultLayout))
+  localStorage.removeItem(LAYOUT_STORAGE_KEY)
+  
   // 통화 시작 시간 기록
   callStartTime.value = Date.now()
   console.log('[CounselorCallView] 통화 시작 시간 기록:', new Date(callStartTime.value).toLocaleTimeString())

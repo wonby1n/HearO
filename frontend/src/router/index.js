@@ -134,6 +134,7 @@ const router = createRouter({
           meta: {
             title: "상담원 통화",
             role: "counselor",
+            requiresAuth: true,
           },
         },
         {

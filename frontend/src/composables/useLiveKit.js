@@ -10,6 +10,7 @@ import {
 /**
  * LiveKit 룸 연결 및 관리를 위한 Composable
  * @param {Object} options - 옵션
+ * @param {Room} options.externalRoom - 외부에서 주입하는 Room 인스턴스 (이미 연결된 room 재사용)
  * @param {Function} options.onTrackSubscribed - 트랙 구독 시 콜백
  * @param {Function} options.onTrackUnsubscribed - 트랙 구독 해제 시 콜백
  * @param {Function} options.onDisconnected - 연결 해제 시 콜백
@@ -17,9 +18,9 @@ import {
  * @param {Function} options.onError - 에러 발생 시 콜백
  */
 export function useLiveKit(options = {}) {
-  // 상태
-  const room = ref(null)
-  const connectionState = ref(ConnectionState.Disconnected)
+  // 외부 room이 주입되면 그것을 사용, 아니면 새로 생성
+  const room = ref(options.externalRoom || null)
+  const connectionState = ref(options.externalRoom ? ConnectionState.Connected : ConnectionState.Disconnected)
   const localAudioTrack = ref(null)
   const remoteAudioTracks = ref([])
   const participants = ref([])
@@ -31,8 +32,8 @@ export function useLiveKit(options = {}) {
   // options.onTrackSubscribed에서 별도 처리하면 됨.
   const autoAttachRemoteAudio = options.autoAttachRemoteAudio ?? true
 
-  // 연결 상태 computed
-  const isConnected = ref(false)
+  // 연결 상태 (외부 room이 주입되면 이미 연결된 상태)
+  const isConnected = ref(options.externalRoom ? true : false)
   const isConnecting = ref(false)
 
   /**
