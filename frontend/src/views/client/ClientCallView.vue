@@ -367,7 +367,7 @@ const callStore = useCallStore()
 const customerStore = useCustomerStore()
 const notificationStore = useNotificationStore()
 
-// LiveKit composable
+// LiveKit composable (callStore.livekitRoom이 있으면 주입해서 재사용)
 const {
   room,
   isConnected,
@@ -379,6 +379,7 @@ const {
   enableMicrophone,
   startAudioPlayback
 } = useLiveKit({
+  externalRoom: callStore.livekitRoom,  // 이미 연결된 room 재사용
   onParticipantDisconnected: (participant) => {
     // 상담원이 통화를 종료했을 때
     console.log('[ClientCallView] 상담원이 통화를 종료했습니다:', participant.identity)
@@ -638,34 +639,26 @@ onMounted(async () => {
 
     try {
       // 이미 발행된 오디오 트랙이 있는지 확인 (중복 발행 방지)
-      const existingAudioPubs = callStore.livekitRoom.localParticipant.audioTrackPublications
-      if (existingAudioPubs.size > 0) {
+      const existingAudioPubs = room.value?.localParticipant?.audioTrackPublications
+      const isAndroid = /Android/i.test(navigator.userAgent)
+
+      if (existingAudioPubs && existingAudioPubs.size > 0) {
         console.log('[ClientCallView] 이미 발행된 오디오 트랙 있음, 마이크 활성화 스킵')
-        // 이미 마이크가 활성화되어 있으면 STT만 시작
         startCustomerSTT()
-      } else {
-        // 안드로이드 마이크 충돌 방지: STT 먼저 시작 → 마이크 발행
-        // Web Speech API가 마이크를 먼저 점유해야 함
-        console.log('[ClientCallView] STT 먼저 시작 (마이크 충돌 방지)')
+      } else if (isAndroid) {
+        // 안드로이드: STT 먼저 시작 → 마이크 발행 (마이크 충돌 방지)
+        console.log('[ClientCallView] 안드로이드: STT 먼저 시작')
         startCustomerSTT()
-
-        // STT가 마이크를 점유할 시간을 주고 마이크 발행
         await new Promise(resolve => setTimeout(resolve, 500))
-
         console.log('[ClientCallView] 마이크 권한 요청 중...')
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          }
-        })
-
-        const audioTrack = stream.getAudioTracks()[0]
-        if (audioTrack) {
-          await callStore.livekitRoom.localParticipant.publishTrack(audioTrack)
-          console.log('[STT-DEBUG] ✅ 마이크 활성화 완료')
-        }
+        await enableMicrophone()
+        console.log('[ClientCallView] ✅ 마이크 활성화 완료')
+      } else {
+        // iOS/Desktop: 마이크 먼저 → STT 시작
+        console.log('[ClientCallView] 마이크 권한 요청 중...')
+        await enableMicrophone()
+        console.log('[ClientCallView] ✅ 마이크 활성화 완료')
+        startCustomerSTT()
       }
     } catch (err) {
       console.error('[ClientCallView] ❌ 마이크 활성화 실패:', err)
