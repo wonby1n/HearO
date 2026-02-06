@@ -19,8 +19,8 @@
           </div>
           <h3 class="modal-title">통화가 종료되었습니다</h3>
           <p class="modal-message center">
-            서비스 정책에 따라 통화가 종료되었습니다.<br>
-            AI 상담사로 전환됩니다.
+            부적절한 언어 사용이 반복 감지되어<br>
+            통화가 종료되었습니다.
           </p>
         </div>
       </div>
