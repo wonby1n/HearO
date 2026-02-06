@@ -640,26 +640,17 @@ onMounted(async () => {
     try {
       // 이미 발행된 오디오 트랙이 있는지 확인 (중복 발행 방지)
       const existingAudioPubs = room.value?.localParticipant?.audioTrackPublications
-      const isAndroid = /Android/i.test(navigator.userAgent)
-
       if (existingAudioPubs && existingAudioPubs.size > 0) {
         console.log('[ClientCallView] 이미 발행된 오디오 트랙 있음, 마이크 활성화 스킵')
-        startCustomerSTT()
-      } else if (isAndroid) {
-        // 안드로이드: STT 먼저 시작 → 마이크 발행 (마이크 충돌 방지)
-        console.log('[ClientCallView] 안드로이드: STT 먼저 시작')
-        startCustomerSTT()
-        await new Promise(resolve => setTimeout(resolve, 500))
-        console.log('[ClientCallView] 마이크 권한 요청 중...')
-        await enableMicrophone()
-        console.log('[ClientCallView] ✅ 마이크 활성화 완료')
       } else {
-        // iOS/Desktop: 마이크 먼저 → STT 시작
+        // enableMicrophone() 사용 (useLiveKit에 주입된 room 사용)
         console.log('[ClientCallView] 마이크 권한 요청 중...')
         await enableMicrophone()
         console.log('[ClientCallView] ✅ 마이크 활성화 완료')
-        startCustomerSTT()
       }
+
+      // STT 시작
+      startCustomerSTT()
     } catch (err) {
       console.error('[ClientCallView] ❌ 마이크 활성화 실패:', err)
       alert('마이크 권한을 허용해주세요')
