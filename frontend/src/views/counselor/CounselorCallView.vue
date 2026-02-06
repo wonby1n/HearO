@@ -203,7 +203,7 @@ const defaultLayout = [
   { i: 'customer-info', x: 0, y: 0, w: 4, h: 8, minW: 2, minH: 6 },  // 가로 넓게 (3→4), 세로 줄임 (12→8)
   { i: 'stt-chat', x: 4, y: 0, w: 5, h: 12, minW: 4, minH: 8 },      // 가로 줄임 (6→5), x 위치 조정
   { i: 'ai-guide', x: 9, y: 0, w: 3, h: 6, minW: 2, minH: 4 },       // 유지
-  { i: 'memo', x: 0, y: 8, w: 4, h: 4, minW: 2, minH: 3 }            // 고객정보 아래로 이동, 세로 줄임 (6→4)
+  { i: 'memo', x: 9, y: 6, w: 3, h: 6, minW: 2, minH: 3 }            // AI 가이드 아래로 이동 (오른쪽)
 ]
 
 // 저장된 레이아웃 로드 또는 기본값 사용
