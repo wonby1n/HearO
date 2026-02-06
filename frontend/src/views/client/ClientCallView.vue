@@ -644,14 +644,8 @@ onMounted(async () => {
         // 이미 마이크가 활성화되어 있으면 STT만 시작
         startCustomerSTT()
       } else {
-        // 안드로이드 마이크 충돌 방지: STT 먼저 시작 → 마이크 발행
-        // Web Speech API가 마이크를 먼저 점유해야 함
-        console.log('[ClientCallView] STT 먼저 시작 (마이크 충돌 방지)')
-        startCustomerSTT()
-
-        // STT가 마이크를 점유할 시간을 주고 마이크 발행
-        await new Promise(resolve => setTimeout(resolve, 500))
-
+        // 마이크 권한을 먼저 획득 (아이폰에서 권한 팝업 1회만 표시)
+        // Web Speech API와 getUserMedia() 각각 권한을 요청하면 팝업이 2번 뜸
         console.log('[ClientCallView] 마이크 권한 요청 중...')
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: {
@@ -664,8 +658,11 @@ onMounted(async () => {
         const audioTrack = stream.getAudioTracks()[0]
         if (audioTrack) {
           await callStore.livekitRoom.localParticipant.publishTrack(audioTrack)
-          console.log('[STT-DEBUG] ✅ 마이크 활성화 완료')
+          console.log('[ClientCallView] ✅ 마이크 활성화 완료')
         }
+
+        // 마이크 권한이 이미 있으므로 STT 시작 (추가 팝업 없음)
+        startCustomerSTT()
       }
     } catch (err) {
       console.error('[ClientCallView] ❌ 마이크 활성화 실패:', err)
