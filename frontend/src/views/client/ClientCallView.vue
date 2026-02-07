@@ -388,14 +388,24 @@ const proceedToEndPage = async () => {
 // 자동 종료 모달 확인 버튼 핸들러
 const handleAutoTerminationConfirm = async () => {
   try {
+    // 0. 먼저 마이크를 끄기 (음성 재생 전)
+    stopCustomerSTT()
+
+    // LiveKit 마이크 끄기
+    const currentRoom = callStore.livekitRoom
+    if (currentRoom) {
+      await currentRoom.localParticipant.setMicrophoneEnabled(false)
+      console.log('[ClientCall] 마이크 비활성화 (자동 종료)')
+    }
+
     // 1. 음성 재생
     if (!autoTerminationAudio.value) {
       autoTerminationAudio.value = new Audio('/src/assets/Endvoice.wav')
     }
-    
+
     console.log('[ClientCall] 자동 종료 음성 재생 시작')
     await autoTerminationAudio.value.play()
-    
+
     // 2. 음성 재생 완료 후 종료 페이지로 이동
     autoTerminationAudio.value.onended = async () => {
       console.log('[ClientCall] 음성 재생 완료, 종료 페이지로 이동')
