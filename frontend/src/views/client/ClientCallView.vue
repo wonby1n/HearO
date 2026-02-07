@@ -17,11 +17,16 @@
               />
             </svg>
           </div>
-          <h3 class="modal-title">통화가 종료되었습니다</h3>
+          <h3 class="modal-title">통화가 자동 종료되었습니다</h3>
           <p class="modal-message center">
-            부적절한 언어 사용이 반복 감지되어<br>
-            통화가 종료되었습니다.
+            폭언 3회로 인해<br>
+            통화가 자동으로 종료되었습니다.
           </p>
+          <div class="modal-actions">
+            <button @click="handleAutoTerminationConfirm" class="modal-btn confirm-auto">
+              확인
+            </button>
+          </div>
         </div>
       </div>
     </Teleport>
@@ -338,6 +343,7 @@ const queuePosition = ref(3) // 테스트용 대기 순번
 const showConfirmModal = ref(false)
 const showAutoTerminationModal = ref(false)
 const receivedAutoTermination = ref(false)
+const autoTerminationAudio = ref(null)
 
 let timerInterval = null
 let autoRedirectTimer = null
@@ -346,34 +352,61 @@ let autoRedirectTimer = null
 watch(() => callStore.autoTerminationTriggered, (triggered) => {
   if (triggered) {
     showAutoTerminationModal.value = true
-
-    // 설정된 시간 후 자동으로 종료 화면으로 이동
-    autoRedirectTimer = setTimeout(async () => {
-      try {
-        const finalDuration = callDuration.value
-        const consultationId = callStore.currentCall?.consultationId || callStore.currentCall?.registrationId
-
-        if (timerInterval) {
-          clearInterval(timerInterval)
-        }
-
-        await disconnect()
-        callStore.resetCall()
-
-        router.push({
-          name: 'client-call-end',
-          query: {
-            duration: finalDuration,
-            autoTerminated: 'true',
-            consultationId
-          }
-        })
-      } catch (error) {
-        console.error('[ClientCall] 자동 종료 처리 실패:', error)
-      }
-    }, AUTO_TERMINATION_REDIRECT_DELAY_MS)
+    // 자동 리다이렉트 제거 - 사용자가 확인 버튼을 눌러야 함
   }
 })
+
+// 종료 페이지로 이동하는 공통 함수
+const proceedToEndPage = async () => {
+  const finalDuration = callDuration.value
+  const consultationId = callStore.currentCall?.consultationId || callStore.currentCall?.registrationId
+
+  if (timerInterval) {
+    clearInterval(timerInterval)
+  }
+
+  if (autoRedirectTimer) {
+    clearTimeout(autoRedirectTimer)
+  }
+
+  // 마이크 종료 (STT 중지)
+  stopCustomerSTT()
+
+  await disconnect()
+  callStore.resetCall()
+
+  router.push({
+    name: 'client-call-end',
+    query: {
+      duration: finalDuration,
+      autoTerminated: 'true',
+      consultationId
+    }
+  })
+}
+
+// 자동 종료 모달 확인 버튼 핸들러
+const handleAutoTerminationConfirm = async () => {
+  try {
+    // 1. 음성 재생
+    if (!autoTerminationAudio.value) {
+      autoTerminationAudio.value = new Audio('/src/assets/Endvoice.wav')
+    }
+    
+    console.log('[ClientCall] 자동 종료 음성 재생 시작')
+    await autoTerminationAudio.value.play()
+    
+    // 2. 음성 재생 완료 후 종료 페이지로 이동
+    autoTerminationAudio.value.onended = async () => {
+      console.log('[ClientCall] 음성 재생 완료, 종료 페이지로 이동')
+      await proceedToEndPage()
+    }
+  } catch (error) {
+    console.error('[ClientCall] 음성 재생 실패:', error)
+    // 음성 재생 실패 시에도 종료 페이지로 이동
+    await proceedToEndPage()
+  }
+}
 
 // 통화 시간 포맷팅 (mm:ss)
 const formattedCallDuration = computed(() => {
@@ -944,6 +977,33 @@ onUnmounted(async () => {
 .modal-message.center {
   text-align: center;
   line-height: 1.6;
+}
+
+.modal-btn.confirm-auto {
+  width: 100%;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: white;
+  padding: 14px 24px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  transition: all 0.2s ease;
+}
+
+.modal-btn.confirm-auto:hover {
+  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+}
+
+.modal-btn.confirm-auto:active {
+  transform: scale(0.98);
+}
+
+.modal-content.auto-term .modal-actions {
+  justify-content: center;
+  margin-top: 8px;
 }
 
 </style>

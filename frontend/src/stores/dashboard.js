@@ -10,7 +10,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
   const waitingCustomers = ref(0)
   const customerSatisfaction = ref(0)
   const todos = ref([])
-  
+
   const weeklyPerformance = ref([
     { day: 'Mon', calls: 0 },
     { day: 'Tue', calls: 0 },
