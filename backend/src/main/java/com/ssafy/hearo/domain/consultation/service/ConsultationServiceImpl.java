@@ -20,7 +20,9 @@ import com.ssafy.hearo.domain.user.service.UserStateService;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,7 +45,13 @@ public class ConsultationServiceImpl implements ConsultationService{
     private final UserStateService userStateService;
 
     public List<ConsultationSummaryResponse> getLatest3ByCustomerId(Integer customerId) {
-        return consultationRepository.findTop3ByCustomer_IdOrderByCreatedAtDesc(customerId)
+//        return consultationRepository.findTop3ByCustomer_IdOrderByCreatedAtDesc(customerId)
+//                .stream()
+//                .map(ConsultationSummaryResponse::from)
+//                .toList();
+        Pageable pageable = PageRequest.of(1, 3, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return consultationRepository
+                .findByCustomerIdOrderByCreatedAtDesc(customerId, pageable)
                 .stream()
                 .map(ConsultationSummaryResponse::from)
                 .toList();
