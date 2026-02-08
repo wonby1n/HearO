@@ -25,8 +25,8 @@ export default defineConfig({
       "/api": {
         // 🔧 로컬 개발: localhost:8080 (백엔드 Spring Boot 기본 포트)
         // 🔧 운영 배포: https://i14e106.p.ssafy.io
-        target: 'http://localhost:8080',
-        // target: "https://i14e106.p.ssafy.io",
+        // target: 'http://localhost:8080',
+        target: "https://i14e106.p.ssafy.io",
         changeOrigin: true, // 서버가 출처(Origin)를 검사할 때 백엔드 주소로 속여줍니다.
         secure: false, // SSL 인증서 관련 경고 무시 (개발 환경용)
 
@@ -39,8 +39,8 @@ export default defineConfig({
       // 🔹 WebSocket 프록시 추가
       "/ws": {
         // 🔧 로컬 개발: localhost:8080
-        target: 'http://localhost:8080',
-        // target: "https://i14e106.p.ssafy.io",
+        // target: 'http://localhost:8080',
+        target: "https://i14e106.p.ssafy.io",
         changeOrigin: true,
         ws: true, // WebSocket 지원 활성화
       },

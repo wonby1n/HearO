@@ -904,11 +904,43 @@ const setCustomerAudioMuted = (participantId, muted) => {
   }
 }
 
+/**
+ * 폭언 감지 시 재생할 삐- 소리 생성 (Web Audio API)
+ * @param {AudioContext} ctx - 오디오 컨텍스트
+ * @param {number} duration - 재생 시간 (초), 기본 0.25초
+ * @param {number} frequency - 주파수 (Hz), 기본 1000Hz
+ */
+const playBeepSound = (ctx, duration = 0.25, frequency = 1000) => {
+  if (!ctx) return
+
+  const oscillator = ctx.createOscillator()
+  const gainNode = ctx.createGain()
+
+  oscillator.connect(gainNode)
+  gainNode.connect(ctx.destination)
+
+  oscillator.frequency.value = frequency
+  oscillator.type = 'sine'
+
+  // 부드러운 페이드 인/아웃으로 클릭음 방지
+  const now = ctx.currentTime
+  gainNode.gain.setValueAtTime(0, now)
+  gainNode.gain.linearRampToValueAtTime(0.3, now + 0.02) // 페이드 인
+  gainNode.gain.setValueAtTime(0.3, now + duration - 0.02)
+  gainNode.gain.linearRampToValueAtTime(0, now + duration) // 페이드 아웃
+
+  oscillator.start(now)
+  oscillator.stop(now + duration)
+}
+
 const blockCustomerAudioUntilNextStt = (participantId) => {
   const p = pipelines.get(participantId)
   if (!p) return
   p.blocked = true
   setCustomerAudioMuted(participantId, true)
+
+  // 폭언 감지 시 삐- 소리 재생 (묵음 대신)
+  playBeepSound(audioCtx)
 }
 
 const scheduleUnblockOnNextStt = (participantId) => {
