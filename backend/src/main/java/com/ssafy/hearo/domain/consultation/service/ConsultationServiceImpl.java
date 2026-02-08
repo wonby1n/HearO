@@ -20,7 +20,9 @@ import com.ssafy.hearo.domain.user.service.UserStateService;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,8 +45,11 @@ public class ConsultationServiceImpl implements ConsultationService{
     private final UserStateService userStateService;
 
     public List<ConsultationSummaryResponse> getLatest3ByCustomerId(Integer customerId) {
-        return consultationRepository.findTop3ByCustomer_IdOrderByCreatedAtDesc(customerId)
+        // 통화 중에는 현재 상담(빈 상태)이 첫 번째이므로, 4개를 조회한 후 첫 번째를 건너뛰고 3개 반환
+        return consultationRepository.findTop4ByCustomer_IdOrderByCreatedAtDesc(customerId)
                 .stream()
+                .skip(1)  // 현재 진행 중인 상담 제외
+                .limit(3)
                 .map(ConsultationSummaryResponse::from)
                 .toList();
     }

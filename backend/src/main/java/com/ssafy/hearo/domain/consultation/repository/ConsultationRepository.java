@@ -15,6 +15,11 @@ public interface ConsultationRepository extends JpaRepository<Consultation, Inte
 
     List<Consultation> findTop3ByCustomer_IdOrderByCreatedAtDesc(Integer customerId);
 
+    // 현재 상담을 제외하고 최신 3개 조회 (통화 중 상담 이력 표시용)
+    List<Consultation> findTop4ByCustomer_IdOrderByCreatedAtDesc(Integer customerId);
+
+    List<Consultation> findByCustomerIdOrderByCreatedAtDesc(Integer customerId, Pageable pageable);
+
     // 특정 기간(이번 주) 내의 내 상담 기록 조회
     List<Consultation> findAllByUserIdAndCreatedAtBetween(Long userId, LocalDateTime start, LocalDateTime end);
 
