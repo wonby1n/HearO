@@ -285,9 +285,18 @@ watch(() => callStore.autoTerminationTriggered, async (triggered) => {
     const consultationId = callStore.currentConsultationId
     console.log('[CounselorCallView] 자동 종료 - 저장된 consultationId:', consultationId)
 
-    // LiveKit 즉시 종료 → 고객 측 ParticipantDisconnected 트리거
+    // 고객에게 자동 종료 사유 전송 후 LiveKit 종료
     if (callStore.livekitRoom) {
       try {
+        // 고객에게 autoTermination 신호 전송 (disconnect 전)
+        const payload = JSON.stringify({ type: 'autoTermination', reason: 'profanity' })
+        const bytes = new TextEncoder().encode(payload)
+        await callStore.livekitRoom.localParticipant.publishData(bytes, { reliable: true })
+        console.log('[CounselorCallView] 자동 종료 신호 전송 완료')
+
+        // 데이터 수신 보장을 위한 짧은 대기
+        await new Promise(resolve => setTimeout(resolve, 500))
+
         await stopLocalMicrophone()
         await callStore.livekitRoom.disconnect()
       } catch (e) {
@@ -895,11 +904,43 @@ const setCustomerAudioMuted = (participantId, muted) => {
   }
 }
 
+/**
+ * 폭언 감지 시 재생할 삐- 소리 생성 (Web Audio API)
+ * @param {AudioContext} ctx - 오디오 컨텍스트
+ * @param {number} duration - 재생 시간 (초), 기본 0.25초
+ * @param {number} frequency - 주파수 (Hz), 기본 1000Hz
+ */
+const playBeepSound = (ctx, duration = 0.25, frequency = 1000) => {
+  if (!ctx) return
+
+  const oscillator = ctx.createOscillator()
+  const gainNode = ctx.createGain()
+
+  oscillator.connect(gainNode)
+  gainNode.connect(ctx.destination)
+
+  oscillator.frequency.value = frequency
+  oscillator.type = 'sine'
+
+  // 부드러운 페이드 인/아웃으로 클릭음 방지
+  const now = ctx.currentTime
+  gainNode.gain.setValueAtTime(0, now)
+  gainNode.gain.linearRampToValueAtTime(0.3, now + 0.02) // 페이드 인
+  gainNode.gain.setValueAtTime(0.3, now + duration - 0.02)
+  gainNode.gain.linearRampToValueAtTime(0, now + duration) // 페이드 아웃
+
+  oscillator.start(now)
+  oscillator.stop(now + duration)
+}
+
 const blockCustomerAudioUntilNextStt = (participantId) => {
   const p = pipelines.get(participantId)
   if (!p) return
   p.blocked = true
   setCustomerAudioMuted(participantId, true)
+
+  // 폭언 감지 시 삐- 소리 재생 (묵음 대신)
+  playBeepSound(audioCtx)
 }
 
 const scheduleUnblockOnNextStt = (participantId) => {

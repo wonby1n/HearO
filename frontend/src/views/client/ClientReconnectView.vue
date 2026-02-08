@@ -61,6 +61,7 @@ import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useCallStore } from '@/stores/call'
 import { registerQueue } from '@/services/customerService'
+import axios from 'axios'
 
 const router = useRouter()
 const route = useRoute()
@@ -76,13 +77,30 @@ const handleReconnect = async () => {
     isReconnecting.value = true
     console.log('[ClientReconnect] 재연결 시작')
 
-    // 1. sessionStorage에서 제품 정보 읽기
+    // 1. sessionStorage에서 고객 정보 읽기
     const productId = sessionStorage.getItem('clientProductId')
-    if (!productId) {
-      throw new Error('제품 정보를 찾을 수 없습니다. 처음부터 다시 시작해주세요.')
+    const clientName = sessionStorage.getItem('clientName')
+    const clientPhone = sessionStorage.getItem('clientPhone')
+
+    if (!productId || !clientName || !clientPhone) {
+      throw new Error('고객 정보를 찾을 수 없습니다. 처음부터 다시 시작해주세요.')
     }
 
-    // 2. 같은 제품으로 새 상담 요청 생성
+    // 2. 자동 로그인으로 새 토큰 발급
+    console.log('[ClientReconnect] 자동 로그인 시작')
+    const loginResponse = await axios.post('/api/v1/auth/customer/login', {
+      name: clientName,
+      phone: clientPhone
+    })
+
+    const { accessToken, customerId } = loginResponse.data
+
+    // 새 토큰을 sessionStorage에 저장
+    sessionStorage.setItem('customerAccessToken', accessToken)
+    sessionStorage.setItem('clientCustomerId', String(customerId))
+    console.log('[ClientReconnect] 자동 로그인 성공, 새 토큰 발급됨')
+
+    // 3. 같은 제품으로 새 상담 요청 생성
     console.log('[ClientReconnect] 새 상담 요청 생성 (productId:', productId, ')')
     const result = await registerQueue({
       symptom: '이전 상담 내용 재연결',
@@ -91,7 +109,7 @@ const handleReconnect = async () => {
 
     console.log('[ClientReconnect] 재연결 성공:', result)
 
-    // 3. callStore에 저장
+    // 4. callStore에 저장
     callStore.initiateCall({
       registrationId: result.registrationId,
       customerId: result.customerId,
@@ -99,7 +117,7 @@ const handleReconnect = async () => {
       serverUrl: null
     })
 
-    // 4. 대기 화면으로 이동
+    // 5. 대기 화면으로 이동
     router.push({
       name: 'client-waiting',
       params: {

@@ -267,6 +267,9 @@ const verifyCode = async () => {
     // sessionStorage에 저장 (세션 종료 시 자동 정리)
     sessionStorage.setItem('customerAccessToken', accessToken)
     sessionStorage.setItem('clientCustomerId', String(customerId))
+    // 재연결을 위한 이름/전화번호 저장
+    sessionStorage.setItem('clientName', formData.value.name)
+    sessionStorage.setItem('clientPhone', formData.value.phone)
 
     // 인증 성공 상태 표시
     verificationError.value = ''
