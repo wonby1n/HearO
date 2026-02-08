@@ -52,12 +52,18 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useCallStore } from '@/stores/call'
+import { registerQueue } from '@/services/customerService'
 import { CALL_END_REDIRECT_DELAY_MS } from '@/constants/call'
+import axios from 'axios'
 
 const route = useRoute()
 const router = useRouter()
+const callStore = useCallStore()
+
+const isReconnecting = ref(false)
 
 // 폭언 종료 여부 판별
 const isAutoTerminated = computed(() => route.query.autoTerminated === 'true')
@@ -97,8 +103,8 @@ onUnmounted(() => {
 // 다음/종료 버튼 클릭 핸들러
 const handleNext = () => {
   if (isAutoTerminated.value) {
-    // 폭언 종료: 만족도 조사 건너뛰고 최종 페이지로 이동
-    router.push({ name: 'client-final' })
+    // 폭언 종료: 초기 상담 신청 화면으로 이동
+    router.push({ name: 'client-landing' })
   } else {
     // 정상 종료: 만족도 조사로 이동
     router.push({
@@ -108,12 +114,84 @@ const handleNext = () => {
   }
 }
 
-// 재연결 버튼 클릭 시 재연결 페이지로 이동
-const handleReconnect = () => {
-  router.push({
-    name: 'client-reconnect',
-    query: { consultationId: route.query.consultationId }
-  })
+// 재연결 버튼 클릭 핸들러
+const handleReconnect = async () => {
+  // 폭언 종료 시: 즉시 재연결
+  if (isAutoTerminated.value) {
+    if (isReconnecting.value) return
+
+    try {
+      isReconnecting.value = true
+      console.log('[ClientCallEnd] 폭언 종료 - 즉시 재연결 시작')
+
+      // 1. sessionStorage에서 고객 정보 읽기
+      const productId = sessionStorage.getItem('clientProductId')
+      const clientName = sessionStorage.getItem('clientName')
+      const clientPhone = sessionStorage.getItem('clientPhone')
+
+      if (!productId || !clientName || !clientPhone) {
+        throw new Error('고객 정보를 찾을 수 없습니다. 처음부터 다시 시작해주세요.')
+      }
+
+      // 2. 자동 로그인으로 새 토큰 발급
+      console.log('[ClientCallEnd] 자동 로그인 시작')
+      const loginResponse = await axios.post('/api/v1/auth/customer/login', {
+        name: clientName,
+        phone: clientPhone
+      })
+
+      const { accessToken, customerId } = loginResponse.data
+
+      // 새 토큰을 sessionStorage에 저장
+      sessionStorage.setItem('customerAccessToken', accessToken)
+      sessionStorage.setItem('clientCustomerId', String(customerId))
+      console.log('[ClientCallEnd] 자동 로그인 성공, 새 토큰 발급됨')
+
+      // 3. 같은 제품으로 새 상담 요청 생성
+      console.log('[ClientCallEnd] 새 상담 요청 생성 (productId:', productId, ')')
+      const result = await registerQueue({
+        symptom: '이전 상담 내용 재연결',
+        productId: parseInt(productId)
+      })
+
+      console.log('[ClientCallEnd] 재연결 성공:', result)
+
+      // 4. callStore에 저장
+      callStore.initiateCall({
+        registrationId: result.registrationId,
+        customerId: result.customerId,
+        roomToken: null,
+        serverUrl: null
+      })
+
+      // 5. 대기 화면으로 이동
+      router.push({
+        name: 'client-waiting',
+        params: {
+          registrationId: result.registrationId
+        },
+        query: {
+          waitingRank: result.waitingRank,
+          estimatedWaitMinutes: result.estimatedWaitMinutes,
+          websocketTopic: result.websocketTopic,
+          reconnected: 'true' // 재연결 표시
+        }
+      })
+    } catch (error) {
+      console.error('[ClientCallEnd] 재연결 실패:', error)
+      alert('재연결에 실패했습니다. 처음부터 다시 시도해주세요.')
+      // 실패 시 처음 화면으로
+      router.push({ name: 'client-landing' })
+    } finally {
+      isReconnecting.value = false
+    }
+  } else {
+    // 정상 종료 시: 재연결 페이지로 이동 (기존 로직 유지)
+    router.push({
+      name: 'client-reconnect',
+      query: { consultationId: route.query.consultationId }
+    })
+  }
 }
 </script>
 
