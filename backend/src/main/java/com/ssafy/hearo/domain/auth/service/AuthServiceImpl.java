@@ -10,6 +10,7 @@ import com.ssafy.hearo.domain.customer.repository.CustomerRepository;
 import com.ssafy.hearo.domain.user.entity.User;
 import com.ssafy.hearo.domain.user.repository.UserRepository;
 import com.ssafy.hearo.domain.user.service.UserStateService;
+import com.ssafy.hearo.global.exception.ResourceNotFoundException;
 import com.ssafy.hearo.global.security.jwt.JwtTokenProvider;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -80,17 +81,11 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    @Transactional
     public CustomerLoginResponse customerLogin(CustomerLoginRequest request) {
-        // Find or create customer
+        // Find customer - must already exist in DB
         Customer customer = customerRepository.findByNameAndPhone(request.name(), request.phone())
-                .orElseGet(() -> {
-                    Customer newCustomer = Customer.builder()
-                            .name(request.name())
-                            .phone(request.phone())
-                            .build();
-                    return customerRepository.save(newCustomer);
-                });
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "등록되지 않은 고객입니다: " + request.name() + " / " + request.phone()));
 
         // Generate access token for customer
         String accessToken = jwtTokenProvider.generateCustomerAccessToken(
