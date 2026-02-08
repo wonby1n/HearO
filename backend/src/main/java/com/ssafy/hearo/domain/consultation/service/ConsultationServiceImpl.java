@@ -45,14 +45,11 @@ public class ConsultationServiceImpl implements ConsultationService{
     private final UserStateService userStateService;
 
     public List<ConsultationSummaryResponse> getLatest3ByCustomerId(Integer customerId) {
-//        return consultationRepository.findTop3ByCustomer_IdOrderByCreatedAtDesc(customerId)
-//                .stream()
-//                .map(ConsultationSummaryResponse::from)
-//                .toList();
-        Pageable pageable = PageRequest.of(1, 3, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return consultationRepository
-                .findByCustomerIdOrderByCreatedAtDesc(customerId, pageable)
+        // 통화 중에는 현재 상담(빈 상태)이 첫 번째이므로, 4개를 조회한 후 첫 번째를 건너뛰고 3개 반환
+        return consultationRepository.findTop4ByCustomer_IdOrderByCreatedAtDesc(customerId)
                 .stream()
+                .skip(1)  // 현재 진행 중인 상담 제외
+                .limit(3)
                 .map(ConsultationSummaryResponse::from)
                 .toList();
     }
