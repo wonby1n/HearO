@@ -59,7 +59,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         // [특수 로직] 조하원(jhw@ssafy.com) 유저 로그인 시 에너지 5로 강제 설정
-        if ("jhw@ssafy.com".equals(user.getEmail())) {
+        if ("jhw@ssafy.com".equals(user.getEmail()) || "usertest2@ssafy.com".equals(user.getEmail())) {
             userStateService.setEnergy(user.getId(), 5, "로그인: 조하원 유저 에너지 초기화");
         }
 

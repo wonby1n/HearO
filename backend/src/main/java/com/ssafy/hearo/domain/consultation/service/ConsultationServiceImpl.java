@@ -124,7 +124,7 @@ public class ConsultationServiceImpl implements ConsultationService{
         blacklistIfNeeded(consultation.getUser(), consultation.getCustomer(), reason);
 
         // [특수 로직] 조하원 유저 상담 종료 시 에너지 0으로 강제 설정
-        if ("jhw@ssafy.com".equals(consultation.getUser().getEmail())) {
+        if ("jhw@ssafy.com".equals(consultation.getUser().getEmail()) || "usertest2@ssafy.com".equals(consultation.getUser().getEmail())) {
             userStateService.setEnergy(userId, 0, "상담 종료: 조하원 유저 에너지 초기화");
         }
         return ConsultationEndResponse.from(consultation);
