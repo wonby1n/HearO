@@ -241,38 +241,26 @@ https://drive.google.com/file/d/1aV5lkNDKQMJVryiT2DNo-hWWKoEYQoYs/view?usp=shari
 
 | **경로 (Path)** | **파일명** | **용도 및 설명** | **비고** |
 | --- | --- | --- | --- |
-| `infra/` | **docker-compose-infra.yml** | **기반 서비스 실행**
-DB(PostgreSQL), Redis, Jenkins, LiveKit 등 인프라 컨테이너 구동 | 선행 실행 권장 |
-| `infra/` | **docker-compose-prod.yml** | **애플리케이션 실행**
-Backend, Frontend, Nginx(Web Server) 컨테이너 구동 | `prod` 프로필 적용 |
-| `infra/nginx/` | **default.conf** | **메인 웹 서버 설정**
-리버스 프록시, SSL 인증서 경로, WebSocket 타임아웃, 포트 포워딩 설정 | Host Nginx |
-| `infra/jenkins/` | **Dockerfile** | **Jenkins 커스텀 이미지**
-Docker in Docker(DinD) 환경 구성을 위한 Docker CLI 설치 포함 | CI/CD용 |
-| `infra/` | **livekit.yaml** | **화상 서버 설정**
-LiveKit 포트(TCP/UDP), API Key, 로깅 레벨 설정 | WebRTC |
-| `root/` | **Jenkinsfile** | **CI/CD 파이프라인 스크립트**
-Gitlab Webhook 트리거 시 빌드, 테스트, 배포 자동화 단계 정의 | Groovy Script |
+| `infra/` | **docker-compose-infra.yml** | **기반 서비스 실행** - DB(PostgreSQL), Redis, Jenkins, LiveKit 등 인프라 컨테이너 구동 | 선행 실행 권장 |
+| `infra/` | **docker-compose-prod.yml** | **애플리케이션 실행** - Backend, Frontend, Nginx(Web Server) 컨테이너 구동 | `prod` 프로필 적용 |
+| `infra/nginx/` | **default.conf** | **메인 웹 서버 설정** - 리버스 프록시, SSL 인증서 경로, WebSocket 타임아웃, 포트 포워딩 설정 | Host Nginx |
+| `infra/jenkins/` | **Dockerfile** | **Jenkins 커스텀 이미지** - Docker in Docker(DinD) 환경 구성을 위한 Docker CLI 설치 포함 | CI/CD용 |
+| `infra/` | **livekit.yaml** | **화상 서버 설정** - LiveKit 포트(TCP/UDP), API Key, 로깅 레벨 설정 | WebRTC |
+| `root/` | **Jenkinsfile** | **CI/CD 파이프라인 스크립트** - Gitlab Webhook 트리거 시 빌드, 테스트, 배포 자동화 단계 정의 | Groovy Script |
 1. 백엔드 설정
 
 | **경로 (Path)** | **파일명** | **용도 및 설명** | **비고** |
 | --- | --- | --- | --- |
-| `backend/` | **Dockerfile** | **Spring Boot 이미지 빌드**
-JDK 17 기반, Gradle 빌드, JAR 파일 실행 정의 | Multi-stage Build |
-| `backend/src/main/resources/` | **application.yaml** | **공통 설정**
-모든 환경에서 공통으로 적용되는 JPA, Jackson, Log 설정 |  |
-| `backend/src/main/resources/` | **application-dev.yaml** | **개발 환경 설정**
-로컬 개발 시 사용하는 H2/MySQL DB 설정, 디버그 모드 | `dev` 프로필 |
-| `backend/src/main/resources/` | **application-prod.yaml** | **운영 환경 설정**
-Docker 환경 변수(`${DB_URL}` 등)를 참조하도록 구성된 배포용 설정 | `prod` 프로필 |
+| `backend/` | **Dockerfile** | **Spring Boot 이미지 빌드** - JDK 17 기반, Gradle 빌드, JAR 파일 실행 정의 | Multi-stage Build |
+| `backend/src/main/resources/` | **application.yaml** | **공통 설정** - 모든 환경에서 공통으로 적용되는 JPA, Jackson, Log 설정 |  |
+| `backend/src/main/resources/` | **application-dev.yaml** | **개발 환경 설정** - 로컬 개발 시 사용하는 H2/MySQL DB 설정, 디버그 모드 | `dev` 프로필 |
+| `backend/src/main/resources/` | **application-prod.yaml** | **운영 환경 설정** - Docker 환경 변수(`${DB_URL}` 등)를 참조하도록 구성된 배포용 설정 | `prod` 프로필 |
 1. 프론트엔드 설정
 
 | **경로 (Path)** | **파일명** | **용도 및 설명** | **비고** |
 | --- | --- | --- | --- |
-| `frontend/` | **Dockerfile** | **Vue.js 이미지 빌드**
-Node.js 빌드 후 Nginx(Alpine)로 정적 파일 서빙 | Multi-stage Build |
-| `frontend/` | **default.conf** | **내부 웹 서버 설정**
-SPA(Single Page Application) 라우팅 지원(`try_files`)을 위한 설정 | Container Nginx |
+| `frontend/` | **Dockerfile** | **Vue.js 이미지 빌드** - Node.js 빌드 후 Nginx(Alpine)로 정적 파일 서빙 | Multi-stage Build |
+| `frontend/` | **default.conf** | **내부 웹 서버 설정** - SPA(Single Page Application) 라우팅 지원(`try_files`)을 위한 설정 | Container Nginx |
 
 ## 2. 프로젝트에서 사용하는 외부 서비스 정보를 정리한 문서
 
