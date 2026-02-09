@@ -84,6 +84,20 @@ docker ps
 # postgres-db, redis, livekit-server, jenkins-server 등이 보여야 함
 ```
 
+### [참고] Jenkins 자동 배포 설정 가이드
+
+**1. Jenkins 초기 설정**
+* 접속: `https://i14p106.p.ssafy.io/jenkins`
+* 초기 비밀번호 확인: `docker exec -it jenkins-server cat /var/jenkins_home/secrets/initialAdminPassword`
+
+**2. GitLab Webhook 연동**
+1. **Jenkins:** 새로운 Item 생성 -> `Pipeline` 선택.
+2. **Build Triggers:** `Build when a change is pushed to GitLab` 체크.
+3. **Advanced:** `Secret token` 생성 (예: `hearo-secret-token`).
+4. **GitLab:** 프로젝트 Settings -> Webhooks 이동.
+5. **URL:** `https://i14p106.p.ssafy.io/jenkins/project/HearO` 입력.
+6. **Secret Token:** 위에서 생성한 토큰 입력 후 `Add webhook`.
+
 ---
 
 ### Phase 4. 데이터베이스 초기화 (DB Restore)
