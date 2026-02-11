@@ -182,68 +182,68 @@ WebRTC(LiveKit) 기반 1:1 음성 통화 위에
 - QR을 통해 증상을 접수합니다.
 - QR에 제품 정보가 자동으로 입력되어 있습니다.
 
-![alt text](image-4.png)
+![alt text](./docs/Photo/image-4.png)
 
 #### 2. 본인 확인
 - 고객은 본인 인증 후 상담사와 연결할 수 있습니다.
 
-![alt text](image-5.png)
+![alt text](./docs/Photo/image-5.png)
 
 #### 3. 개인정보 동의 화면
-![alt text](image-7.png)
+![alt text](./docs/Photo/image-7.png)
 
 #### 4. 통화 대기 화면
 - 앞에 몇 명이 대기하는 지 볼 수 있습니다.
 
-![alt text](image-6.png)
+![alt text](./docs/Photo/mage-6.png)
 
 #### 5. 통화 화면
 
 ---
 
 #### 1. 일렉트론
-![alt text](일렉트론.gif)
+![alt text](./docs/Photo/일렉트론.gif)
 
 #### 2. 로그인 화면
-![alt text](image-1.png)
+![alt text](./docs/Photo/image-1.png)
 
 #### 3. 메인화면
-![alt text](image-2.png)
+![alt text](./docs/Photo/image-2.png)
 
 #### 4. 통화 이력
 - 해당 상담사와 통화했던 과거 이력을 한 눈에 볼 수 있습니다
 
-![alt text](image-3.png)
-![alt text](image-15.png)
+![alt text](./docs/Photo/image-3.png)
+![alt text](./docs/Photo/image-15.png)
 
 #### 5. 고객 매칭
-![alt text](image-8.png)
+![alt text](./docs/Photo/image-8.png)
 
 #### 6. 통화 화면
 - 통화 첫 랜딩페이지 입니다
 
-![alt text](image-9.png)
+![alt text](./docs/Photo/image-9.png)
 
 #### 7. 고객 과거 이력
 - 통화 화면에서 고객의 과거 이력을 볼 수 있습니다
 
-![alt text](image-10.png)
+![alt text](./docs/Photo/image-10.png)
 
 #### 8. RAG 기반 AI 가이드
 - RAG를 통해 에러코드를 검색하여 증상을 볼 수 있습니다
 
-![alt text](image-11.png)
+![alt text](./docs/Photo/image-11.png)
 
 #### 9. 통화 종료 화면
 - 통화 종료 시 AI가 통화 내역을 요약해줍니다
 - 상담사는 기존에 썼던 메모를 이어서 쓸 수 있습니다
 
-![alt text](image-13.png)
+![alt text](./docs/Photo/image-13.png)
 
 #### 10. 의무 휴식 모드
 - 상담사의 에너지가 0이 되면 의무 휴식 모드에 들어갑니다
 
-![alt text](image-14.png)
+![alt text](./docs/Photo/image-14.png)
 
 
 ### 📹 시연 영상(Video Portfolio)
@@ -267,6 +267,6 @@ WebRTC(LiveKit) 기반 1:1 음성 통화 위에
 ### 📅 Jira 이슈 관리 내역
 
 #### 1. 지라 자동화를 통한 알림 
-![alt text](image-12.png)
+![alt text](./docs/Photo/image-12.png)
 
 #### 2. 
