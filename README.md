@@ -12,8 +12,7 @@ WebRTC(LiveKit) 기반 1:1 음성 통화 위에
 상담원이 안전하게, 그리고 효율적으로 상담에 집중할 수 있는 환경을 제공합니다.
 
 > 모두가 존중받으며 일할 수 없을까?
-
-> 상담원의 곁에 항상 함께하는 히어로, HearO
+상담원의 곁에 항상 함께하는 히어로, HearO
 
 ---
 
@@ -66,7 +65,7 @@ WebRTC(LiveKit) 기반 1:1 음성 통화 위에
 
 | Category         | Stack                   |
 | ---------------- | ----------------------- |
-| Language         | JavaScript / TypeScript |
+| Language         | JavaScript / Python     |
 | Framework        | Vue 3                   |
 | State Management | Pinia                   |
 | Real-time        | WebSocket               |
@@ -81,7 +80,7 @@ WebRTC(LiveKit) 기반 1:1 음성 통화 위에
 | Language  | Java 17              |
 | Framework | Spring Boot          |
 | Security  | Spring Security, JWT |
-| Database  | PostgreSQL           |
+| Database  | PostgreSQL / Redis          |
 | API Docs  | Swagger(OpenAPI)     |
 | IDE       | IntelliJ IDEA        |
 
@@ -157,22 +156,111 @@ WebRTC(LiveKit) 기반 1:1 음성 통화 위에
 
 ```
 📦 HearO
+┗ 📂 ai
  ┣ 📂 frontend
  ┃ ┣ 📂 src
  ┃ ┗ 📂 public
  ┣ 📂 backend
- ┃ ┣ 📂 core
- ┃ ┗ 📂 ai-service
+ ┃ ┣ 📂 src
  ┣ 📂 infra
  ┗ 📂 docs
  ```
 
-### 📦 프로젝트 산출물
+## 📦 프로젝트 산출물
 
-- 📹 시연 영상(Video Portfolio)
-- 🖼️ 화면 설계서(UI/UX)
-- 🗄️ ERD
-- ✅ Swagger API Docs
-- 📋 기능 명세서
-- 📡 API 명세서
-- 📅 Jira 이슈 관리 내역
+### 📲 기능 화면
+
+#### 고객 화면
+
+#### 1. 고객 첫 화면 랜딩
+- QR을 통해 증상을 접수합니다.
+- QR에 제품 정보가 자동으로 입력되어 있습니다.
+
+![alt text](image-4.png)
+
+#### 2. 본인 확인
+- 고객은 본인 인증 후 상담사와 연결할 수 있습니다.
+
+![alt text](image-5.png)
+
+#### 3. 개인정보 동의 화면
+![alt text](image-7.png)
+
+#### 4. 통화 대기 화면
+- 앞에 몇 명이 대기하는 지 볼 수 있습니다.
+
+![alt text](image-6.png)
+
+#### 5. 통화 화면
+
+---
+
+#### 1. 일렉트론
+![alt text](일렉트론.gif)
+
+#### 2. 로그인 화면
+![alt text](image-1.png)
+
+#### 3. 메인화면
+![alt text](image-2.png)
+
+#### 4. 통화 이력
+- 해당 상담사와 통화했던 과거 이력을 한 눈에 볼 수 있습니다
+
+![alt text](image-3.png)
+![alt text](image-15.png)
+
+#### 5. 고객 매칭
+![alt text](image-8.png)
+
+#### 6. 통화 화면
+- 통화 첫 랜딩페이지 입니다
+
+![alt text](image-9.png)
+
+#### 7. 고객 과거 이력
+- 통화 화면에서 고객의 과거 이력을 볼 수 있습니다
+
+![alt text](image-10.png)
+
+#### 8. RAG 기반 AI 가이드
+- RAG를 통해 에러코드를 검색하여 증상을 볼 수 있습니다
+
+![alt text](image-11.png)
+
+#### 9. 통화 종료 화면
+- 통화 종료 시 AI가 통화 내역을 요약해줍니다
+- 상담사는 기존에 썼던 메모를 이어서 쓸 수 있습니다
+
+![alt text](image-13.png)
+
+#### 10. 의무 휴식 모드
+- 상담사의 에너지가 0이 되면 의무 휴식 모드에 들어갑니다
+
+![alt text](image-14.png)
+
+
+### 📹 시연 영상(Video Portfolio)
+
+- 기능을 한 눈에 볼 수 있는 영상입니다.
+- [HearO](https://www.youtube.com/watch?v=M1t-3sclflQ)
+
+
+### 🖼️ 화면 설계서(UI/UX)
+
+
+### 🗄️ ERD
+![erd](<ssafy (3).png>)
+
+### ✅ Swagger API Docs
+
+### 📋 기능 명세서
+
+### 📡 API 명세서
+
+### 📅 Jira 이슈 관리 내역
+
+#### 1. 지라 자동화를 통한 알림 
+![alt text](image-12.png)
+
+#### 2. 
