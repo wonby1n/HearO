@@ -195,9 +195,10 @@ WebRTC(LiveKit) 기반 1:1 음성 통화 위에
 #### 4. 통화 대기 화면
 - 앞에 몇 명이 대기하는 지 볼 수 있습니다.
 
-![alt text](./docs/Photo/mage-6.png)
+![alt text](./docs/Photo/image-6.png)
 
 #### 5. 통화 화면
+![alt text](./docs/Photo/image-6-2.png)
 
 ---
 
