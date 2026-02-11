@@ -1,5 +1,7 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
+import axios from 'axios'
+import { getApiBase } from './utils/runtimeBase'
 
 import App from './App.vue'
 import router from './router'
@@ -15,6 +17,13 @@ const app = createApp(App)
 
 const pinia = createPinia()
 app.use(pinia)
+
+const apiBase = getApiBase();
+if (apiBase) {
+  axios.defaults.baseURL = apiBase;
+  console.log('[runtime] axios baseURL =', apiBase);
+}
+
 
 // Pinia 설정 후 즉시 auth store 초기화 (axios 인터셉터 설정)
 const authStore = useAuthStore()

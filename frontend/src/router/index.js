@@ -1,8 +1,11 @@
-import { createRouter, createWebHistory } from "vue-router";
+import { createRouter, createWebHistory,createWebHashHistory } from "vue-router";
 import CustomerRTC from "../../test/CustomerRTC.vue";
 
+const isElectron = navigator.userAgent.includes("Electron");
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+   history: isElectron
+    ? createWebHashHistory() 
+    : createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: "/test",
@@ -134,7 +137,6 @@ const router = createRouter({
           meta: {
             title: "상담원 통화",
             role: "counselor",
-            requiresAuth: true,
           },
         },
         {

@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import SockJS from 'sockjs-client'
 import { Client } from '@stomp/stompjs'
+import { getSockJsUrl } from '@/utils/runtimeBase'
 
 export function useMatchingNotification(options = {}) {
   const { customerId, counselorId, onMatched, onRankUpdate } = options
@@ -16,7 +17,7 @@ export function useMatchingNotification(options = {}) {
     isMatched.value = false
 
     client.value = new Client({
-      webSocketFactory: () => new SockJS('/ws/queue'),
+      webSocketFactory: () => new SockJS(import.meta.env.DEV ? '/ws/queue' : getSockJsUrl('/ws/queue')),
       reconnectDelay: 5000,
 
       onConnect: () => {
