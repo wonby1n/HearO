@@ -1,5 +1,11 @@
 # 🔊 HearO
 
+## HearO(히어로) 소개 영상
+[![HearO(히어로) 소개 영상](./docs/Photo/HearO_thumbnail2.png)](https://youtu.be/nMwnU2cHt6A?si=-cwvcjxkH1D69FxP)
+
+<br>
+<br>
+
 **AI 기반 상담원 보호 및 실시간 상담 지원 서비스**
 
 HearO는 AS 콜센터 상담원을 대상으로,
