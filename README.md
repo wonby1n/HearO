@@ -49,17 +49,30 @@ WebRTC(LiveKit) 기반 1:1 음성 통화 위에
 
 ## 🌟 팀원 구성
 
+### 👑 Team Leader
+
+|  |
+|---|
+| <img src="이미지경로 또는 링크" width="160"> |
+| **조하원** |
+| *Team Leader* |
+| Frontend |
+
+---
+
 ### 🎨 Frontend
 
-- 조하원 (Team Leader, Frontend)
-- 이도현 (Frontend & Docs)
-- 손효지 (Frontend & Speaker)
+|  |  |
+|---|---|
+| <img src="이미지경로 또는 링크" width="140"><br><br>**이도현**<br>*Frontend & Docs* | <img src="이미지경로 또는 링크" width="140"><br><br>**손효지**<br>*Frontend & Speaker* |
+
+---
 
 ### 🧠 Backend / Infra / AI
 
-- 하정호 (Backend & Infra)
-- 임건빈 (Backend)
-- 고혜역 (Backend & AI)
+|  |  |  |
+|---|---|---|
+| <img src="이미지경로 또는 링크" width="140"><br><br>**하정호**<br>*Backend & Infra* | <img src="이미지경로 또는 링크" width="140"><br><br>**임건빈**<br>*Backend* | <img src="이미지경로 또는 링크" width="140"><br><br>**고혜역**<br>*Backend & AI* |
 
 > ※ 역할 세부 분담은 Jira 및 산출물 문서 참고
 
