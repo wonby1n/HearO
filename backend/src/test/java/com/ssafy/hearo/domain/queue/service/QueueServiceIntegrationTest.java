@@ -24,6 +24,8 @@ import org.testcontainers.utility.DockerImageName;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest
 @Testcontainers
@@ -64,11 +66,16 @@ class QueueServiceIntegrationTest {
     @MockBean
     private SimpMessagingTemplate simpMessagingTemplate;
 
+    // heartbeat lease는 QueueLeaseServiceTest에서 검증 — 여기서는 모든 고객을 살아있는 것으로 간주
+    @MockBean
+    private QueueLeaseService queueLeaseService;
+
     private TransactionTemplate transactionTemplate;
 
     @BeforeEach
     void setup() {
         transactionTemplate = new TransactionTemplate(transactionManager);
+        when(queueLeaseService.isLeaseAlive(anyString())).thenReturn(true);
         clearQueues();
     }
 
@@ -81,10 +88,16 @@ class QueueServiceIntegrationTest {
     void cleanup() {
         // Redis 정리
         clearQueues();
-        // DB 정리 (테스트 데이터) - 외래 키 제약 조건 순서 준수: Blacklist -> Customer -> User
+        // DB 정리 (테스트 데이터 + TestDataInit 시드) - 외래 키 제약 조건 순서 준수
         transactionTemplate.execute(status -> {
+            entityManager.createQuery("DELETE FROM ConsultationRating").executeUpdate();
+            entityManager.createQuery("DELETE FROM VoiceRecording").executeUpdate();
+            entityManager.createQuery("DELETE FROM Consultation").executeUpdate();
+            entityManager.createQuery("DELETE FROM Registration").executeUpdate();
             entityManager.createQuery("DELETE FROM Blacklist").executeUpdate();
             entityManager.createQuery("DELETE FROM Customer").executeUpdate();
+            entityManager.createQuery("DELETE FROM EnergyHistory").executeUpdate();
+            entityManager.createQuery("DELETE FROM Todo").executeUpdate();
             entityManager.createQuery("DELETE FROM User").executeUpdate();
             return null;
         });
