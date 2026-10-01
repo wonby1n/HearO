@@ -142,7 +142,6 @@ const { connectionState, startWaiting, disconnect: disconnectLiveKit } = useCall
 
     // 대기열 정리
     stopQueuePolling()
-    disconnectQueueSocket()
 
     // 정상 이동 플래그 설정
     isNavigatingToCall.value = true
@@ -163,7 +162,6 @@ watch(connectionState, (newState) => {
     console.log('[ClientWaiting] LiveKit 연결 완료 - 상담사 입장 대기 중...')
     // 매칭 완료 후 대기열 조회 중지 (더 이상 대기열에 없음)
     stopQueuePolling()
-    disconnectQueueSocket()
     stopHeartbeat()
     cleanupQueueTicket()
   } else if (newState === 'error') {
@@ -180,12 +178,8 @@ const isSpeakerOn = ref(false)
 const showConfirmModal = ref(false)
 const arsAudio = ref(null)
 const isARSPlaying = ref(false)
-const queueSocket = ref(null)
 
 let queuePollingInterval = null
-let queueSocketReconnectTimeout = null
-let shouldReconnect = true
-const QUEUE_SOCKET_RECONNECT_DELAY = 3000
 
 // --- 하트비트 ---
 const queueTicket = ref(sessionStorage.getItem('clientQueueTicket'))
@@ -234,27 +228,6 @@ const handleVisibilityChange = () => {
   }
 }
 
-const getQueueSocketUrl = () => {
-  const configuredBase = import.meta.env.VITE_WS_BASE_URL
-  let baseUrl = configuredBase?.replace(/\/$/, '')
-
-  if (baseUrl) {
-    // 이미 ws:// 또는 wss://로 시작하면 그대로 사용
-    if (baseUrl.startsWith('ws://') || baseUrl.startsWith('wss://')) {
-      // 그대로 사용
-    } else if (baseUrl.startsWith('http://')) {
-      baseUrl = `ws://${baseUrl.slice(7)}`
-    } else if (baseUrl.startsWith('https://')) {
-      baseUrl = `wss://${baseUrl.slice(8)}`
-    }
-  } else {
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
-    baseUrl = `${protocol}://${window.location.host}`
-  }
-
-  return `${baseUrl}/api/v1/consultations/wait`
-}
-
 const startQueuePolling = () => {
   if (queuePollingInterval) return
   queuePollingInterval = setInterval(fetchQueuePosition, 5000)
@@ -264,95 +237,6 @@ const stopQueuePolling = () => {
   if (queuePollingInterval) {
     clearInterval(queuePollingInterval)
     queuePollingInterval = null
-  }
-}
-
-const parseQueueMessage = (rawData) => {
-  try {
-    return JSON.parse(rawData)
-  } catch (error) {
-    console.error('[QueueWS] message parse failed:', error)
-    return null
-  }
-}
-
-const handleQueueStatusMessage = (payload) => {
-  if (!payload) return
-  if (payload.type && payload.type !== 'queue_status') return
-
-  if (typeof payload.queue_position === 'number') {
-    const isWaiting = payload.status ? payload.status === 'waiting' : true
-    updateQueuePosition(payload.queue_position, isWaiting)
-  } else if (typeof payload.status === 'string') {
-    customerStore.updateQueueInfo({ isWaiting: payload.status === 'waiting' })
-  }
-}
-
-const scheduleQueueSocketReconnect = () => {
-  if (!shouldReconnect || queueSocketReconnectTimeout) return
-  queueSocketReconnectTimeout = setTimeout(() => {
-    queueSocketReconnectTimeout = null
-    connectQueueSocket()
-  }, QUEUE_SOCKET_RECONNECT_DELAY)
-}
-
-const clearQueueSocketReconnect = () => {
-  if (queueSocketReconnectTimeout) {
-    clearTimeout(queueSocketReconnectTimeout)
-    queueSocketReconnectTimeout = null
-  }
-}
-
-const connectQueueSocket = () => {
-  // sessionStorage에서 customerId 가져오기 (store가 비어있을 수 있음)
-  const customerId = sessionStorage.getItem('clientCustomerId') || customerStore.currentCustomer?.id
-  if (!customerId) {
-    console.warn('[QueueWS] customerId missing - skip WebSocket connect')
-    return
-  }
-
-  const socketUrl = getQueueSocketUrl()
-
-  if (queueSocket.value) {
-    queueSocket.value.close()
-    queueSocket.value = null
-  }
-
-  shouldReconnect = true
-  clearQueueSocketReconnect()
-
-  const socket = new WebSocket(socketUrl)
-  queueSocket.value = socket
-
-  socket.addEventListener('open', () => {
-    stopQueuePolling()
-    clearQueueSocketReconnect()
-  })
-
-  socket.addEventListener('message', (event) => {
-    handleQueueStatusMessage(parseQueueMessage(event.data))
-  })
-
-  socket.addEventListener('close', () => {
-    queueSocket.value = null
-    if (shouldReconnect) {
-      startQueuePolling()
-      scheduleQueueSocketReconnect()
-    }
-  })
-
-  socket.addEventListener('error', (error) => {
-    console.error('[QueueWS] socket error:', error)
-  })
-}
-
-const disconnectQueueSocket = () => {
-  shouldReconnect = false
-  clearQueueSocketReconnect()
-
-  if (queueSocket.value) {
-    queueSocket.value.close()
-    queueSocket.value = null
   }
 }
 
@@ -449,7 +333,6 @@ const confirmEndCall = async () => {
   showConfirmModal.value = false
 
   stopQueuePolling()
-  disconnectQueueSocket()
 
   // ARS 음성 정리
   if (arsAudio.value) {
@@ -584,7 +467,6 @@ onUnmounted(async () => {
   console.log('[ClientWaiting] 컴포넌트 언마운트 - 리소스 정리')
 
   stopQueuePolling()
-  disconnectQueueSocket()
   stopHeartbeat()
   document.removeEventListener('visibilitychange', handleVisibilityChange)
 

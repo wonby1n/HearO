@@ -45,10 +45,10 @@ npm run dist
 | 변수명 | 설명 | 기본값 |
 | --- | --- | --- |
 | `VITE_API_BASE_URL` | 백엔드 API 주소 | 빈 값 (Vite proxy 사용) |
-| `VITE_WS_BASE_URL` | WebSocket 주소 | 현재 접속 호스트 |
+| `VITE_PROXY_TARGET` | 개발 서버(`npm run dev`) 프록시 대상 | `http://localhost:8080` |
 | `VITE_TOXIC_API_URL` | 폭언 감지 API 주소 | `http://127.0.0.1:8000/unsmile` |
 
-URL 쿼리로 `?apiBase=...`, `?wsBase=...` 를 넘기면 환경 변수보다 우선 적용됩니다.
+URL 쿼리로 `?apiBase=...` 를 넘기면 환경 변수보다 우선 적용됩니다.
 
 ## 디렉터리 구조
 
