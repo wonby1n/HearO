@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory,createWebHashHistory } from "vue-router";
-import CustomerRTC from "../../test/CustomerRTC.vue";
 
 const isElectron = navigator.userAgent.includes("Electron");
 const router = createRouter({
@@ -7,11 +6,6 @@ const router = createRouter({
     ? createWebHashHistory() 
     : createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    {
-      path: "/test",
-      name: "CustomerRTC",
-      component: CustomerRTC,
-    },
     // 루트 경로 - 로그인 페이지로 리다이렉트
     {
       path: "/",
@@ -155,26 +149,6 @@ const router = createRouter({
     {
       path: "/call",
       redirect: "/counselor/call",
-    },
-    // 알림 테스트 페이지 (개발용)
-    {
-      path: "/notification-test",
-      name: "notification-test",
-      component: () =>
-        import("@/components/notification/NotificationExample.vue"),
-      meta: {
-        title: "알림 테스트",
-      },
-    },
-    // 휴식 권장 모달 테스트 페이지 (개발용)
-    {
-      path: "/rest-recommend-test",
-      name: "rest-recommend-test",
-      component: () =>
-        import("@/components/alert/RestRecommendModalExample.vue"),
-      meta: {
-        title: "휴식 권장 모달 테스트",
-      },
     },
   ],
 });

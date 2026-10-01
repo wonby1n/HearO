@@ -1,53 +1,25 @@
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
-
 /**
- * Get authentication token from localStorage
- */
-const getAuthToken = () => {
-    return localStorage.getItem('accessToken')
-}
-
-/**
- * Generate AI summary for a consultation
+ * 상담 AI 요약 생성
  * API: POST /api/v1/ai/summary
- * 
- * @param {number} consultationId - Consultation ID
- * @param {string} fullTranscript - Full STT transcript
- * @returns {Promise<Object>} AI summary with title, subtitle, aiSummary
+ * 인증 헤더는 axios 인터셉터(stores/auth.js)가 붙인다.
+ *
+ * @param {number} consultationId
+ * @param {string} fullTranscript - 전체 STT 대화록
+ * @returns {Promise<{ title: string, subtitle: string, aiSummary: string }>}
  */
 export const generateAISummary = async (consultationId, fullTranscript) => {
     try {
-        const token = getAuthToken()
-        const response = await axios.post(
-            `${API_BASE_URL}/api/v1/ai/summary`,
-            {
-                consultationId,
-                fullTranscript
-            },
-            {
-                headers: token ? {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                } : {
-                    'Content-Type': 'application/json'
-                }
-            }
-        )
+        const response = await axios.post('/api/v1/ai/summary', { consultationId, fullTranscript })
+        const body = response.data
 
-        console.log('[aiService] 응답 데이터:', response.data)
-
-        // 응답 형식 처리: isSuccess 래퍼가 있는 경우와 직접 응답인 경우 모두 처리
-        if (response.data) {
-            // isSuccess 래퍼가 있는 경우
-            if (response.data.isSuccess && response.data.data) {
-                return response.data.data
-            }
-            // 직접 응답인 경우 (title, subtitle, aiSummary가 직접 있음)
-            else if (response.data.title || response.data.subtitle || response.data.aiSummary) {
-                return response.data
-            }
+        // BaseResponse 래퍼가 있는 경우와 직접 응답인 경우 모두 처리
+        if (body?.isSuccess && body.data) {
+            return body.data
+        }
+        if (body?.title || body?.subtitle || body?.aiSummary) {
+            return body
         }
 
         throw new Error('AI 요약 응답 형식이 올바르지 않습니다')
