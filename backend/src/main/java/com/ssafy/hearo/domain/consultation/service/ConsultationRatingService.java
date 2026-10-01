@@ -1,5 +1,6 @@
 package com.ssafy.hearo.domain.consultation.service;
 
+import com.ssafy.hearo.global.exception.ResourceNotFoundException;
 import com.ssafy.hearo.domain.consultation.dto.ConsultationRatingDto;
 import com.ssafy.hearo.domain.consultation.entity.Consultation;
 import com.ssafy.hearo.domain.consultation.entity.ConsultationRating;
@@ -24,7 +25,7 @@ public class ConsultationRatingService {
     public Long createRating(Integer consultationId, ConsultationRatingDto.Request request) {
         // 1. 상담 조회
         Consultation consultation = consultationRepository.findById(consultationId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 상담이 존재하지 않습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("해당 상담이 존재하지 않습니다."));
 
         // 2. 중복 등록 체크
         if (ratingRepository.findByConsultationId(consultationId).isPresent()) {
@@ -66,7 +67,7 @@ public class ConsultationRatingService {
      */
     public ConsultationRatingDto.Response getRating(Integer consultationId) {
         ConsultationRating rating = ratingRepository.findByConsultationId(consultationId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 상담의 후기가 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("해당 상담의 후기가 없습니다."));
         return ConsultationRatingDto.Response.from(rating);
     }
 
@@ -77,7 +78,7 @@ public class ConsultationRatingService {
     public void updateRatingByConsultationId(Integer consultationId, ConsultationRatingDto.Request request) {
         // ratingId 대신 consultationId로 바로 찾기!
         ConsultationRating rating = ratingRepository.findByConsultationId(consultationId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 상담의 후기가 존재하지 않습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("해당 상담의 후기가 존재하지 않습니다."));
 
         rating.update(
                 request.getProcessRating(),
@@ -94,7 +95,7 @@ public class ConsultationRatingService {
     public void deleteRatingByConsultationId(Integer consultationId) {
         // ratingId 대신 consultationId로 바로 찾기!
         ConsultationRating rating = ratingRepository.findByConsultationId(consultationId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 상담의 후기가 존재하지 않습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("해당 상담의 후기가 존재하지 않습니다."));
 
         // 연관관계 끊기
         // (Consultation 엔티티에서 rating 필드를 null로 만들어주지 않으면,

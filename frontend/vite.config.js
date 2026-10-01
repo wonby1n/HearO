@@ -1,50 +1,44 @@
 import { fileURLToPath, URL } from "node:url";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import vue from "@vitejs/plugin-vue";
 import vueDevTools from "vite-plugin-vue-devtools";
 
 /**
  * [Vite 설정]
- * 프록시 설정을 통해 프론트엔드에서 /api로 보내는 요청을
- * 실제 백엔드 서버로 자동 전달합니다.
+ * 개발 서버에서 /api, /ws 요청을 백엔드(VITE_PROXY_TARGET)로 프록시합니다.
  */
-export default defineConfig({
-  plugins: [vue(), vueDevTools()],
-  
-  base: './',resolve: {
-    alias: {
-      "@": fileURLToPath(new URL("./src", import.meta.url)),
-    },
-  },
-  define: {
-    // SockJS 호환성을 위한 global 객체 polyfill
-    global: "globalThis",
-  },
-  server: {
-    proxy: {
-      // 🔹 '/api'로 시작하는 모든 요청을 가로챕니다.
-      "/api": {
-        // 🔧 로컬 개발: localhost:8080 (백엔드 Spring Boot 기본 포트)
-        // 🔧 운영 배포: https://i14e106.p.ssafy.io
-        // target: 'http://localhost:8080',
-        target: "https://i14e106.p.ssafy.io",
-        changeOrigin: true, // 서버가 출처(Origin)를 검사할 때 백엔드 주소로 속여줍니다.
-        secure: false, // SSL 인증서 관련 경고 무시 (개발 환경용)
+export default defineConfig(({ command, mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+  const proxyTarget = env.VITE_PROXY_TARGET || "http://localhost:8080";
 
-        /**
-         * 만약 서버 API 구조가 '도메인/api/v1'이 아니라 '도메인/v1' 형태라면
-         * 아래 주석을 해제하여 요청 경로에서 '/api'라는 글자를 지우고 보낼 수 있습니다.
-         */
-        // rewrite: (path) => path.replace(/^\/api/, ''),
-      },
-      // 🔹 WebSocket 프록시 추가
-      "/ws": {
-        // 🔧 로컬 개발: localhost:8080
-        // target: 'http://localhost:8080',
-        target: "https://i14e106.p.ssafy.io",
-        changeOrigin: true,
-        ws: true, // WebSocket 지원 활성화
+  return {
+    plugins: [vue(), vueDevTools()],
+
+    base: "./",
+    resolve: {
+      alias: {
+        "@": fileURLToPath(new URL("./src", import.meta.url)),
       },
     },
-  },
+    define: {
+      // SockJS 호환성을 위한 global 객체 polyfill
+      global: "globalThis",
+    },
+    // 운영 빌드에서는 디버그 로그 제거 (console.warn / console.error는 유지)
+    esbuild: command === "build" ? { pure: ["console.log", "console.info", "console.debug"] } : {},
+    server: {
+      proxy: {
+        "/api": {
+          target: proxyTarget,
+          changeOrigin: true,
+          secure: false, // 자체 서명 인증서 허용 (개발 환경용)
+        },
+        "/ws": {
+          target: proxyTarget,
+          changeOrigin: true,
+          ws: true,
+        },
+      },
+    },
+  };
 });

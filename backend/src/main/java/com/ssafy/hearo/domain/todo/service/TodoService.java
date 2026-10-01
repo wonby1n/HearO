@@ -1,5 +1,7 @@
 package com.ssafy.hearo.domain.todo.service;
 
+import com.ssafy.hearo.global.exception.AuthorizationException;
+import com.ssafy.hearo.global.exception.ResourceNotFoundException;
 import com.ssafy.hearo.domain.todo.dto.TodoCreateRequest;
 import com.ssafy.hearo.domain.todo.dto.TodoResponse;
 import com.ssafy.hearo.domain.todo.entity.Todo;
@@ -32,7 +34,7 @@ public class TodoService {
     @Transactional
     public TodoResponse createTodo(Long userId, TodoCreateRequest request) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
 
         Todo todo = Todo.builder()
                 .user(user)
@@ -70,10 +72,10 @@ public class TodoService {
     // 검증 로직 추출 (내 투두가 맞는지 확인)
     private Todo findTodoAndCheckOwner(Long userId, Long todoId) {
         Todo todo = todoRepository.findById(todoId)
-                .orElseThrow(() -> new IllegalArgumentException("할 일을 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("할 일을 찾을 수 없습니다."));
         
         if (!todo.getUser().getId().equals(userId)) {
-            throw new IllegalArgumentException("해당 할 일에 대한 권한이 없습니다.");
+            throw new AuthorizationException("해당 할 일에 대한 권한이 없습니다.");
         }
         return todo;
     }

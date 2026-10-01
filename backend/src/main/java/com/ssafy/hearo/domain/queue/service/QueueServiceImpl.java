@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
+import org.springframework.data.redis.core.ZSetOperations.TypedTuple;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -18,7 +19,9 @@ public class QueueServiceImpl implements QueueService {
 
     private static final String NORMAL_QUEUE_KEY = "queue:normal";
     private static final String BLACKLIST_QUEUE_KEY = "queue:blacklist";
-    private static final String TEMP_STACK_KEY = "queue:temp-stack"; // 임시 스택
+
+    // 대기열 항목 만료 시간 (5분) — lease 검증의 백업 필터
+    private static final long QUEUE_ENTRY_TIMEOUT_MS = 5 * 60 * 1000;
 
     private final RedisTemplate<String, String> redisTemplate;
     private final QueueEventPublisher queueEventPublisher;
@@ -27,8 +30,6 @@ public class QueueServiceImpl implements QueueService {
 
     @Override
     public QueueStatusResponse enqueue(String customerId) {
-        ZSetOperations<String, String> zSetOps = redisTemplate.opsForZSet();
-
         // 이미 대기열에 있는지 확인
         Optional<QueueType> existingQueue = getQueueType(customerId);
         if (existingQueue.isPresent()) {
@@ -37,16 +38,12 @@ public class QueueServiceImpl implements QueueService {
         }
 
         // Normal Queue에 추가 (timestamp를 score로 사용)
-        double score = System.currentTimeMillis();
-        zSetOps.add(NORMAL_QUEUE_KEY, customerId, score);
+        redisTemplate.opsForZSet().add(NORMAL_QUEUE_KEY, customerId, System.currentTimeMillis());
 
         Long rank = getWaitingRank(customerId).orElse(1L);
-
         log.info("[대기열] 고객 {} Normal Queue에 등록 (순위: {}위)", customerId, rank);
 
-        // 대기열 변경 알림
-        QueueSizes sizes = getQueueSizes();
-        queueEventPublisher.publishQueueUpdate(sizes.normalQueueSize(), sizes.blacklistQueueSize());
+        publishQueueUpdate();
 
         return QueueStatusResponse.of(customerId, rank, QueueType.NORMAL.name());
     }
@@ -61,12 +58,10 @@ public class QueueServiceImpl implements QueueService {
             return Optional.of(blacklistRank + 1); // 0-indexed -> 1-indexed
         }
 
-        // Normal Queue 확인
+        // Normal Queue 확인: Rank = Blacklist 크기 + Normal Queue 순위 + 1
         Long normalRank = zSetOps.rank(NORMAL_QUEUE_KEY, customerId);
         if (normalRank != null) {
-            Long blacklistSize = zSetOps.zCard(BLACKLIST_QUEUE_KEY);
-            // Rank = Blacklist 크기 + Normal Queue 순위 + 1 (1-indexed)
-            return Optional.of((blacklistSize != null ? blacklistSize : 0) + normalRank + 1);
+            return Optional.of(size(BLACKLIST_QUEUE_KEY) + normalRank + 1);
         }
 
         return Optional.empty();
@@ -76,7 +71,6 @@ public class QueueServiceImpl implements QueueService {
     public boolean moveToBlacklistQueue(String customerId) {
         ZSetOperations<String, String> zSetOps = redisTemplate.opsForZSet();
 
-        // Normal Queue에서 score 조회
         Double score = zSetOps.score(NORMAL_QUEUE_KEY, customerId);
         if (score == null) {
             log.warn("고객 {}이(가) Normal Queue에 없음", customerId);
@@ -92,16 +86,12 @@ public class QueueServiceImpl implements QueueService {
 
         log.info("고객 {}을(를) Blacklist Queue로 이동", customerId);
 
-        // 대기열 변경 알림
-        QueueSizes sizes = getQueueSizes();
-        queueEventPublisher.publishQueueUpdate(sizes.normalQueueSize(), sizes.blacklistQueueSize());
+        publishQueueUpdate();
 
         // 이동한 고객의 새 순위 전송
-        Optional<Long> newRank = getWaitingRank(customerId);
-        newRank.ifPresent(rank -> queueEventPublisher.sendRankUpdate(customerId, rank));
+        getWaitingRank(customerId).ifPresent(rank -> queueEventPublisher.sendRankUpdate(customerId, rank));
 
-        // 이동 후 영향받는 고객들에게 순위 업데이트 전송
-        // Blacklist로 이동 시 기존 위치 이후의 Normal Queue 고객들 순위가 당겨짐
+        // 기존 위치 이후의 Normal Queue 고객들 순위가 당겨짐
         rankBefore.ifPresent(this::notifyAffectedCustomers);
 
         return true;
@@ -122,12 +112,7 @@ public class QueueServiceImpl implements QueueService {
 
         if (removed) {
             log.info("고객 {}을(를) 대기열에서 제거", customerId);
-
-            // 대기열 변경 알림
-            QueueSizes sizes = getQueueSizes();
-            queueEventPublisher.publishQueueUpdate(sizes.normalQueueSize(), sizes.blacklistQueueSize());
-
-            // 제거된 고객 위치 이후의 고객들에게 순위 업데이트 전송
+            publishQueueUpdate();
             rankBefore.ifPresent(this::notifyAffectedCustomers);
         }
 
@@ -136,54 +121,22 @@ public class QueueServiceImpl implements QueueService {
 
     @Override
     public Optional<String> pop() {
-        ZSetOperations<String, String> zSetOps = redisTemplate.opsForZSet();
-
         // Blacklist Queue 우선 처리
-        Set<String> blacklistFirst = zSetOps.range(BLACKLIST_QUEUE_KEY, 0, 0);
-        if (blacklistFirst != null && !blacklistFirst.isEmpty()) {
-            String customerId = blacklistFirst.iterator().next();
-            zSetOps.remove(BLACKLIST_QUEUE_KEY, customerId);
-            log.info("Blacklist Queue에서 고객 {} 추출", customerId);
+        Optional<String> customerId = popFirst(BLACKLIST_QUEUE_KEY)
+                .or(() -> popFirst(NORMAL_QUEUE_KEY))
+                .map(TypedTuple::getValue);
 
-            // 대기열 변경 알림
-            QueueSizes sizes = getQueueSizes();
-            queueEventPublisher.publishQueueUpdate(sizes.normalQueueSize(), sizes.blacklistQueueSize());
-
-            // 순위 1부터 모든 고객에게 업데이트 전송
+        customerId.ifPresent(id -> {
+            publishQueueUpdate();
             notifyAffectedCustomers(1);
+        });
 
-            return Optional.of(customerId);
-        }
-
-        // Normal Queue 처리
-        Set<String> normalFirst = zSetOps.range(NORMAL_QUEUE_KEY, 0, 0);
-        if (normalFirst != null && !normalFirst.isEmpty()) {
-            String customerId = normalFirst.iterator().next();
-            zSetOps.remove(NORMAL_QUEUE_KEY, customerId);
-            log.info("Normal Queue에서 고객 {} 추출", customerId);
-
-            // 대기열 변경 알림
-            QueueSizes sizes = getQueueSizes();
-            queueEventPublisher.publishQueueUpdate(sizes.normalQueueSize(), sizes.blacklistQueueSize());
-
-            // 순위 1부터 모든 고객에게 업데이트 전송
-            notifyAffectedCustomers(1);
-
-            return Optional.of(customerId);
-        }
-
-        return Optional.empty();
+        return customerId;
     }
 
     @Override
     public QueueSizes getQueueSizes() {
-        ZSetOperations<String, String> zSetOps = redisTemplate.opsForZSet();
-        Long normalSize = zSetOps.zCard(NORMAL_QUEUE_KEY);
-        Long blacklistSize = zSetOps.zCard(BLACKLIST_QUEUE_KEY);
-        return new QueueSizes(
-            normalSize != null ? normalSize : 0,
-            blacklistSize != null ? blacklistSize : 0
-        );
+        return new QueueSizes(size(NORMAL_QUEUE_KEY), size(BLACKLIST_QUEUE_KEY));
     }
 
     @Override
@@ -211,58 +164,36 @@ public class QueueServiceImpl implements QueueService {
             return PopResult.empty();
         }
 
-        ZSetOperations<String, String> zSetOps = redisTemplate.opsForZSet();
         List<CustomerWithScore> tempStack = new ArrayList<>();
-        int skippedCount = 0;
-        int movedToBlacklistCount = 0;
+        // 오류 시 임시 스택을 원래 큐로 되돌리기 위해 현재 탐색 중인 큐를 추적
+        String scanningQueueKey = BLACKLIST_QUEUE_KEY;
 
         try {
-            // 1. Blacklist Queue에서 매칭 가능한 고객 탐색
-            PopResult blacklistResult = findMatchableFromQueue(
-                    BLACKLIST_QUEUE_KEY, availableCounselorIds, tempStack, false);
-
-            if (blacklistResult.hasMatch()) {
-                skippedCount = tempStack.size();
-                restoreTempStack(tempStack, BLACKLIST_QUEUE_KEY);
-                publishQueueUpdate();
-                // 순위 1부터 모든 고객에게 업데이트 전송
-                notifyAffectedCustomers(1);
-                return new PopResult(
-                        blacklistResult.customerId(),
-                        blacklistResult.matchableCounselorIds(),
-                        skippedCount,
-                        0
-                );
-            }
-
-            // Blacklist Queue에서 못 찾음 - 스킵된 고객들 복원
-            skippedCount = tempStack.size();
+            // 1. Blacklist Queue에서 매칭 가능한 고객 탐색 (스킵된 고객은 원래 자리로 복원)
+            PopResult blacklistResult = findMatchableFromQueue(BLACKLIST_QUEUE_KEY, availableCounselorIds, tempStack);
+            int skippedCount = tempStack.size();
             restoreTempStack(tempStack, BLACKLIST_QUEUE_KEY);
             tempStack.clear();
 
-            // 2. Normal Queue에서 매칭 가능한 고객 탐색
-            PopResult normalResult = findMatchableFromQueue(
-                    NORMAL_QUEUE_KEY, availableCounselorIds, tempStack, true);
-
-            if (normalResult.hasMatch()) {
-                // Normal Queue에서 스킵된 고객들은 Blacklist Queue로 이동
-                movedToBlacklistCount = tempStack.size();
-                moveTempStackToBlacklistQueue(tempStack);
+            if (blacklistResult.hasMatch()) {
                 publishQueueUpdate();
-                // 순위 1부터 모든 고객에게 업데이트 전송
                 notifyAffectedCustomers(1);
-                return new PopResult(
-                        normalResult.customerId(),
-                        normalResult.matchableCounselorIds(),
-                        skippedCount,
-                        movedToBlacklistCount
-                );
+                return new PopResult(blacklistResult.customerId(), blacklistResult.matchableCounselorIds(), skippedCount, 0);
             }
 
-            // Normal Queue에서도 못 찾음 - Blacklist Queue로 이동
-            movedToBlacklistCount = tempStack.size();
+            // 2. Normal Queue에서 매칭 가능한 고객 탐색 (스킵된 고객은 Blacklist Queue로 이동)
+            scanningQueueKey = NORMAL_QUEUE_KEY;
+            PopResult normalResult = findMatchableFromQueue(NORMAL_QUEUE_KEY, availableCounselorIds, tempStack);
+            int movedToBlacklistCount = tempStack.size();
             moveTempStackToBlacklistQueue(tempStack);
+            tempStack.clear();
             publishQueueUpdate();
+
+            if (normalResult.hasMatch()) {
+                notifyAffectedCustomers(1);
+                return new PopResult(normalResult.customerId(), normalResult.matchableCounselorIds(), skippedCount, movedToBlacklistCount);
+            }
+
             // Blacklist로 이동된 고객들도 순위 변경이 있으므로 전체 알림
             if (movedToBlacklistCount > 0) {
                 notifyAffectedCustomers(1);
@@ -274,70 +205,42 @@ public class QueueServiceImpl implements QueueService {
             return new PopResult(null, Set.of(), skippedCount, movedToBlacklistCount);
 
         } catch (Exception e) {
-            // 오류 발생 시 임시 스택 복원
-            log.error("popMatchable 중 오류 발생, 임시 스택 복원", e);
-            restoreTempStack(tempStack, BLACKLIST_QUEUE_KEY);
+            log.error("popMatchable 중 오류 발생, 임시 스택을 {}로 복원", scanningQueueKey, e);
+            restoreTempStack(tempStack, scanningQueueKey);
             throw e;
         }
     }
 
     /**
-     * 지정된 큐에서 매칭 가능한 고객을 찾아 추출
+     * 지정된 큐에서 매칭 가능한 고객을 찾아 추출.
+     * 매칭 불가 고객은 tempStack에 보관하고, 유령 고객(lease 만료/대기시간 초과)은 버린다.
      */
-    private PopResult findMatchableFromQueue(
-            String queueKey,
-            Set<Long> availableCounselorIds,
-            List<CustomerWithScore> tempStack,
-            boolean isNormalQueue) {
+    private PopResult findMatchableFromQueue(String queueKey, Set<Long> availableCounselorIds, List<CustomerWithScore> tempStack) {
+        String queueName = queueName(queueKey);
 
-        ZSetOperations<String, String> zSetOps = redisTemplate.opsForZSet();
-        // 대기열 항목 만료 시간 (5분)
-        final long QUEUE_ENTRY_TIMEOUT_MS = 5 * 60 * 1000;
-
-        while (true) {
-            // 큐의 첫 번째 고객 조회
-            Set<ZSetOperations.TypedTuple<String>> firstSet = zSetOps.rangeWithScores(queueKey, 0, 0);
-            if (firstSet == null || firstSet.isEmpty()) {
-                break; // 큐가 비었음
-            }
-
-            ZSetOperations.TypedTuple<String> first = firstSet.iterator().next();
-            String customerId = first.getValue();
-            Double score = first.getScore();
-
-            if (customerId == null || score == null) {
-                break;
-            }
-
-            // 큐에서 제거
-            zSetOps.remove(queueKey, customerId);
+        Optional<TypedTuple<String>> next;
+        while ((next = popFirst(queueKey)).isPresent()) {
+            String customerId = next.get().getValue();
+            double score = next.get().getScore();
 
             // 1. lease 검증 - heartbeat가 끊긴 고객인지 확인
             if (!queueLeaseService.isLeaseAlive(customerId)) {
-                log.warn("[대기열] 유령고객 제거: {} ({}에서, lease 만료)",
-                        customerId, isNormalQueue ? "Normal" : "Blacklist");
-                // lease가 없으면 유령 고객 - 큐에서 제거하고 스킵
+                log.warn("[대기열] 유령고객 제거: {} ({}에서, lease 만료)", customerId, queueName);
                 continue;
             }
 
             // 2. 대기열 항목이 너무 오래되었는지 확인 (백업 필터링)
-            long now = System.currentTimeMillis();
-            long entryAge = now - score.longValue();
+            long entryAge = System.currentTimeMillis() - (long) score;
             if (entryAge > QUEUE_ENTRY_TIMEOUT_MS) {
-                log.warn("[대기열] 유령고객 제거: {} ({}에서, 대기시간 {}초 초과)",
-                        customerId, isNormalQueue ? "Normal" : "Blacklist", entryAge / 1000);
-                // 오래된 항목 - lease도 삭제
+                log.warn("[대기열] 유령고객 제거: {} ({}에서, 대기시간 {}초 초과)", customerId, queueName, entryAge / 1000);
                 queueLeaseService.deleteLeaseByCustomerId(customerId);
                 continue;
             }
 
-            // 매칭 가능한 상담원 확인
             Set<Long> matchableCounselors = findMatchableCounselors(customerId, availableCounselorIds);
-
             if (!matchableCounselors.isEmpty()) {
-                // 매칭 성공
                 log.info("[대기열] 고객 {} 매칭 후보 발견 ({}에서) → 가능한 상담원: {}",
-                        customerId, isNormalQueue ? "Normal" : "Blacklist", matchableCounselors);
+                        customerId, queueName, matchableCounselors);
                 return new PopResult(customerId, matchableCounselors, 0, 0);
             }
 
@@ -369,15 +272,12 @@ public class QueueServiceImpl implements QueueService {
     }
 
     /**
-     * 임시 스택의 고객들을 원래 큐로 복원 (원래 순서 유지)
+     * 임시 스택의 고객들을 원래 큐로 복원 (score를 유지하므로 원래 순서 유지)
      */
     private void restoreTempStack(List<CustomerWithScore> tempStack, String queueKey) {
         if (tempStack.isEmpty()) return;
 
-        ZSetOperations<String, String> zSetOps = redisTemplate.opsForZSet();
-        for (CustomerWithScore item : tempStack) {
-            zSetOps.add(queueKey, item.customerId, item.score);
-        }
+        addAll(queueKey, tempStack);
         log.debug("임시 스택 {}명을 {}로 복원", tempStack.size(), queueKey);
     }
 
@@ -387,12 +287,38 @@ public class QueueServiceImpl implements QueueService {
     private void moveTempStackToBlacklistQueue(List<CustomerWithScore> tempStack) {
         if (tempStack.isEmpty()) return;
 
-        ZSetOperations<String, String> zSetOps = redisTemplate.opsForZSet();
-        for (CustomerWithScore item : tempStack) {
-            zSetOps.add(BLACKLIST_QUEUE_KEY, item.customerId, item.score);
-        }
+        addAll(BLACKLIST_QUEUE_KEY, tempStack);
         log.info("[대기열] {}명 Normal → Blacklist 이동: {}",
                 tempStack.size(), tempStack.stream().map(CustomerWithScore::customerId).toList());
+    }
+
+    private void addAll(String queueKey, List<CustomerWithScore> customers) {
+        ZSetOperations<String, String> zSetOps = redisTemplate.opsForZSet();
+        for (CustomerWithScore item : customers) {
+            zSetOps.add(queueKey, item.customerId(), item.score());
+        }
+    }
+
+    /**
+     * 큐의 첫 번째 고객을 원자적으로 꺼냄 (ZPOPMIN).
+     * 조회 후 삭제하는 방식과 달리 동시에 호출되어도 같은 고객이 두 번 꺼내지지 않는다.
+     */
+    private Optional<TypedTuple<String>> popFirst(String queueKey) {
+        TypedTuple<String> first = redisTemplate.opsForZSet().popMin(queueKey);
+        if (first == null || first.getValue() == null || first.getScore() == null) {
+            return Optional.empty();
+        }
+        log.debug("{}에서 고객 {} 추출", queueName(queueKey), first.getValue());
+        return Optional.of(first);
+    }
+
+    private long size(String queueKey) {
+        Long size = redisTemplate.opsForZSet().zCard(queueKey);
+        return size != null ? size : 0;
+    }
+
+    private String queueName(String queueKey) {
+        return BLACKLIST_QUEUE_KEY.equals(queueKey) ? "Blacklist" : "Normal";
     }
 
     private void publishQueueUpdate() {
@@ -401,7 +327,7 @@ public class QueueServiceImpl implements QueueService {
     }
 
     /**
-     * 고객 ID와 score를 함께 저장하는 내부 클래스
+     * 고객 ID와 score를 함께 저장하는 내부 레코드
      */
     private record CustomerWithScore(String customerId, double score) {}
 
@@ -410,40 +336,27 @@ public class QueueServiceImpl implements QueueService {
         Map<String, Long> result = new LinkedHashMap<>();
         ZSetOperations<String, String> zSetOps = redisTemplate.opsForZSet();
 
-        Long blacklistSize = zSetOps.zCard(BLACKLIST_QUEUE_KEY);
-        blacklistSize = blacklistSize != null ? blacklistSize : 0;
+        long blacklistSize = size(BLACKLIST_QUEUE_KEY);
 
-        // fromRank가 Blacklist 범위 내인 경우
         if (fromRank <= blacklistSize) {
-            // Blacklist에서 fromRank-1 인덱스부터 끝까지 조회
-            Set<String> blacklistCustomers = zSetOps.range(BLACKLIST_QUEUE_KEY, fromRank - 1, -1);
-            if (blacklistCustomers != null) {
-                long rank = fromRank;
-                for (String customerId : blacklistCustomers) {
-                    result.put(customerId, rank++);
-                }
-            }
-            // Normal Queue 전체 조회
-            Set<String> normalCustomers = zSetOps.range(NORMAL_QUEUE_KEY, 0, -1);
-            if (normalCustomers != null) {
-                long rank = blacklistSize + 1;
-                for (String customerId : normalCustomers) {
-                    result.put(customerId, rank++);
-                }
-            }
+            // fromRank가 Blacklist 범위 내: Blacklist(fromRank-1부터) + Normal 전체
+            putWithRanks(result, zSetOps.range(BLACKLIST_QUEUE_KEY, fromRank - 1, -1), fromRank);
+            putWithRanks(result, zSetOps.range(NORMAL_QUEUE_KEY, 0, -1), blacklistSize + 1);
         } else {
-            // fromRank가 Normal Queue 범위인 경우
+            // fromRank가 Normal Queue 범위
             long normalStartIndex = fromRank - blacklistSize - 1;
-            Set<String> normalCustomers = zSetOps.range(NORMAL_QUEUE_KEY, normalStartIndex, -1);
-            if (normalCustomers != null) {
-                long rank = fromRank;
-                for (String customerId : normalCustomers) {
-                    result.put(customerId, rank++);
-                }
-            }
+            putWithRanks(result, zSetOps.range(NORMAL_QUEUE_KEY, normalStartIndex, -1), fromRank);
         }
 
         return result;
+    }
+
+    private void putWithRanks(Map<String, Long> result, Set<String> customerIds, long startRank) {
+        if (customerIds == null) return;
+        long rank = startRank;
+        for (String customerId : customerIds) {
+            result.put(customerId, rank++);
+        }
     }
 
     @Override

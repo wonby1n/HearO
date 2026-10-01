@@ -1,6 +1,8 @@
 import os
+import threading
 
 from fastapi import FastAPI, UploadFile, File
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -20,7 +22,19 @@ app.add_middleware(
 )
 
 unsmile = UnsmileService()
-whisper = WhisperService()
+
+# Whisper 모델은 무거우므로 /stt 첫 요청 시에만 로드 (현재 프론트는 브라우저 STT를 사용)
+_whisper = None
+_whisper_lock = threading.Lock()
+
+
+def get_whisper() -> WhisperService:
+    global _whisper
+    if _whisper is None:
+        with _whisper_lock:
+            if _whisper is None:
+                _whisper = WhisperService()
+    return _whisper
 
 
 class ModerateReq(BaseModel):
@@ -40,4 +54,5 @@ def moderate_text(req: ModerateReq):
 @app.post("/stt")
 async def stt_whisper(file: UploadFile = File(...)):
     audio_bytes = await file.read()
-    return whisper.transcribe_bytes(audio_bytes, filename=file.filename)
+    # 모델 로드/추론은 블로킹 작업이므로 이벤트 루프(/unsmile 등)를 막지 않도록 스레드풀에서 실행
+    return await run_in_threadpool(lambda: get_whisper().transcribe_bytes(audio_bytes, filename=file.filename))

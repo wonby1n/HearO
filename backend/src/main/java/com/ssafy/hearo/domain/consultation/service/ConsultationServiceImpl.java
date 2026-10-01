@@ -1,5 +1,6 @@
 package com.ssafy.hearo.domain.consultation.service;
 
+import com.ssafy.hearo.global.exception.ResourceNotFoundException;
 import com.ssafy.hearo.domain.ai.service.ConsultationSummaryService;
 import com.ssafy.hearo.domain.ai.service.GeneratedConsultationContent;
 import com.ssafy.hearo.domain.consultation.dto.*;
@@ -44,11 +45,8 @@ public class ConsultationServiceImpl implements ConsultationService{
     private final BlacklistRepository blacklistRepository;
 
     public List<ConsultationSummaryResponse> getLatest3ByCustomerId(Integer customerId) {
-        // 통화 중에는 현재 상담(빈 상태)이 첫 번째이므로, 4개를 조회한 후 첫 번째를 건너뛰고 3개 반환
-        return consultationRepository.findTop4ByCustomer_IdOrderByCreatedAtDesc(customerId)
+        return consultationRepository.findTop3ByCustomer_IdAndFullTranscriptIsNotNullOrderByCreatedAtDesc(customerId)
                 .stream()
-                .skip(1)  // 현재 진행 중인 상담 제외
-                .limit(3)
                 .map(ConsultationSummaryResponse::from)
                 .toList();
     }
@@ -66,11 +64,11 @@ public class ConsultationServiceImpl implements ConsultationService{
         }
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("상담원(user)이 존재하지 않습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("상담원(user)이 존재하지 않습니다."));
         Customer customer = customerRepository.findById(request.getCustomerId())
-                .orElseThrow(() -> new IllegalArgumentException("고객(customer)이 존재하지 않습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("고객(customer)이 존재하지 않습니다."));
         Registration registration = registrationRepository.findById(request.getRegistrationId())
-                .orElseThrow(() -> new IllegalArgumentException("접수(registration)가 존재하지 않습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("접수(registration)가 존재하지 않습니다."));
 
         Consultation consultation = Consultation.builder()
                 .user(user)
@@ -206,7 +204,7 @@ public class ConsultationServiceImpl implements ConsultationService{
      */
     private Consultation getOwnedConsultation(Integer consultationId, Long userId) {
         Consultation consultation = consultationRepository.findById(consultationId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 상담이 존재하지 않습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("해당 상담이 존재하지 않습니다."));
         if (!consultation.getUser().getId().equals(userId)) {
             throw new AuthorizationException("본인 상담만 수정할 수 있습니다.");
         }
