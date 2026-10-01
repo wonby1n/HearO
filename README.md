@@ -49,32 +49,14 @@ WebRTC(LiveKit) 기반 1:1 음성 통화 위에
 
 ## 🌟 팀원 구성
 
-### 👑 Team Leader
-
-|  |
-|---|
-| <img src="이미지경로 또는 링크" width="160"> |
-| **조하원** |
-| *Team Leader* |
-| Frontend |
-
----
-
-### 🎨 Frontend
-
-|  |  |
-|---|---|
-| <img src="이미지경로 또는 링크" width="140"><br><br>**이도현**<br>*Frontend & Docs* | <img src="이미지경로 또는 링크" width="140"><br><br>**손효지**<br>*Frontend & Speaker* |
-
----
-
-### 🧠 Backend / Infra / AI
-
-|  |  |  |
-|---|---|---|
-| <img src="이미지경로 또는 링크" width="140"><br><br>**하정호**<br>*Backend & Infra* | <img src="이미지경로 또는 링크" width="140"><br><br>**임건빈**<br>*Backend* | <img src="이미지경로 또는 링크" width="140"><br><br>**고혜역**<br>*Backend & AI* |
-
-> ※ 역할 세부 분담은 Jira 및 산출물 문서 참고
+| 이름 | 역할 |
+| --- | --- |
+| **조하원** | 👑 Team Leader, Frontend |
+| **이도현** | Frontend & Docs |
+| **손효지** | Frontend & Speaker |
+| **하정호** | Backend & Infra |
+| **임건빈** | Backend |
+| **고혜역** | Backend & AI |
 
 ---
 
@@ -84,11 +66,13 @@ WebRTC(LiveKit) 기반 1:1 음성 통화 위에
 
 | Category         | Stack                   |
 | ---------------- | ----------------------- |
-| Language         | JavaScript / Python     |
-| Framework        | Vue 3                   |
+| Language         | JavaScript              |
+| Framework        | Vue 3 (Vite)            |
 | State Management | Pinia                   |
-| Real-time        | WebSocket               |
-| UI               | HTML5, CSS3             |
+| Styling          | Tailwind CSS            |
+| Real-time        | LiveKit Client (WebRTC), STOMP (WebSocket) |
+| Chart            | Chart.js                |
+| Desktop          | Electron                |
 | IDE              | Visual Studio Code      |
 
 ---
@@ -110,9 +94,9 @@ WebRTC(LiveKit) 기반 1:1 음성 통화 위에
 | --------- | ------------------ |
 | Language  | Python             |
 | Framework | FastAPI            |
-| AI API    | OpenAI API         |
-| STT       | Whisper 기반 STT     |
-| NLP       | 상담 요약, 욕설 분석       |
+| AI API    | OpenAI API (상담 요약, RAG 가이드) |
+| STT       | Web Speech API, faster-whisper |
+| NLP       | smilegate-ai/kor_unsmile (욕설·폭언 분류) |
 | IDE       | Visual Studio Code |
 
 ---
@@ -157,7 +141,7 @@ WebRTC(LiveKit) 기반 1:1 음성 통화 위에
 - 실시간 STT 자막 제공
 - 욕설·폭언 감지시 음성 마스킹
 - 욕설·폭언 감지 및 시각적 경고
-- 욕설 누적 시 AI 상담사 자동 전환
+- 폭언 3회 누적 시 통화 자동 종료 및 고객 블랙리스트 등록
 - 상담 가이드 자동 표시 (RAG)
 
 ### 🧾 상담 기록 관리
@@ -175,15 +159,17 @@ WebRTC(LiveKit) 기반 1:1 음성 통화 위에
 
 ```
 📦 HearO
-┗ 📂 ai
- ┣ 📂 frontend
+ ┣ 📂 frontend        # Vue 3 웹 + Electron 데스크톱 앱
  ┃ ┣ 📂 src
+ ┃ ┣ 📂 electron
  ┃ ┗ 📂 public
- ┣ 📂 backend
- ┃ ┣ 📂 src
- ┣ 📂 infra
- ┗ 📂 docs
- ```
+ ┣ 📂 backend         # Spring Boot API 서버
+ ┃ ┗ 📂 src
+ ┣ 📂 ai              # FastAPI AI 서버 (STT, 욕설 분류)
+ ┣ 📂 infra           # Docker Compose, Nginx, Jenkins, LiveKit 설정
+ ┣ 📂 exec            # 포팅 매뉴얼, DB 덤프
+ ┗ 📂 docs            # 산출물 문서, 이미지
+```
 
 ## 📦 프로젝트 산출물
 
@@ -214,6 +200,8 @@ WebRTC(LiveKit) 기반 1:1 음성 통화 위에
 ![alt text](./docs/Photo/image-6-2.png)
 
 ---
+
+#### 상담원 화면
 
 #### 1. 일렉트론
 ![alt text](./docs/Photo/일렉트론.gif)
@@ -266,21 +254,22 @@ WebRTC(LiveKit) 기반 1:1 음성 통화 위에
 - [HearO](https://www.youtube.com/watch?v=M1t-3sclflQ)
 
 
-### 🖼️ 화면 설계서(UI/UX)
-
-
 ### 🗄️ ERD
-![erd](<ssafy (3).png>)
-
-### ✅ Swagger API Docs
+![erd](<./docs/Photo/ssafy (3).png>)
 
 ### 📋 기능 명세서
+- [요구사항 명세서](<./docs/HearO_요구사항_명세서_v4.xlsx.pdf>)
+- [기능 명세서](<./docs/공통_기능명세서 - 시트1.pdf>)
 
 ### 📡 API 명세서
+- Swagger UI: 백엔드 실행 후 `/swagger-ui/index.html`
+- [고객 상담 신청 플로우](<./docs/API-고객-상담-신청-플로우.md>)
+- [WebSocket 명세](./docs/HearO_WebSocket.md)
 
 ### 📅 Jira 이슈 관리 내역
 
-#### 1. 지라 자동화를 통한 알림 
+#### 1. 지라 자동화를 통한 알림
 ![alt text](./docs/Photo/image-12.png)
 
-#### 2. 
+#### 2. 스프린트 계획
+- [JIRA 스프린트 계획](<./docs/JIRA 스프린트 계획.md>)
