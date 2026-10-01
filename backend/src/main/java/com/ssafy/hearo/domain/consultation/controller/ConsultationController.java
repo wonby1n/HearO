@@ -58,10 +58,12 @@ public class ConsultationController {
 
     @PatchMapping("/{consultationId}")
     public ResponseEntity<BaseResponse<Void>> patchAfterEnd(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Integer consultationId,
             @RequestBody ConsultationPatchRequest request
     ) {
-        consultationService.patchConsultation(consultationId, request);
+        if (userDetails == null) throw new IllegalArgumentException("인증 정보가 없습니다.");
+        consultationService.patchConsultation(consultationId, userDetails.getId(), request);
         return ResponseEntity.ok(BaseResponse.success());
     }
 
@@ -134,13 +136,15 @@ public class ConsultationController {
     }
 
     @PatchMapping("/{consultationId}/memo")
-    public ResponseEntity<ConsultationMemoPatchResponse> patchMemo(
+    public ResponseEntity<BaseResponse<ConsultationMemoPatchResponse>> patchMemo(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Integer consultationId,
             @RequestBody ConsultationMemoPatchRequest request
     ) {
-        return ResponseEntity.ok(
-                consultationService.updateMemo(consultationId, request.getUserMemo())
-        );
+        if (userDetails == null) throw new IllegalArgumentException("인증 정보가 없습니다.");
+        ConsultationMemoPatchResponse response =
+                consultationService.updateMemo(consultationId, userDetails.getId(), request.getUserMemo());
+        return ResponseEntity.ok(BaseResponse.success(response));
     }
 
 }

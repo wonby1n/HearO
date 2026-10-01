@@ -16,7 +16,7 @@ import com.ssafy.hearo.domain.registration.entity.Registration;
 import com.ssafy.hearo.domain.registration.repository.RegistrationRepository;
 import com.ssafy.hearo.domain.user.entity.User;
 import com.ssafy.hearo.domain.user.repository.UserRepository;
-import com.ssafy.hearo.domain.user.service.UserStateService;
+import com.ssafy.hearo.global.exception.AuthorizationException;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -42,7 +42,6 @@ public class ConsultationServiceImpl implements ConsultationService{
     private final ConsultationRatingService ratingService;
     private final ConsultationSummaryService summaryService;
     private final BlacklistRepository blacklistRepository;
-    private final UserStateService userStateService;
 
     public List<ConsultationSummaryResponse> getLatest3ByCustomerId(Integer customerId) {
         // 통화 중에는 현재 상담(빈 상태)이 첫 번째이므로, 4개를 조회한 후 첫 번째를 건너뛰고 3개 반환
@@ -97,13 +96,7 @@ public class ConsultationServiceImpl implements ConsultationService{
             throw new IllegalArgumentException("fullTranscript는 필수입니다.");
         }
 
-        Consultation consultation = consultationRepository.findById(consultationId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 상담이 존재하지 않습니다."));
-
-        // (권장) 다른 상담원이 남의 상담 finalize 못하게 방지
-        if (!consultation.getUser().getId().equals(userId)) {
-            throw new IllegalArgumentException("본인 상담만 종료 처리할 수 있습니다.");
-        }
+        Consultation consultation = getOwnedConsultation(consultationId, userId);
 
         consultation.updateFullTranscript(request.getFullTranscript());
         consultation.updateUserMemo(request.getUserMemo());
@@ -122,11 +115,6 @@ public class ConsultationServiceImpl implements ConsultationService{
 
         // 블랙리스트 처리 (기존 로직 재사용)
         blacklistIfNeeded(consultation.getUser(), consultation.getCustomer(), reason);
-
-        // [특수 로직] 조하원 유저 상담 종료 시 에너지 0으로 강제 설정
-        if ("jhw@ssafy.com".equals(consultation.getUser().getEmail()) || "usertest2@ssafy.com".equals(consultation.getUser().getEmail())) {
-            userStateService.setEnergy(userId, 0, "상담 종료: 조하원 유저 에너지 초기화");
-        }
         return ConsultationEndResponse.from(consultation);
     }
 
@@ -159,12 +147,11 @@ public class ConsultationServiceImpl implements ConsultationService{
      */
     @Override
     @Transactional
-    public void patchConsultation(Integer consultationId, ConsultationPatchRequest request) {
+    public void patchConsultation(Integer consultationId, Long userId, ConsultationPatchRequest request) {
         if (consultationId == null) {
             throw new IllegalArgumentException("consultationId는 필수입니다.");
         }
-        Consultation consultation = consultationRepository.findById(consultationId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 상담이 존재하지 않습니다."));
+        Consultation consultation = getOwnedConsultation(consultationId, userId);
 
         // 1) voice recording upsert
         VoiceRecordingDto.Request vr = request != null ? request.getVoiceRecording() : null;
@@ -182,14 +169,10 @@ public class ConsultationServiceImpl implements ConsultationService{
             voiceRecordingRepository.save(voiceRecording);
         }
 
-        // 2) rating upsert (기존 ratingService 재사용)
+        // 2) rating upsert
+        // createRating의 중복 예외를 catch하면 참여 중인 트랜잭션이 rollback-only로 표시되므로 사전 조회로 분기
         if (request != null && request.getRating() != null) {
-            try {
-                ratingService.createRating(consultationId, request.getRating());
-            } catch (IllegalStateException dup) {
-                // 이미 있으면 update
-                ratingService.updateRatingByConsultationId(consultationId, request.getRating());
-            }
+            ratingService.upsertRating(consultationId, request.getRating());
         }
     }
 
@@ -207,10 +190,8 @@ public class ConsultationServiceImpl implements ConsultationService{
 
     @Override
     @Transactional
-    public ConsultationMemoPatchResponse updateMemo(Integer consultationId, String userMemo) {
-
-        Consultation consultation = consultationRepository.findById(consultationId)
-                .orElseThrow(() -> new IllegalArgumentException("상담 내역을 찾을 수 없습니다."));
+    public ConsultationMemoPatchResponse updateMemo(Integer consultationId, Long userId, String userMemo) {
+        Consultation consultation = getOwnedConsultation(consultationId, userId);
 
         consultation.setUserMemo(userMemo);
 
@@ -218,5 +199,17 @@ public class ConsultationServiceImpl implements ConsultationService{
                 .consultationId(consultation.getId())
                 .userMemo(consultation.getUserMemo())
                 .build();
+    }
+
+    /**
+     * 본인(상담원)의 상담만 조회
+     */
+    private Consultation getOwnedConsultation(Integer consultationId, Long userId) {
+        Consultation consultation = consultationRepository.findById(consultationId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 상담이 존재하지 않습니다."));
+        if (!consultation.getUser().getId().equals(userId)) {
+            throw new AuthorizationException("본인 상담만 수정할 수 있습니다.");
+        }
+        return consultation;
     }
 }
