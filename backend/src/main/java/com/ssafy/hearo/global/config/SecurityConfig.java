@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
 
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -72,7 +73,8 @@ public class SecurityConfig {
                     // Product endpoints (for customers - public access)
                     .requestMatchers("/api/v1/products/**").permitAll()
                     // Consultation rating endpoints (for customers - public access)
-                    .requestMatchers("/api/v1/consultations/*/rating").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/consultations/*/rating").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/v1/consultations/*/rating").permitAll()
                     .requestMatchers("/api/v1/consultations/latest").permitAll()
                     // Actuator endpoints
                     .requestMatchers("/actuator/**").permitAll()

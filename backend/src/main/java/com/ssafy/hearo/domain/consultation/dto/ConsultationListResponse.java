@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 @Builder
 public class ConsultationListResponse {
     private Integer consultationId;
+    private Long counselorId;
     private Integer customerId;
     private String customerName;
     private String customerPhone;
@@ -36,6 +37,7 @@ public class ConsultationListResponse {
     public static ConsultationListResponse from(Consultation consultation) {
         return ConsultationListResponse.builder()
                 .consultationId(consultation.getId())
+                .counselorId(consultation.getUser().getId())
                 .customerId(consultation.getCustomer().getId())
                 .customerName(consultation.getCustomer().getName())
                 .customerPhone(consultation.getCustomer().getPhone())

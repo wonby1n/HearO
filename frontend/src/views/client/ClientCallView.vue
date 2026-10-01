@@ -158,6 +158,7 @@ import { useCustomerStore } from '@/stores/customer'
 import { useLiveKit } from '@/composables/useLiveKit'
 import { AUTO_TERMINATION_REDIRECT_DELAY_MS } from '@/constants/call'
 import { RoomEvent } from 'livekit-client'
+import endVoiceFile from '@/assets/Endvoice.wav'
 
 // =========================
 // 고객 STT(Web Speech) → 상담원으로 전송
@@ -400,7 +401,7 @@ const handleAutoTerminationConfirm = async () => {
 
     // 1. 음성 재생
     if (!autoTerminationAudio.value) {
-      autoTerminationAudio.value = new Audio('/src/assets/Endvoice.wav')
+      autoTerminationAudio.value = new Audio(endVoiceFile)
     }
 
     console.log('[ClientCall] 자동 종료 음성 재생 시작')

@@ -98,41 +98,21 @@
           <div class="px-6 py-4">
             <!-- 상담사 메모 탭 -->
             <div v-if="activeTab[consultation.consultationId] === 'counselor-memo'" class="space-y-4">
-              <!-- 통화 중 작성한 메모 (위) -->
+              <!-- 상담사 메모 (통화 중 작성 + 사후 수정) -->
               <div class="bg-white rounded-lg border border-blue-200 p-4 shadow-sm">
                 <div class="border-b border-blue-200 pb-2 mb-3">
                   <h4 class="text-sm font-bold text-gray-900 flex items-center gap-2">
                     <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                     </svg>
-                    통화 중 작성한 메모
-                  </h4>
-                </div>
-                <div v-if="consultation.userMemo">
-                  <p class="text-sm text-gray-900 bg-blue-50 p-4 rounded-lg whitespace-pre-wrap leading-relaxed">
-                    {{ consultation.userMemo }}
-                  </p>
-                </div>
-                <div v-else class="text-sm text-gray-500 text-center py-8 bg-gray-50 rounded-lg">
-                  작성된 메모가 없습니다.
-                </div>
-              </div>
-
-              <!-- 추가 메모 (아래) -->
-              <div class="bg-white rounded-lg border border-primary-200 p-4 shadow-sm">
-                <div class="border-b border-primary-200 pb-2 mb-3">
-                  <h4 class="text-sm font-bold text-gray-900 flex items-center gap-2">
-                    <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
-                    </svg>
-                    추가 메모
+                    상담사 메모
                   </h4>
                 </div>
                 <div v-if="editingMemo[consultation.consultationId]">
                   <textarea
                     v-model="memoText[consultation.consultationId]"
                     class="w-full min-h-[150px] p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
-                    placeholder="추가 메모를 입력하세요..."
+                    placeholder="메모를 입력하세요..."
                   ></textarea>
                   <div class="flex gap-2 mt-3">
                     <button
@@ -150,21 +130,21 @@
                   </div>
                 </div>
                 <div v-else>
-                  <div v-if="consultation.counselorMemo" class="mb-3">
-                    <p class="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed bg-gray-50 p-4 rounded-lg">{{ consultation.counselorMemo }}</p>
+                  <div v-if="consultation.userMemo" class="mb-3">
+                    <p class="text-sm text-gray-900 bg-blue-50 p-4 rounded-lg whitespace-pre-wrap leading-relaxed">{{ consultation.userMemo }}</p>
                   </div>
                   <div v-else class="text-sm text-gray-500 text-center py-8 bg-gray-50 rounded-lg mb-3">
-                    작성된 추가 메모가 없습니다.
+                    작성된 메모가 없습니다.
                   </div>
-                  <div class="flex gap-2">
+                  <div v-if="isMyConsultation(consultation)" class="flex gap-2">
                     <button
-                      @click="startEditMemo(consultation.consultationId, consultation.counselorMemo)"
+                      @click="startEditMemo(consultation.consultationId, consultation.userMemo)"
                       class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium text-sm"
                     >
-                      {{ consultation.counselorMemo ? '메모 수정' : '메모 작성' }}
+                      {{ consultation.userMemo ? '메모 수정' : '메모 작성' }}
                     </button>
                     <button
-                      v-if="consultation.counselorMemo"
+                      v-if="consultation.userMemo"
                       @click="deleteMemo(consultation.consultationId)"
                       class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium text-sm"
                     >
@@ -335,8 +315,10 @@
 import { ref, h } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 const props = defineProps({
   consultations: {
@@ -443,6 +425,9 @@ const toggleExpand = (id) => {
   }
 }
 
+// 본인 상담만 메모 편집 가능 (서버에서도 403으로 차단)
+const isMyConsultation = (consultation) => consultation.counselorId === authStore.getUser?.id
+
 // 메모 편집 시작
 const startEditMemo = (consultationId, currentMemo) => {
   editingMemo.value[consultationId] = true
@@ -453,18 +438,12 @@ const startEditMemo = (consultationId, currentMemo) => {
 const saveMemo = async (consultationId) => {
   try {
     const memo = memoText.value[consultationId]
-    await axios.patch(`/api/v1/consultations/${consultationId}/memo`, {
-      counselorMemo: memo
-    }, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('accessToken')}`
-      }
-    })
+    await axios.patch(`/api/v1/consultations/${consultationId}/memo`, { userMemo: memo })
     
     // 성공 시 해당 consultation 객체 업데이트
     const consultation = props.consultations.find(c => c.consultationId === consultationId)
     if (consultation) {
-      consultation.counselorMemo = memo
+      consultation.userMemo = memo
     }
     
     editingMemo.value[consultationId] = false
@@ -483,23 +462,17 @@ const cancelEditMemo = (consultationId) => {
 
 // 메모 삭제 (빈 문자열로 변경)
 const deleteMemo = async (consultationId) => {
-  if (!confirm('추가 메모를 삭제하시겠습니까?')) {
+  if (!confirm('메모를 삭제하시겠습니까?')) {
     return
   }
 
   try {
-    await axios.patch(`/api/v1/consultations/${consultationId}/memo`, {
-      counselorMemo: ''
-    }, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem('accessToken')}`
-      }
-    })
+    await axios.patch(`/api/v1/consultations/${consultationId}/memo`, { userMemo: '' })
     
     // 성공 시 해당 consultation 객체 업데이트
     const consultation = props.consultations.find(c => c.consultationId === consultationId)
     if (consultation) {
-      consultation.counselorMemo = ''
+      consultation.userMemo = ''
     }
     
     console.log('✅ 상담사 메모 삭제 성공')

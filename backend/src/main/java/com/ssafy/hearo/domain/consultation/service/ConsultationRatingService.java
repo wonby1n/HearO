@@ -50,6 +50,18 @@ public class ConsultationRatingService {
     }
 
     /**
+     * 후기 등록 또는 수정 (이미 있으면 수정)
+     */
+    @Transactional
+    public void upsertRating(Integer consultationId, ConsultationRatingDto.Request request) {
+        if (ratingRepository.findByConsultationId(consultationId).isPresent()) {
+            updateRatingByConsultationId(consultationId, request);
+        } else {
+            createRating(consultationId, request);
+        }
+    }
+
+    /**
      * 후기 조회 (상담 ID 기준)
      */
     public ConsultationRatingDto.Response getRating(Integer consultationId) {

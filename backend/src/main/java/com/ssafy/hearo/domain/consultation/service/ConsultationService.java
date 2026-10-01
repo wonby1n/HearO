@@ -16,11 +16,11 @@ public interface ConsultationService {
 
     ConsultationEndResponse finalizeConsultation(Integer consultationId, Long userId, ConsultationFinalizeRequest request);
 
-    void patchConsultation(Integer consultationId, ConsultationPatchRequest request);
+    void patchConsultation(Integer consultationId, Long userId, ConsultationPatchRequest request);
 
     Page<ConsultationListResponse> getMyConsultations(Long userId, Pageable pageable);
 
     Page<ConsultationListResponse> getCustomerConsultations(Integer customerId, Pageable pageable);
 
-    ConsultationMemoPatchResponse updateMemo(Integer consultationId, String memo);
+    ConsultationMemoPatchResponse updateMemo(Integer consultationId, Long userId, String memo);
 }

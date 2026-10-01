@@ -8,7 +8,6 @@
 components/notification/
 ├── NotificationContainer.vue   # 알림 컨테이너 (화면에 알림 표시)
 ├── NotificationItem.vue        # 개별 알림 UI
-├── NotificationExample.vue     # 사용 예제 컴포넌트
 └── README.md                   # 이 문서
 
 stores/
@@ -197,20 +196,6 @@ const onConnectionError = (error) => {
 }
 </script>
 ```
-
-## 🧪 테스트하기
-
-테스트 컴포넌트가 제공됩니다.
-
-```vue
-<!-- 라우터에 추가 -->
-{
-  path: '/notification-test',
-  component: () => import('@/components/notification/NotificationExample.vue')
-}
-```
-
-브라우저에서 `/notification-test` 경로로 이동하여 각 알림 타입을 테스트할 수 있습니다.
 
 ## 🔗 다른 팀원 코드와 통합
 

@@ -58,11 +58,6 @@ public class AuthServiceImpl implements AuthService {
             throw new BadCredentialsException("비밀번호가 일치하지 않습니다");
         }
 
-        // [특수 로직] 조하원(jhw@ssafy.com) 유저 로그인 시 에너지 5로 강제 설정
-        if ("jhw@ssafy.com".equals(user.getEmail()) || "usertest2@ssafy.com".equals(user.getEmail())) {
-            userStateService.setEnergy(user.getId(), 5, "로그인: 조하원 유저 에너지 초기화");
-        }
-
         // Generate tokens
         String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getEmail(), user.getRole());
         String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
