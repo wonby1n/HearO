@@ -13,10 +13,8 @@ import java.util.List;
 
 public interface ConsultationRepository extends JpaRepository<Consultation, Integer> {
 
-    List<Consultation> findTop3ByCustomer_IdOrderByCreatedAtDesc(Integer customerId);
-
-    // 현재 상담을 제외하고 최신 3개 조회 (통화 중 상담 이력 표시용)
-    List<Consultation> findTop4ByCustomer_IdOrderByCreatedAtDesc(Integer customerId);
+    // 종료된(대화록이 저장된) 상담 중 최신 3개 — 진행 중인 상담은 제외
+    List<Consultation> findTop3ByCustomer_IdAndFullTranscriptIsNotNullOrderByCreatedAtDesc(Integer customerId);
 
     List<Consultation> findByCustomerIdOrderByCreatedAtDesc(Integer customerId, Pageable pageable);
 

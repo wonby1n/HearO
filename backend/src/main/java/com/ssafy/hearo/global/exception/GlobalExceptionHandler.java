@@ -165,32 +165,13 @@ public class GlobalExceptionHandler {
                 .body(BaseResponse.fail("지원하지 않는 Content-Type입니다: " + e.getContentType(), HttpStatus.UNSUPPORTED_MEDIA_TYPE.value()));
     }
 
-    // ============== IllegalArgumentException 분기 처리 ==============
-    // NOTE: 서비스 레이어에서 커스텀 예외(AuthorizationException, ResourceNotFoundException 등)를
-    //       사용하도록 마이그레이션하면 이 문자열 분기 로직은 제거 가능
+    // ============== 잘못된 요청 (400) ==============
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<BaseResponse<Void>> handleIllegalArgumentException(IllegalArgumentException e) {
-        String message = e.getMessage();
-
-        // 권한 관련 → 403
-        if (message != null && message.contains("권한")) {
-            log.warn("Authorization error: {}", message);
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(BaseResponse.fail(message, HttpStatus.FORBIDDEN.value()));
-        }
-
-        // 리소스 미존재 → 404
-        if (message != null && (message.contains("찾을 수 없") || message.contains("없음") || message.contains("not found"))) {
-            log.warn("Resource not found: {}", message);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(BaseResponse.fail(message, HttpStatus.NOT_FOUND.value()));
-        }
-
-        // 기타 → 400
-        log.warn("Bad request: {}", message);
+        log.warn("Bad request: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(BaseResponse.fail(message, HttpStatus.BAD_REQUEST.value()));
+                .body(BaseResponse.fail(e.getMessage(), HttpStatus.BAD_REQUEST.value()));
     }
 
     // ============== 비즈니스 규칙 위반 (409) ==============

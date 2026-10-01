@@ -1,5 +1,6 @@
 package com.ssafy.hearo.domain.dashboard.service;
 
+import com.ssafy.hearo.global.exception.ResourceNotFoundException;
 import com.ssafy.hearo.domain.consultation.entity.Consultation;
 import com.ssafy.hearo.domain.consultation.repository.ConsultationRatingRepository;
 import com.ssafy.hearo.domain.consultation.repository.ConsultationRepository;
@@ -35,7 +36,7 @@ public class DashboardService {
 
     public DashboardSummaryResponse getDashboardSummary(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("사용자를 찾을 수 없습니다."));
 
         // 1. 스트레스 지수 계산 (User 엔티티 메서드 활용)
         // getDailyAvgStress()는 0.0~1.0을 반환하므로 * 100

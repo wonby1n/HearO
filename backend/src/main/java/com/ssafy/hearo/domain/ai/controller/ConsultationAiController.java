@@ -1,5 +1,6 @@
 package com.ssafy.hearo.domain.ai.controller;
 
+import com.ssafy.hearo.global.exception.ResourceNotFoundException;
 import com.ssafy.hearo.domain.ai.dto.ConsultationSummaryRequest;
 import com.ssafy.hearo.domain.ai.dto.ConsultationSummaryResponse;
 import com.ssafy.hearo.domain.ai.service.ConsultationSummaryService;
@@ -29,7 +30,7 @@ public class ConsultationAiController {
         }
 
         Consultation consultation = consultationRepository.findById(request.getConsultationId())
-                .orElseThrow(() -> new IllegalArgumentException("해당 상담이 존재하지 않습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("해당 상담이 존재하지 않습니다."));
 
         // 1) transcript 결정: 프론트가 보내면 그걸 우선, 아니면 DB에 저장된 fullTranscript 사용
         String transcript = request.getFullTranscript();

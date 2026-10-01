@@ -1,5 +1,6 @@
 package com.ssafy.hearo.domain.customer.service;
 
+import com.ssafy.hearo.global.exception.AuthorizationException;
 import com.ssafy.hearo.domain.customer.dto.BlacklistRequest;
 import com.ssafy.hearo.domain.customer.dto.BlacklistResponse;
 import com.ssafy.hearo.domain.customer.entity.Blacklist;
@@ -30,7 +31,7 @@ public class BlacklistService {
     public Long addBlacklist(Long userId, BlacklistRequest request) {
         // 1. 이미 블랙리스트인지 확인
         if (blacklistRepository.existsByUserIdAndCustomerId(userId, request.getCustomerId())) {
-            throw new IllegalArgumentException("이미 블랙리스트에 등록된 고객입니다.");
+            throw new IllegalStateException("이미 블랙리스트에 등록된 고객입니다.");
         }
 
         // 2. 엔티티 조회
@@ -70,7 +71,7 @@ public class BlacklistService {
 
         // 본인이 등록한 건인지 검증
         if (!blacklist.getUser().getId().equals(userId)) {
-            throw new IllegalArgumentException("본인이 등록한 블랙리스트만 삭제할 수 있습니다.");
+            throw new AuthorizationException("본인이 등록한 블랙리스트만 삭제할 수 있습니다.");
         }
 
         blacklistRepository.delete(blacklist);

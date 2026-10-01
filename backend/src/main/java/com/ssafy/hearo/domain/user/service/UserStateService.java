@@ -1,5 +1,6 @@
 package com.ssafy.hearo.domain.user.service;
 
+import com.ssafy.hearo.global.exception.ResourceNotFoundException;
 import com.ssafy.hearo.domain.user.entity.UserStatus;
 import com.ssafy.hearo.domain.user.entity.EnergyHistory;
 import com.ssafy.hearo.domain.user.entity.User;
@@ -31,7 +32,7 @@ public class UserStateService {
      */
     public void changeStatus(Long userId, UserStatus newStatus) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자 없음"));
+                .orElseThrow(() -> new ResourceNotFoundException("사용자 없음"));
 
         // 1-1. 현재(변경 직전) 에너지 계산 (이게 히스토리에 저장될 '결과값'이자 다음 상태의 '시작값')
         int currentEnergy = user.calculateRealTimeEnergy(LocalDateTime.now());
@@ -51,7 +52,7 @@ public class UserStateService {
      */
     public void switchToRestOnLogout(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자 없음"));
+                .orElseThrow(() -> new ResourceNotFoundException("사용자 없음"));
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -72,7 +73,7 @@ public class UserStateService {
      */
     public void switchToRestOnHeartbeatTimeout(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자 없음"));
+                .orElseThrow(() -> new ResourceNotFoundException("사용자 없음"));
 
         // 이미 REST 상태라면 중복 처리 방지
         if (user.getStatus() == UserStatus.REST) {
@@ -100,7 +101,7 @@ public class UserStateService {
      */
     public void applyImmediateDamage(Long userId, int damageAmount) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자 없음"));
+                .orElseThrow(() -> new ResourceNotFoundException("사용자 없음"));
 
         // 2-1. 현재 에너지 계산
         int currentEnergyBeforeDamage = user.calculateRealTimeEnergy(LocalDateTime.now());
@@ -121,7 +122,7 @@ public class UserStateService {
      */
     public void setEnergy(Long userId, int targetEnergy, String reason) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자 없음"));
+                .orElseThrow(() -> new ResourceNotFoundException("사용자 없음"));
 
         // 3-1. 현재(변경 직전) 에너지 계산
         int currentEnergy = user.calculateRealTimeEnergy(LocalDateTime.now());

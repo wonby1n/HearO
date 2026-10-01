@@ -75,78 +75,14 @@ class ExceptionHandlerTest {
     }
 
     @Nested
-    @DisplayName("IllegalArgumentException 문자열 분기 (레거시 호환)")
+    @DisplayName("IllegalArgumentException")
     class IllegalArgumentExceptionTest {
 
         @Test
-        @DisplayName("'권한' 포함 메시지 → 403 Forbidden")
-        void shouldReturn403WhenMessageContainsPermission() {
+        @DisplayName("메시지 내용과 무관하게 400 Bad Request (권한/미존재는 전용 예외 사용)")
+        void shouldReturn400RegardlessOfMessage() {
             // given
             IllegalArgumentException ex = new IllegalArgumentException("해당 할 일에 대한 권한이 없습니다.");
-
-            // when
-            var response = handler.handleIllegalArgumentException(ex);
-
-            // then
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
-            assertThat(response.getBody().getCode()).isEqualTo(403);
-            assertThat(response.getBody().getIsSuccess()).isFalse();
-            System.out.println("✓ IllegalArgumentException('권한') → 403 OK");
-        }
-
-        @Test
-        @DisplayName("'찾을 수 없' 포함 메시지 → 404 Not Found")
-        void shouldReturn404WhenMessageContainsNotFound() {
-            // given
-            IllegalArgumentException ex = new IllegalArgumentException("사용자를 찾을 수 없습니다.");
-
-            // when
-            var response = handler.handleIllegalArgumentException(ex);
-
-            // then
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-            assertThat(response.getBody().getCode()).isEqualTo(404);
-            assertThat(response.getBody().getIsSuccess()).isFalse();
-            System.out.println("✓ IllegalArgumentException('찾을 수 없') → 404 OK");
-        }
-
-        @Test
-        @DisplayName("'없음' 포함 메시지 → 404 Not Found")
-        void shouldReturn404WhenMessageContainsEmpty() {
-            // given
-            IllegalArgumentException ex = new IllegalArgumentException("데이터 없음");
-
-            // when
-            var response = handler.handleIllegalArgumentException(ex);
-
-            // then
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-            assertThat(response.getBody().getCode()).isEqualTo(404);
-            assertThat(response.getBody().getIsSuccess()).isFalse();
-            System.out.println("✓ IllegalArgumentException('없음') → 404 OK");
-        }
-
-        @Test
-        @DisplayName("'not found' 포함 메시지 → 404 Not Found")
-        void shouldReturn404WhenMessageContainsNotFoundEnglish() {
-            // given
-            IllegalArgumentException ex = new IllegalArgumentException("Rating not found");
-
-            // when
-            var response = handler.handleIllegalArgumentException(ex);
-
-            // then
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-            assertThat(response.getBody().getCode()).isEqualTo(404);
-            assertThat(response.getBody().getIsSuccess()).isFalse();
-            System.out.println("✓ IllegalArgumentException('not found') → 404 OK");
-        }
-
-        @Test
-        @DisplayName("기타 메시지 → 400 Bad Request")
-        void shouldReturn400ForOtherMessages() {
-            // given
-            IllegalArgumentException ex = new IllegalArgumentException("이미 블랙리스트에 등록된 고객입니다.");
 
             // when
             var response = handler.handleIllegalArgumentException(ex);
@@ -155,7 +91,6 @@ class ExceptionHandlerTest {
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
             assertThat(response.getBody().getCode()).isEqualTo(400);
             assertThat(response.getBody().getIsSuccess()).isFalse();
-            System.out.println("✓ IllegalArgumentException(기타) → 400 OK");
         }
 
         @Test
@@ -171,7 +106,6 @@ class ExceptionHandlerTest {
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
             assertThat(response.getBody().getCode()).isEqualTo(400);
             assertThat(response.getBody().getIsSuccess()).isFalse();
-            System.out.println("✓ IllegalArgumentException(null) → 400 OK");
         }
     }
 
